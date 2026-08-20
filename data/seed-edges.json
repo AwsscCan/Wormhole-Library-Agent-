@@ -1,0 +1,20 @@
+{
+  "_comment": "PLACEHOLDER seed by 队友01 — 队友03 负责扩充到 80+ 边。字段结构冻结：fromConceptId/toConceptId/relation/weight/explanation",
+  "edges": [
+    { "fromConceptId": "c_ai_agent", "toConceptId": "c_planning", "relation": "requires", "weight": 0.8, "explanation": "Agents plan action sequences." },
+    { "fromConceptId": "c_ai_agent", "toConceptId": "c_tool_use", "relation": "requires", "weight": 0.8, "explanation": "Agents act through tools." },
+    { "fromConceptId": "c_ai_agent", "toConceptId": "c_agent_memory", "relation": "has_component", "weight": 0.75, "explanation": "Agents need memory to persist context." },
+    { "fromConceptId": "c_ai_agent", "toConceptId": "c_multi_agent_coordination", "relation": "extends_to", "weight": 0.7, "explanation": "Multiple agents must coordinate." },
+    { "fromConceptId": "c_multi_agent_coordination", "toConceptId": "c_game_theory", "relation": "modeled_by", "weight": 0.75, "explanation": "Coordination is strategic interaction." },
+    { "fromConceptId": "c_game_theory", "toConceptId": "c_mechanism_design", "relation": "inverse_of", "weight": 0.8, "explanation": "Mechanism design is reverse game theory." },
+    { "fromConceptId": "c_agent_memory", "toConceptId": "c_human_memory", "relation": "inspired_by", "weight": 0.7, "explanation": "Agent memory borrows from human memory models." },
+    { "fromConceptId": "c_human_memory", "toConceptId": "c_cognitive_psychology", "relation": "studied_by", "weight": 0.8, "explanation": "Cognitive psychology studies memory." },
+    { "fromConceptId": "c_cognitive_psychology", "toConceptId": "c_forgetting_curve", "relation": "contains", "weight": 0.7, "explanation": "The forgetting curve is a classic memory finding." },
+    { "fromConceptId": "c_transformer", "toConceptId": "c_information_theory", "relation": "grounded_in", "weight": 0.6, "explanation": "Attention relates to information compression." },
+    { "fromConceptId": "c_information_theory", "toConceptId": "c_statistical_physics", "relation": "shares_math_with", "weight": 0.65, "explanation": "Entropy connects both fields." },
+    { "fromConceptId": "c_statistical_physics", "toConceptId": "c_phase_transition", "relation": "contains", "weight": 0.75, "explanation": "Phase transitions are core statistical physics." },
+    { "fromConceptId": "c_rag", "toConceptId": "c_information_retrieval", "relation": "built_on", "weight": 0.85, "explanation": "RAG retrieval is classic IR." },
+    { "fromConceptId": "c_information_retrieval", "toConceptId": "c_library_science", "relation": "descends_from", "weight": 0.7, "explanation": "IR grew out of library indexing." },
+    { "fromConceptId": "c_library_science", "toConceptId": "c_pkm", "relation": "applies_to", "weight": 0.65, "explanation": "Library methods apply to personal knowledge." }
+  ]
+}

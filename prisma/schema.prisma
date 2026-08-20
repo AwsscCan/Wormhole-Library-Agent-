@@ -1,0 +1,208 @@
+// Wormhole Library Agent — Prisma schema v1 (frozen by 队友01)
+// SQLite for hackathon local demo.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String             @id @default(cuid())
+  name              String?
+  createdAt         DateTime           @default(now())
+  sessions          Session[]
+  memories          UserMemory[]
+  interactions      Interaction[]
+  livingBookProfile LivingBookProfile?
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Concept {
+  id              String              @id
+  name            String
+  aliasesJson     String              @default("[]")
+  domain          String
+  description     String
+  embeddingJson   String              @default("[]")
+  popularity      Float               @default(0.5)
+  outgoingEdges   ConceptEdge[]       @relation("ConceptFrom")
+  incomingEdges   ConceptEdge[]       @relation("ConceptTo")
+  resourceLinks   ResourceConcept[]
+  livingBookLinks LivingBookConcept[]
+}
+
+model ConceptEdge {
+  id            String  @id @default(cuid())
+  fromConceptId String
+  toConceptId   String
+  relation      String
+  weight        Float   @default(0.5)
+  explanation   String
+  fromConcept   Concept @relation("ConceptFrom", fields: [fromConceptId], references: [id])
+  toConcept     Concept @relation("ConceptTo", fields: [toConceptId], references: [id])
+
+  @@index([fromConceptId])
+  @@index([toConceptId])
+}
+
+model LibraryResource {
+  id           String            @id
+  type         String
+  title        String
+  authorsJson  String            @default("[]")
+  year         Int?
+  language     String
+  abstract     String?
+  location     String?
+  callNumber   String?
+  availability String
+  difficulty   String
+  qualityScore Float             @default(0.5)
+  sourceUrl    String?
+  concepts     ResourceConcept[]
+}
+
+model ResourceConcept {
+  id         String          @id @default(cuid())
+  resourceId String
+  conceptId  String
+  weight     Float           @default(1.0)
+  resource   LibraryResource @relation(fields: [resourceId], references: [id])
+  concept    Concept         @relation(fields: [conceptId], references: [id])
+
+  @@unique([resourceId, conceptId])
+  @@index([conceptId])
+}
+
+model LivingBookProfile {
+  id               String              @id @default(cuid())
+  userId           String              @unique
+  user             User                @relation(fields: [userId], references: [id])
+  displayName      String?
+  displayMode      String              @default("anonymous")
+  bio              String?
+  expertiseLevel   String              @default("peer")
+  willingTypesJson String              @default("[]")
+  availabilityJson String              @default("{}")
+  consentState     String              @default("private")
+  helpfulnessScore Float               @default(0.5)
+  concepts         LivingBookConcept[]
+}
+
+model LivingBookConcept {
+  id           String            @id @default(cuid())
+  livingBookId String
+  conceptId    String
+  relation     String
+  weight       Float             @default(1.0)
+  livingBook   LivingBookProfile @relation(fields: [livingBookId], references: [id])
+  concept      Concept           @relation(fields: [conceptId], references: [id])
+
+  @@unique([livingBookId, conceptId, relation])
+  @@index([conceptId])
+}
+
+model UserMemory {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  category     String
+  key          String
+  valueJson    String
+  confidence   Float     @default(0.5)
+  source       String
+  useCount     Int       @default(0)
+  successCount Int       @default(0)
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([userId, category, key])
+}
+
+model Interaction {
+  id                    String        @id @default(cuid())
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id])
+  query                 String
+  taskType              String?
+  level                 String?
+  sliderValue           Int
+  extractedConceptsJson String        @default("[]")
+  createdAt             DateTime      @default(now())
+  feedback              Feedback[]
+  wormholeRuns          WormholeRun[]
+}
+
+model Feedback {
+  id                String      @id @default(cuid())
+  interactionId     String
+  interaction       Interaction @relation(fields: [interactionId], references: [id])
+  userId            String
+  targetType        String
+  targetId          String
+  rating            String
+  freeText          String?
+  memoryPatchesJson String      @default("[]")
+  createdAt         DateTime    @default(now())
+}
+
+model WormholeRun {
+  id                String         @id @default(cuid())
+  interactionId     String
+  interaction       Interaction    @relation(fields: [interactionId], references: [id])
+  userId            String
+  startConceptsJson String
+  sliderValue       Int
+  createdAt         DateTime       @default(now())
+  paths             WormholePath[]
+}
+
+model WormholePath {
+  id                   String      @id @default(cuid())
+  runId                String
+  run                  WormholeRun @relation(fields: [runId], references: [id])
+  pathConceptsJson     String
+  destinationConceptId String
+  resourceIdsJson      String      @default("[]")
+  livingBookIdsJson    String      @default("[]")
+  novelty              Float
+  noveltyFit           Float
+  bridgeScore          Float
+  qualityScore         Float
+  diversityScore       Float
+  finalScore           Float
+  explanation          String
+}
+
+model PersonMatch {
+  id                 String   @id @default(cuid())
+  requesterUserId    String
+  targetUserId       String
+  matchType          String
+  bridgeConceptsJson String
+  score              Float
+  explanation        String
+  status             String   @default("suggested")
+  createdAt          DateTime @default(now())
+}
+
+model ContactRequest {
+  id              String   @id @default(cuid())
+  personMatchId   String
+  requesterUserId String
+  targetUserId    String
+  message         String
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+}

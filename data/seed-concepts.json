@@ -1,0 +1,23 @@
+{
+  "_comment": "PLACEHOLDER seed by 队友01 — 队友03 负责扩充到 50+ 概念。字段结构冻结：id/name/aliases/domain/description/popularity",
+  "concepts": [
+    { "id": "c_ai_agent", "name": "AI Agent", "aliases": ["Agent", "智能体", "LLM Agent"], "domain": "Computer Science", "description": "Software entities that perceive, plan, and act to achieve goals.", "popularity": 0.9 },
+    { "id": "c_tool_use", "name": "Tool Use", "aliases": ["function calling", "工具调用"], "domain": "Computer Science", "description": "Agents invoking external tools and APIs to act.", "popularity": 0.7 },
+    { "id": "c_planning", "name": "Planning", "aliases": ["规划"], "domain": "Computer Science", "description": "Deciding action sequences to reach goals.", "popularity": 0.7 },
+    { "id": "c_agent_memory", "name": "Agent Memory", "aliases": ["记忆机制"], "domain": "Computer Science", "description": "How agents store and reuse past information.", "popularity": 0.65 },
+    { "id": "c_multi_agent_coordination", "name": "Multi-Agent Coordination", "aliases": ["多智能体协作", "MAS"], "domain": "Computer Science", "description": "How multiple agents cooperate or compete.", "popularity": 0.6 },
+    { "id": "c_game_theory", "name": "Game Theory", "aliases": ["博弈论"], "domain": "Economics", "description": "Mathematical study of strategic interaction.", "popularity": 0.6 },
+    { "id": "c_mechanism_design", "name": "Mechanism Design", "aliases": ["机制设计"], "domain": "Economics", "description": "Designing rules so strategic agents produce desired outcomes.", "popularity": 0.4 },
+    { "id": "c_human_memory", "name": "Human Memory", "aliases": ["人类记忆"], "domain": "Cognitive Science", "description": "How humans encode, store, and retrieve information.", "popularity": 0.5 },
+    { "id": "c_cognitive_psychology", "name": "Cognitive Psychology", "aliases": ["认知心理学"], "domain": "Cognitive Science", "description": "Scientific study of mental processes.", "popularity": 0.5 },
+    { "id": "c_forgetting_curve", "name": "Forgetting Curve", "aliases": ["遗忘曲线"], "domain": "Cognitive Science", "description": "How memory retention declines over time.", "popularity": 0.4 },
+    { "id": "c_transformer", "name": "Transformer", "aliases": ["注意力模型"], "domain": "Computer Science", "description": "Attention-based neural architecture.", "popularity": 0.8 },
+    { "id": "c_information_theory", "name": "Information Theory", "aliases": ["信息论"], "domain": "Mathematics", "description": "Quantifying information, entropy, and communication.", "popularity": 0.5 },
+    { "id": "c_statistical_physics", "name": "Statistical Physics", "aliases": ["统计物理"], "domain": "Physics", "description": "Physics of many-particle systems via statistics.", "popularity": 0.35 },
+    { "id": "c_phase_transition", "name": "Phase Transition", "aliases": ["相变"], "domain": "Physics", "description": "Abrupt changes of system state at critical points.", "popularity": 0.3 },
+    { "id": "c_rag", "name": "RAG", "aliases": ["Retrieval-Augmented Generation", "检索增强生成"], "domain": "Computer Science", "description": "LLM generation grounded in retrieved documents.", "popularity": 0.75 },
+    { "id": "c_information_retrieval", "name": "Information Retrieval", "aliases": ["信息检索", "IR"], "domain": "Computer Science", "description": "Finding relevant information in large collections.", "popularity": 0.6 },
+    { "id": "c_library_science", "name": "Library Science", "aliases": ["图书馆学"], "domain": "Library Science", "description": "Organization and curation of knowledge collections.", "popularity": 0.4 },
+    { "id": "c_pkm", "name": "Personal Knowledge Management", "aliases": ["PKM", "个人知识管理"], "domain": "Library Science", "description": "Methods for individuals to capture and organize knowledge.", "popularity": 0.45 }
+  ]
+}

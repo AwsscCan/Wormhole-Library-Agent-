@@ -1,0 +1,41 @@
+{
+  "_comment": "PLACEHOLDER seed by 队友01 — 队友02 负责扩充到 6+ 人物（全部虚构、consent 字段齐全）。结构冻结，对齐 LivingBookCard + consentState",
+  "livingBooks": [
+    {
+      "id": "lb_econ_student",
+      "displayMode": "anonymous",
+      "displayName": null,
+      "headline": "经济学研究生，做机制设计，愿意解释博弈论如何用于多智能体系统",
+      "bio": "Fictional demo profile.",
+      "expertiseLevel": "senior",
+      "consentState": "discoverable_anonymous",
+      "willingTypes": ["coffee_chat", "async_answer"],
+      "availabilityNote": "工作日晚上",
+      "conceptIds": ["c_mechanism_design", "c_game_theory"]
+    },
+    {
+      "id": "lb_cogsci_student",
+      "displayMode": "named",
+      "displayName": "学生B（演示数据）",
+      "headline": "认知科学方向，熟悉人类记忆模型，能帮 CS 同学理解记忆研究",
+      "bio": "Fictional demo profile.",
+      "expertiseLevel": "peer",
+      "consentState": "discoverable_named",
+      "willingTypes": ["reading_guide", "async_answer"],
+      "availabilityNote": "周末",
+      "conceptIds": ["c_cognitive_psychology", "c_human_memory", "c_forgetting_curve"]
+    },
+    {
+      "id": "lb_private_example",
+      "displayMode": "anonymous",
+      "displayName": null,
+      "headline": "（此人物 consentState=private，任何接口都不应返回它 — 用于隐私测试）",
+      "bio": "Fictional demo profile for consent tests.",
+      "expertiseLevel": "peer",
+      "consentState": "private",
+      "willingTypes": [],
+      "availabilityNote": null,
+      "conceptIds": ["c_transformer"]
+    }
+  ]
+}
