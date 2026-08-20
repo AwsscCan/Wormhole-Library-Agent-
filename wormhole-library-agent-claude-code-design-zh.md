@@ -1,679 +1,569 @@
-# Wormhole Library Agent 中文工程设计文档
+# PaperWorm — 论文 Agent 工程设计文档
 
-版本：1.3  
-用途：直接喂给 Claude Code 做 harness engineering / MVP 实现  
-项目定位：图书馆垂类 Agent + 可控知识偶遇 + 长期反馈记忆  
-默认队伍：三人团队，其中你包含在三人之中，并主要负责架构整合、统筹验收与 Demo 闭环  
+版本：2.0（基于 v1.3 重构，对齐七牛云主赛道 + 论文方向）
+用途：直接喂给 Claude Code / 队友做 MVP 实现
 
-## 0. 给 Claude Code 的先行约束
+---
 
-这不是概念策划文档，而是工程执行文档。Claude Code 必须产出一个能本地运行、能现场演示、能通过测试的 MVP。
+## 0. 先说清楚：这个项目改了什么
 
-必须遵守：
+v1.3 原版定位是"图书馆垂类 Agent"。我们讨论后决定改成**论文 Agent**，原因：
 
-1. 产品主体必须是“图书馆垂类 Agent”，不是泛知识推荐系统。
-2. Knowledge Wormhole、Knowledge Collision、Living Library、Serendipity Slider、Unknown Unknowns、反馈记忆都必须服务于图书馆场景。
-3. 每条虫洞最后必须落到馆藏资源、论文、课程、书架位置或 Living Library 人物资源上。
-4. 反馈记忆必须真实改变下一次推荐结果，不能只写入日志。
-5. 人物匹配必须有显式同意和匿名保护，不能默认暴露身份。
-6. MVP 采用单体 Web 应用，避免过早引入 Neo4j、Qdrant、独立 FastAPI、多服务编排和真实消息系统。
+1. **七牛云赛道最贴**——赛题要求"反馈记忆 Agent + 真实场景"，论文研究就是真实场景，你的记忆引擎已经建好
+2. **数据全免费**——OpenAlex + CrossRef 两个 API 验通了，论文搜索/引用/概念/摘要全包，不需要自建馆藏数据
+3. **图书馆气质不对**——大工图书馆赛道要的是"空间级改造"，个人论文工具气质不符，硬贴会四不像
 
-## 1. 这个 Agent 运行在什么上
+改动总结：
 
-### 1.1 运行形态
+| v1.3 原版 | v2.0 改成 | 为什么 |
+|---|---|---|
+| 图书馆馆藏（自建 seed） | 论文检索（OpenAlex API） | 数据免费真实，不用自建 |
+| Living Library（真人当活书） | **砍掉** | 社交匹配需网络效应，比赛做不出真 |
+| 虫洞靠 NLP 语义相似度 | 虫洞靠 OpenAlex 概念标签集合运算 | 已验证，确定性算法，不需要 NLP |
+| 记忆系统从零写 | 已有 Python 版（skill_extractor + memory_layers），TS 重写 or 包微服务 | 省 3-5 天 |
+| 四赛道并列 | 七牛云为主，开放原子/奇绩创坛为加分 | 聚焦，别四不像 |
+| 没有引用功能 | 新增：DOI → APA/MLA/国标格式 | 真痛点，奇绩创坛锚点 |
+| 没有摘要功能 | 新增：论点/结论/引言提取 | demo 杀器 |
 
-Wormhole Library Agent 在 MVP 阶段运行在一个本地或云端可部署的 Web 应用上。
+**主赛道**：七牛云——"具备反馈记忆能力的轻量 Agent 系统"
+**加分赛道**：开放原子（虫洞=制造意外）、奇绩创坛（论文又臭又长=真痛点）
+**不提**：大工图书馆（气质不符）
 
-用户看到的是：
+---
 
-```text
-浏览器里的图书馆 AI Agent
+## 1. 运行形态
+
+跟 v1.3 一样，Next.js 单体 Web 应用：
+
 ```
-
-工程上它由三层组成：
-
-```text
 浏览器前端
   -> Next.js API Routes
-  -> Library Agent Orchestrator
-  -> 内部工具函数与数据库
+  -> Paper Agent Orchestrator
+  -> 工具函数 + 外部 API + 数据库
 ```
 
-也就是说，这个 Agent 不是单独运行在 Claude、ChatGPT 或某个聊天窗口里。Claude Code 只是开发工具，负责把项目实现出来。真正的 Wormhole Agent 运行在项目自己的 Web 服务中。
+Agent 不是聊天机器人，是**工具编排器**：收到用户任务 → 规划 → 调工具 → 返回结果 → 收反馈 → 记忆更新 → 下次自动参考。
 
-### 1.2 推荐 MVP 技术栈
+### 技术栈
 
-| 层级 | 选择 | 原因 |
+| 层 | 选择 | 说明 |
 |---|---|---|
-| 前端 | Next.js App Router + React + TypeScript | 页面、API、服务端逻辑可以放在一个项目里，黑客松最稳 |
-| 后端 | Next.js API Routes | 不额外起 FastAPI，减少部署复杂度 |
-| 数据库 | SQLite + Prisma | 本地演示稳定，schema 清晰，后续可迁移 PostgreSQL |
-| 知识图谱 | 数据库表 + 内存图搜索 | MVP 不上 Neo4j，先实现可解释路径 |
-| 向量/相似度 | 预置 embedding JSON 或确定性伪向量 | 保证无 API Key 也能跑 |
-| LLM | OpenAI-compatible Provider 可选 | 只增强解释文本，不承担核心排序 |
-| 可视化 | React Flow 或 Cytoscape.js | 展示虫洞路径和知识地图 |
-| 测试 | Vitest + Playwright | 算法单测 + 演示链路验收 |
+| 前端 | Next.js App Router + React + TypeScript | 页面/API/逻辑放一个项目 |
+| 后端 | Next.js API Routes | 不额外起 FastAPI |
+| 数据库 | SQLite + Prisma | 本地演示稳定，后续可迁移 PostgreSQL |
+| 外部 API | OpenAlex（主力）+ CrossRef（引用格式）| 全免费，不用 Key |
+| LLM | Ollama 本地（可选）| 只增强摘要/综述，不承担核心排序 |
+| 知识图谱 | OpenAlex concepts + 内存图搜索 | 不上 Neo4j |
+| 可视化 | D3.js / Cytoscape.js | 引用关系地图 |
+| 测试 | Vitest + Playwright | 算法单测 + Demo 链路验收 |
 
-### 1.3 部署形态
+### 部署
 
-MVP 支持两种运行方式：
-
-```text
-本地演示：
+```bash
 npm install
 npm run db:push
 npm run db:seed
 npm run dev
-http://localhost:3000
+# http://localhost:3000
 ```
 
-```text
-云端部署：
-Vercel / Railway / Render
-SQLite 可替换为 PostgreSQL
-```
+不用装数据库、不用配 API Key、不用起 Ollama 也能跑通核心链路。
 
-黑客松现场优先保证本地演示稳定。云端部署是加分项，不是第一优先级。
+---
 
-### 1.4 Agent 的本质
+## 2. 赛道映射
 
-Wormhole Agent 是一个“工具编排器”，不是一个只会调用 LLM 的聊天机器人。
+### 主赛道：七牛云 — 具备反馈记忆能力的轻量 Agent 系统
 
-它的核心循环是：
+赛题原文：用户输入任务 → Agent 规划+调用预置工具+生成结果 → 用户反馈 → 系统沉淀偏好/规则/经验 → 后续相似任务自动参考记忆。
 
-```text
-理解用户任务
-  -> 调馆藏检索工具
-  -> 调概念图谱工具
-  -> 调虫洞生成工具
-  -> 调记忆读取工具
-  -> 调人物匹配工具
-  -> 生成可解释结果
-  -> 接收反馈
-  -> 编译成结构化记忆
-```
+考查点：记忆成本（token 费用、时间）、对话速度、记忆效果及是否准确使用。
 
-## 2. 赛题映射
+**我们的答案**：
 
-| 赛题 | 在 Wormhole 中的角色 | 对应功能 |
-|---|---|---|
-| 赛道 2：图书馆超进化 | 产品主体 | AI 馆员、馆藏检索、知识地图、沉睡书籍重新发现、人与图书馆空间连接 |
-| 赛道 3：制造一点意外 | 创新机制 | Knowledge Wormhole、Serendipity Slider、Unknown Unknowns、Knowledge Collision |
-| 赛道 4：反馈记忆 Agent | 底层能力 | 记住用户阅读偏好、知识距离偏好、难度承受度、人物匹配偏好，并在后续任务自动调用 |
+| 考查点 | 怎么解 |
+|---|---|
+| Agent 基础流程 | 用户输入 → orchestrator 规划 → 调用 paper_search / citation_format / paper_summarize 工具 → 返回结构化结果 |
+| 记忆偏好记录 | 用户反馈 → compileFeedback 编译成偏好 patch → 存入 L1 常驻记忆 + L4 用户画像 |
+| 后续任务参考 | 新请求进来 → 检索相关历史 → 注入可复用偏好/技能 → Agent 在结果中体现 |
+| **记忆成本** | 论文搜索和引用格式走 API，**零 token 成本**；摘要用 OpenAlex 原文摘要兜底，Ollama 只在需要提取论点时调用 |
+| **对话速度** | 核心链路全是 API + SQLite 查询，**毫秒级响应**；只有摘要提取走 LLM |
+| **记忆效果** | /memory 页可视化展示偏好画像 + 更新历史；demo 里反馈后重新搜索，排序明显变化 |
 
-一句话关系：
+**真实场景**：学术论文研究——每个研究生都在反复搜论文、筛选、读摘要、整理引用。这是真实的重复性任务，有真实的个性化需求（偏实证/偏理论、引用格式偏好）。
 
-```text
-赛道 2 是身体，赛道 3 是性格，赛道 4 是记忆。
-```
+### 加分赛道：开放原子 — 制造一点意外
 
-产品 UI 中不要写“我们融合了赛道 2/3/4”。这是答辩话术，不是用户语言。
+知识虫洞功能直接命中"不要继续猜用户下一步想要什么，试着创造一些他们自己都没想到会遇见的东西"。作为 Agent 的推荐策略之一展示，不是独立产品。
+
+### 加分赛道：奇绩创坛 — 给现实打补丁
+
+"论文又臭又长 + 引用格式折磨人"是任何人写过论文的人都能共情的真痛点。引用格式生成 + 论文摘要 = 给学术科研流程打的补丁。
+
+---
 
 ## 3. 产品定义
 
-Wormhole Library Agent 是一个具有长期反馈记忆和可控知识偶遇能力的图书馆垂类 Agent。
+PaperWorm 是一个**会记住你的论文 Agent**。
 
-它既能像传统馆员一样完成检索、找书、论文研究和阅读规划，又能理解用户长期的知识结构与阅读习惯，在合适的时候主动打开一条通往陌生知识领域的“虫洞”。
+Google Scholar 帮你搜论文，搜完就不管你了。PaperWorm 会记住你的口味——你偏好实证还是理论、你喜欢 APA 还是国标、你觉得哪些方向太数学了——下次搜的时候自动帮你筛选排序。
 
-### 3.1 核心价值
+具体来说它干这些事：
 
-传统图书馆检索解决：
+**Agent 调用的工具（预置能力）：**
 
-```text
-我知道我要找什么
-```
+1. **搜论文** — 关键词搜，返回列表 + 概念标签 + 被引数，按你的偏好排序
+2. **读论文** — 论文太长？帮你提取论点、结论、引言核心
+3. **生成引用** — 粘贴 DOI，APA / MLA / 国标格式自动生成，一键复制
+4. **文献综述草稿** — 给 3-5 篇论文，生成一段综述段落
 
-普通推荐系统解决：
+**反馈记忆怎么工作：**
 
-```text
-推荐更多我已经喜欢的东西
-```
+- 你说"这篇太理论了，我要实证的" → 记住"偏好实证研究"
+- 你说"用 APA 格式" → 下次自动默认 APA
+- 你说"这个方向有趣但数学太难" → 记住"数学容忍度低"，下次推数学少的
+- 下次搜论文 → 自动参考记忆，优先推符合你偏好的
 
-Wormhole 解决：
+**差异化加分——知识虫洞：**
 
-```text
-我不知道自己还应该知道什么
-```
+Agent 偶尔从你读的论文出发，顺引用链拐 2-3 跳，推给你一篇不相关领域但思路能帮到你的论文。比如读 Transformer 论文 → 虫洞拐到 AlphaFold（蛋白质结构预测也用了注意力机制）。这不是随机推荐，是引用图谱 + 概念差异度的确定性路径。
 
-### 3.2 目标用户
+### 目标用户
 
-1. 正在写课程论文的本科生。
-2. 正在找研究方向的研究生。
-3. 只知道模糊兴趣、不会构造检索词的学生。
-4. 希望在图书馆里找到书、论文、课程和人的学习者。
-5. 愿意把自己的经验开放成 Living Library 的同学。
+- 正在写课程论文的本科生
+- 正在找研究方向的研究生
+- 被引用格式折磨的人
+- 想快速判断一篇论文值不值得读的人
+
+---
 
 ## 4. 核心概念
 
-### 4.1 Knowledge Wormhole：知识虫洞
+### 4.1 论文搜索（paper_search）
 
-从用户当前主题出发，沿着一条可解释的知识路径，跳到一个用户原本不会搜索但确实相关的馆藏或人物资源。
+调用 OpenAlex API 搜论文。返回标题、DOI、年份、作者、被引数、摘要、概念标签。按用户记忆中的偏好排序（偏实证/偏理论、中文优先/英文优先等）。
 
-示例：
+**数据来源已验证**：OpenAlex 免费，请求头加邮箱即可，限流宽松。
 
-```text
-Multi-Agent Systems
-  -> Agent Coordination
-  -> Game Theory
-  -> Mechanism Design
-  -> 图书馆馆藏：《An Introduction to Game Theory》
+### 4.2 引用格式生成（citation_format）
+
+粘贴 DOI → 调 CrossRef API 拿完整元数据 → 纯字符串模板拼成 APA / MLA / GB-T 7714 格式。不需要 AI，不需要 LLM。
+
+**已验证**：DOI `10.1109/CVPR.2017.114` 查回完整作者/标题/年份/期刊/卷期页，手动拼出 APA 和国标格式。
+
+### 4.3 论文摘要提取（paper_summarize）
+
+OpenAlex 的 `abstract_inverted_index` 字段可以重建完整摘要。Ollama 负责从摘要中提取"核心论点 / 主要结论 / 引言背景"三段。Ollama 挂了就用 OpenAlex 原文摘要，标"原文摘要，未提取论点"。
+
+### 4.4 反馈记忆（feedback_memory）
+
+用户反馈不只是存聊天记录，是编译成结构化偏好：
+
 ```
-
-每条虫洞必须包含：
-
-1. 起点概念。
-2. 3 到 5 个桥接概念。
-3. 目标概念。
-4. 目标馆藏、论文、课程或 Living Library 人物。
-5. 用人话解释为什么这条跳跃成立。
-6. Novelty、Bridge、Quality、Final Score。
-
-### 4.2 Serendipity Slider：意外度滑块
-
-用户控制今天想离知识舒适区多远。
-
-| 区间 | 文案 | 含义 |
-|---:|---|---|
-| 0-20 | 附近书架 | 同领域新资料 |
-| 21-40 | 隔壁书架 | 相邻领域 |
-| 41-60 | 跨过楼层 | 明显跨学科 |
-| 61-80 | 另一栋楼 | 较远，但有清晰桥梁 |
-| 81-100 | 把我扔进深空 | 高意外度探索，但仍不能随机 |
-
-算法约束：
-
-```text
-target_novelty = slider_value / 100
-```
-
-滑块必须真实参与排序。
-
-### 4.3 Unknown Unknowns：未知的未知
-
-系统主动发现用户连关键词都不知道的领域。
-
-示例：
-
-用户输入：
-
-```text
-我想了解 Agent Memory
-```
-
-普通推荐：
-
-```text
-LangGraph Memory
-Vector DB
-RAG
-Long Context
-```
-
-Wormhole 额外发现：
-
-```text
-人类长期记忆
-认知心理学
-遗忘曲线
-个人信息管理
-```
-
-这些方向不是随机的，它们通过知识桥与用户当前主题相连。
-
-### 4.4 Knowledge Collision：知识碰撞
-
-让两个“不应该认识的人”因为知识结构的互补而相遇。
-
-不是找最相似的人，而是找有价值的差异。
-
-示例：
-
-```text
-用户 A：Multi-Agent Coordination
-用户 B：Mechanism Design
-桥梁：多个主体如何在规则下行动
-价值：A 带来 Agent 实现视角，B 带来机制设计视角
-```
-
-### 4.5 Living Library：每个人都是一本书
-
-图书馆不只收藏书和论文，也收藏愿意分享经验的人。
-
-Living Library 人物资源必须是 opt-in：
-
-```text
-我愿意作为匿名或实名“活馆藏”，被别人搜索到，用于回答某些主题的问题。
-```
-
-返回结果可以长这样：
-
-```text
-3 本书
-5 篇论文
-1 门课程
-2 位 Living Library 同学
-```
-
-### 4.6 反馈记忆
-
-用户反馈不只是保存聊天记录，而是被编译成 Agent 行为规则。
-
-示例：
-
-```text
-用户反馈：这个方向很有趣，但数学太难了。
-```
-
-系统记忆：
-
-```json
+用户反馈："这个方向很有趣，但数学太难了"
+  ↓ compileFeedback 编译成 patch
+  ↓
 {
-  "serendipity.likedDomains": ["Economics"],
-  "difficulty.mathTolerance": 0.38,
-  "reading.summaryFirst": true
+  "serendipity.likedDomains": ["Economics"],   // 喜欢经济学方向
+  "difficulty.mathTolerance": 0.38,             // 数学容忍度下降
+  "reading.summaryFirst": true                  // 摘要优先展示
 }
+  ↓
+下次搜论文 → 排序逻辑参考这些偏好 → 数学重的论文排名下降
 ```
+
+**已有 Python 实现**：`skill_extractor.py`（技能提炼）+ `memory_layers.py`（L1 常驻 + L2 SQLite 检索 + L4 画像），已通过端到端闭环测试。搬到 Web 版有两条路（见 Section 13）。
+
+### 4.5 知识虫洞（wormhole_suggest）— 加分项
+
+从用户读的论文出发，顺引用链拐 2-3 跳，推一篇概念差异度高的论文。
+
+**已验证算法**（不需要 NLP，集合运算）：
+
+1. OpenAlex 给每篇论文标了 10+ 个概念，每个带分数
+2. 用户读论文 A（概念：Transformer / 机器翻译 / BLEU）
+3. A 引用了 B，查 B 的概念（语料库语言学 / 语言学 / 哲学）
+4. A 和 B 的概念重叠很少 → 差异度 ≈ 60% → B 就是虫洞目的地
+5. 滑块控制差异度阈值：滑块低推高重叠的，滑块高推跨领域的
+
+**实测案例**：读 "Attention Is All You Need" → 虫洞拐到 "Penn Treebank"（1993 年语料库语言学）。更强的：引用 Transformer 的第一篇是 AlphaFold——从 AI 拐到生物。
+
+### 4.6 Serendipity Slider（意外度滑块）— 加分项
+
+用户控制今天想离知识舒适区多远：
+
+| 区间 | 含义 |
+|---|---|
+| 0-20 | 附近书架：同领域新论文 |
+| 21-40 | 隔壁书架：相邻领域 |
+| 41-60 | 跨过楼层：明显跨学科 |
+| 61-80 | 另一栋楼：较远但有清晰桥梁 |
+| 81-100 | 深空探索：高意外度但仍不随机 |
+
+滑块必须真实参与虫洞排序。
+
+---
 
 ## 5. 用户流程
 
 ### 5.1 第一次使用
 
-```text
+```
 用户打开首页
-  -> 输入：我想做一个 AI Agent 项目，但刚入门
-  -> 选择目标：项目
-  -> 选择水平：入门
-  -> Wormhole 返回基础馆藏和阅读路径
-  -> 用户拖动意外度滑块到 70
-  -> 系统生成 3 条知识虫洞
-  -> 用户点击“机制设计”虫洞
-  -> 系统展示知识桥和馆藏位置
-  -> 用户反馈：有趣，但数学太难
-  -> 系统更新记忆
+  -> 输入："我想找几篇 AI Agent 在科研中应用的论文"
+  -> Agent 调用 paper_search（OpenAlex）
+  -> 返回论文列表，每篇带摘要 + 概念标签 + 被引数
+  -> 用户对一条结果点"太理论了"
+  -> 系统记住"偏好实证研究"
 ```
 
-### 5.2 第二次使用
+### 5.2 第二次使用（记忆生效）
 
-```text
-用户输入：帮我找 Agent Memory 的资料
-  -> 系统读取记忆：
-     中文/综述优先
-     喜欢跨学科
-     数学难度中等偏低
-  -> 系统先给基础书籍和综述
-  -> 再主动给一条更适合的虫洞：
-     Agent Memory -> Human Memory -> Cognitive Psychology -> Forgetting Curve
+```
+用户输入："帮我找 Agent Memory 的论文"
+  -> 系统读取记忆：偏好实证、中文优先、数学容忍度低
+  -> paper_search 返回结果时自动按偏好排序
+  -> 实证类论文排在前面，纯理论的沉到后面
+  -> 系统主动给一条虫洞：Agent Memory → Human Memory → Cognitive Psychology
 ```
 
-### 5.3 人物匹配流程
+### 5.3 引用格式流程
 
-```text
-用户研究：多智能体协作
-  -> 系统发现匿名候选人：研究机制设计的同学
-  -> 系统解释碰撞理由
-  -> 用户点击“请求 15 分钟交流”
-  -> 对方同意前不显示身份和联系方式
-  -> 双方同意后才进入联系流程
 ```
+用户在论文详情页点"生成引用"
+  -> 粘贴 DOI: 10.1109/CVPR.2017.114
+  -> 系统调 CrossRef API 拿元数据
+  -> 选择格式：APA / MLA / GB-T 7714
+  -> 一键复制
+  -> 用户说"以后都用 APA"
+  -> 系统记住默认格式
+```
+
+---
 
 ## 6. MVP 边界
 
-### 6.1 必须实现
+### 6.1 必须实现（七牛云赛道答辩核心）
 
-1. 图书馆 Agent 首页。
-2. 馆藏资源检索结果。
-3. 阅读路径生成。
-4. Serendipity Slider。
-5. 虫洞路径生成和排序。
-6. Unknown Unknowns 卡片。
-7. 反馈按钮和自由文本反馈。
-8. 结构化记忆更新。
-9. Living Library 人物资源。
-10. Knowledge Collision 匹配卡。
-11. 隐私安全的联系人请求假流程。
-12. 单元测试和一条端到端 Demo 流程。
+| 功能 | 说明 | 数据来源 | 用 LLM |
+|---|---|---|---|
+| **论文搜索** | 关键词搜，返回列表+摘要+概念，按偏好排序 | OpenAlex API | 不用 |
+| **引用格式** | DOI → APA/MLA/国标，一键复制 | CrossRef API + 模板 | 不用 |
+| **反馈记忆** | 反馈 → 存偏好 → 下次自动参考排序 | 本地 SQLite + 文件 | 不用 |
 
-### 6.2 可以模拟，但必须有接口边界
+### 6.2 展示能力（让 Agent 看起来更聪明）
 
-| 模块 | MVP 做法 | 后续替换 |
+| 功能 | 说明 | 数据来源 | 用 LLM |
+|---|---|---|---|
+| **论文摘要** | 提取论点/结论/引言 | OpenAlex 摘要 + Ollama | 是（可降级）|
+| **文献综述** | 给 3-5 篇论文 → 生成综述段落 | 多篇摘要 + Ollama | 是 |
+| **引用关系地图** | 一篇论文的引用网络可视化 | OpenAlex + D3 | 不用 |
+| **阅读缺口分析** | "你读了 ABC，但该读 D" | 引用图谱差集 | 不用 |
+
+### 6.3 差异化加分项
+
+| 功能 | 说明 | 赛道 |
 |---|---|---|
-| 图书馆馆藏 | seed 数据 | 接真实图书馆 API |
-| 论文数据 | seed 数据 | 接 Semantic Scholar / Crossref / 学校数据库 |
-| embedding | 预置 JSON 或伪向量 | 接真实 embedding 模型 |
-| LLM | 可选，没有 Key 时走模板 | 接 OpenAI-compatible 模型 |
-| 消息系统 | 本地 contact request 表 | 接邮件/飞书/微信/校园系统 |
+| **知识虫洞** | 引用 2-3 跳 + 概念差异度 | 开放原子 |
+| **站内推送** | 定时推荐 + 偶尔一条虫洞 | 七牛云（记忆被持续使用）|
 
-### 6.3 不做
+### 6.4 不做
 
-1. AR 找书。
-2. 真实用户登录系统。
-3. 真实消息推送。
-4. Neo4j 大图数据库。
-5. Qdrant 向量数据库。
-6. 自动导入用户全部浏览历史。
-7. 复杂多 Agent 公司架构。
+- ~~Living Library（真人当活书）~~ — 社交匹配需网络效应，砍掉
+- ~~Knowledge Collision（人物碰撞）~~ — 依赖 Living Library，一起砍
+- ~~AR 找书~~
+- ~~真实消息推送系统~~ — 降级为站内通知
+- ~~Neo4j / Qdrant~~
+- ~~真实用户登录系统~~
+
+---
 
 ## 7. 系统架构
 
-```mermaid
-flowchart TD
-  U["用户"] --> UI["浏览器前端"]
-  UI --> API["Next.js API Routes"]
-  API --> ORCH["Library Agent Orchestrator"]
-  ORCH --> T1["馆藏检索工具"]
-  ORCH --> T2["概念抽取工具"]
-  ORCH --> T3["虫洞生成工具"]
-  ORCH --> T4["记忆读取/写入工具"]
-  ORCH --> T5["人物匹配工具"]
-  T1 --> DB["SQLite + Prisma"]
-  T2 --> DB
-  T3 --> DB
-  T4 --> DB
-  T5 --> DB
+```
+用户浏览器
+  |
+  v
+Next.js API Routes (7个接口)
+  |
+  v
+orchestrator.ts (唯一接线员)
+  |
+  +-> paper_search() -----> OpenAlex API
+  +-> citation_format() --> CrossRef API
+  +-> paper_summarize() --> OpenAlex + Ollama
+  +-> wormhole_suggest() -> OpenAlex (references + concepts)
+  +-> compileFeedback() -> 记忆引擎 (SQLite + 文件)
+  +-> getMemory() -------> 记忆引擎
+  +-> buildInjection() --> 记忆引擎
 ```
 
 核心原则：
+- 排序和路径生成必须是确定性代码
+- LLM 只负责润色摘要文本，不负责核心排序
+- 没有 LLM/Ollama 时，Demo 仍然完整可运行（OpenAlex 自带摘要）
+- 所有工具必须有类型定义和测试
 
-1. 排序和路径生成必须是确定性代码。
-2. LLM 只负责润色解释，不负责唯一正确性。
-3. 没有 LLM API Key 时，Demo 仍然完整可运行。
-4. 所有工具必须有类型定义和测试。
+---
 
 ## 8. 工具设计
 
-| 工具 | 作用 | MVP 要求 |
-|---|---|---|
-| `extractConcepts` | 从用户问题抽取概念 | 关键词/别名匹配，LLM 可选 |
-| `searchCatalog` | 检索图书、论文、课程 | 必须返回资源卡 |
-| `rankLibraryResources` | 根据任务、难度、记忆排序 | 必须可测试 |
-| `generateReadingPath` | 生成基础学习路径 | 从概念边构造 |
-| `generateWormholes` | 生成虫洞候选路径 | 必须落到资源 |
-| `rankWormholes` | 根据滑块和记忆排序 | 滑块必须影响结果 |
-| `findUnknownUnknowns` | 找用户未搜索但相关的领域 | 基于 novelty + bridge |
-| `findKnowledgeCollisions` | 找互补人物 | 必须检查同意状态 |
-| `searchLivingLibrary` | 检索活馆藏人物 | 只返回 opt-in 用户 |
-| `compileFeedbackMemory` | 把反馈编译成记忆 patch | 必须改变后续行为 |
-| `recordInteraction` | 记录一次交互 | 用于调试和验收 |
+| 工具 | 作用 | MVP 要求 | 数据来源 |
+|---|---|---|---|
+| `paper_search` | 关键词搜论文 | 必须返回论文卡（标题/摘要/概念/被引数）| OpenAlex |
+| `citation_format` | DOI → 引用格式 | 必须 APA/MLA/GB-T 三种 | CrossRef + 模板 |
+| `paper_summarize` | 提取论点/结论/引言 | Ollama 挂了走 OpenAlex 原文 | OpenAlex + Ollama |
+| `compileFeedback` | 反馈 → 记忆 patch | 必须改变后续排序 | 本地 |
+| `getMemory` | 读取用户偏好 | 返回结构化偏好 | 本地 |
+| `buildInjection` | 偏好注入到搜索结果 | 搜索结果按偏好重排 | 本地 |
+| `wormhole_suggest` | 引用 2-3 跳 + 概念差异度 | 滑块影响结果 | OpenAlex |
+| `findUnknownUnknowns` | 找用户没搜过但相关的领域 | 基于 novelty + bridge | OpenAlex |
+| `generateReview` | 给多篇论文生成综述段落 | Ollama 挂了走拼接 | 多篇摘要 + Ollama |
+
+---
 
 ## 9. 数据模型
 
-核心实体：
+### 9.1 Paper（论文）
 
-```text
-User
-Concept
-ConceptEdge
-LibraryResource
-ResourceConcept
-LivingBookProfile
-LivingBookConcept
-UserMemory
-Interaction
-Feedback
-WormholeRun
-WormholePath
-PersonMatch
-ContactRequest
-```
-
-### 9.1 Concept
-
-```ts
-type Concept = {
-  id: string;
-  name: string;
-  aliases: string[];
-  domain: string;
-  description: string;
-  embedding: number[];
-  popularity: number;
-};
-```
-
-### 9.2 LibraryResource
-
-```ts
-type LibraryResource = {
-  id: string;
-  type: "book" | "paper" | "course" | "thesis";
+```typescript
+type Paper = {
+  id: string;              // OpenAlex ID
+  doi: string | null;
   title: string;
-  authors: string[];
-  language: "zh" | "en";
-  location?: string;
-  callNumber?: string;
-  availability: "available" | "checked_out" | "online" | "unknown";
-  difficulty: "intro" | "undergrad" | "graduate" | "research";
-  qualityScore: number;
+  authors: Author[];
+  year: number;
+  venue: string | null;     // 期刊/会议
+  citedByCount: number;
+  abstract: string | null;  // 从 inverted_index 重建
+  concepts: ConceptTag[];   // OpenAlex 概念标签
+  openAccess: boolean;
+  openAccessPdf: string | null;
+};
+
+type Author = {
+  name: string;
+  orcid: string | null;
+  institution: string | null;
+};
+
+type ConceptTag = {
+  id: string;              // OpenAlex concept ID
+  name: string;
+  score: number;           // 0-1 相关度
+  level: number;           // 0=大类 4=细类
 };
 ```
 
-### 9.3 LivingBookProfile
+### 9.2 CitationFormat（引用格式）
 
-```ts
-type LivingBookProfile = {
-  id: string;
-  userId: string;
-  displayMode: "anonymous" | "named";
-  consentState: "private" | "discoverable_anonymous" | "discoverable_named" | "paused";
-  expertiseConceptIds: string[];
-  willingTypes: Array<"async_answer" | "coffee_chat" | "project_review" | "reading_guide">;
-  availability: Record<string, unknown>;
-  helpfulnessScore: number;
+```typescript
+type CitationFormat = {
+  doi: string;
+  style: "apa" | "mla" | "gbt7714" | "chicago";
+  text: string;            // 拼好的引用文本
+  source: "crossref" | "manual";
+};
+
+type CitationMetadata = {
+  doi: string;
+  title: string;
+  authors: { family: string; given: string }[];
+  year: number;
+  containerTitle: string;   // 期刊名/会议名
+  volume: string | null;
+  issue: string | null;
+  page: string | null;
+  publisher: string | null;
+  type: string;             // "journal-article" | "proceedings-article" | ...
 };
 ```
 
-### 9.4 UserMemory
+### 9.3 UserMemory（用户记忆）
 
-```ts
-type UserMemoryItem = {
-  id: string;
+```typescript
+type UserMemory = {
   userId: string;
-  category: "reading" | "difficulty" | "serendipity" | "task" | "social";
-  key: string;
-  valueJson: unknown;
-  confidence: number;
-  source: "explicit_feedback" | "implicit_click" | "profile" | "system_inferred";
+  category: "reading" | "difficulty" | "citation" | "serendipity" | "task";
+  key: string;              // 如 "reading.languagePref"
+  value: unknown;           // 如 "zh_first"
+  confidence: number;       // 0-1
+  source: "explicit_feedback" | "implicit_click" | "system_inferred";
   useCount: number;
-  successCount: number;
+  updatedAt: string;
 };
 ```
 
-## 10. 推荐与虫洞算法
-
-### 10.1 用户向量
-
-```text
-user_vector =
-  0.45 * 最近查询概念
-  + 0.25 * 点击资源概念
-  + 0.20 * 正反馈概念
-  + 0.10 * 显式画像概念
-```
-
-第一次使用时，只用当前查询概念。
-
-### 10.2 Novelty
-
-```text
-similarity = cosine(user_vector, candidate_vector)
-novelty = 1 - similarity
-target_novelty = slider_value / 100
-novelty_fit = 1 - abs(novelty - target_novelty)
-```
-
-### 10.3 BridgeScore
-
-从起点概念到目标概念找长度 2 到 5 的路径。
-
-```text
-path_strength = average(edge.weight)
-path_explainability = 1 - ((path_length - 3)^2 / 9)
-bridge_score = 0.65 * path_strength + 0.35 * path_explainability
-```
-
-淘汰规则：
-
-```text
-bridge_score < 0.35 的候选直接丢弃
-没有馆藏或 Living Library 落点的候选直接丢弃
-```
-
-### 10.4 QualityScore
-
-```text
-quality_score =
-  0.45 * 最高资源质量
-  + 0.25 * 可获得性
-  + 0.20 * 资源数量
-  + 0.10 * 难度匹配
-```
-
-### 10.5 最终分数
-
-```text
-final_score =
-  0.40 * bridge_score
-  + 0.30 * novelty_fit
-  + 0.20 * quality_score
-  + 0.10 * diversity_score
-```
-
-记忆修正：
-
-```text
-目标领域在 likedDomains 中：+0.05
-目标领域在 dislikedDomains 中：-0.08
-目标需要高数学且 mathTolerance < 0.4：-0.10
-用户要求中文优先且资源为中文：+0.04
-```
-
-## 11. 人物匹配机制
-
-### 11.1 匹配目标
-
-Wormhole 的人物匹配不是“找兴趣相同的人”，而是找“知识结构有碰撞价值的人”。
-
-匹配类型：
-
-| 类型 | 含义 |
-|---|---|
-| 相似研究 | 两人研究主题接近 |
-| 互补碰撞 | 两人主题不同，但由强桥梁连接 |
-| Living Library 导师 | 一人能在合适难度帮助另一人 |
-| Unknown Unknowns 向导 | 一人熟悉另一人即将进入的陌生领域 |
-
-MVP 优先做：
-
-```text
-互补碰撞 + Living Library 导师
-```
-
-### 11.2 CollisionScore
-
-```text
-topic_distance = 1 - cosine(A.vector, B.vector)
-topic_distance_fit = 1 - abs(topic_distance - 0.55)
-bridge_strength = max_bridge_score(A.concepts, B.concepts)
-complementarity = B.expertise 与 A.unknown_unknowns 的交集强度
-availability = 是否可用
-privacy_ok = 双方是否允许
-
-collision_score =
-  0.30 * topic_distance_fit
-  + 0.30 * bridge_strength
-  + 0.25 * complementarity
-  + 0.10 * availability
-  + 0.05 * 历史反馈适配
-```
-
-### 11.3 隐私流程
-
-```text
-系统计算匹配
-  -> 只展示匿名卡片和碰撞理由
-  -> 用户发起联系请求
-  -> 对方看到请求
-  -> 对方同意后才显示身份或联系方式
-```
-
-## 12. Living Library 模型
-
-Living Library 把愿意分享经验的人作为图书馆资源的一部分。
-
-### 12.1 人物状态
-
-| 状态 | 含义 |
-|---|---|
-| private | 不可发现 |
-| discoverable_anonymous | 匿名可发现 |
-| discoverable_named | 实名可发现 |
-| paused | 暂停展示 |
-
-### 12.2 可提供帮助类型
-
-| 类型 | 含义 |
-|---|---|
-| async_answer | 接受异步问题 |
-| coffee_chat | 接受 15 分钟交流 |
-| project_review | 可以看项目想法 |
-| reading_guide | 可以推荐入门资料 |
-
-### 12.3 LivingBookScore
-
-```text
-living_book_score =
-  0.35 * expertise_match
-  + 0.20 * difficulty_fit
-  + 0.20 * willingness_match
-  + 0.15 * availability
-  + 0.10 * past_helpfulness
-```
-
-## 13. 反馈记忆结构
-
-### 13.1 记忆类别
-
-| 类别 | 记什么 |
-|---|---|
-| reading | 中文/英文、书/论文、综述优先、一次给几个 |
-| difficulty | 数学难度、论文密度、推荐层级 |
-| serendipity | 默认滑块、喜欢的跨学科方向、不喜欢的方向 |
-| task | 课程作业/科研/项目/考试的资源策略 |
-| social | 是否接受人物匹配、是否匿名优先 |
-
-### 13.2 记忆示例
-
+记忆示例：
 ```json
 {
   "reading": {
-    "language": "zh_first",
-    "resourceTypeOrder": ["book", "survey_paper", "paper"],
-    "summaryFirst": true
+    "languagePref": "zh_first",
+    "summaryFirst": true,
+    "resultCount": 5
   },
   "difficulty": {
     "preferredLevel": "undergrad",
     "mathTolerance": 0.42
   },
-  "serendipity": {
-    "defaultSlider": 62,
-    "likedDomains": ["Cognitive Science", "Economics"]
+  "citation": {
+    "defaultStyle": "apa"
   },
-  "social": {
-    "matchingMode": "ask_first",
-    "anonymousFirst": true
+  "serendipity": {
+    "defaultSlider": 60,
+    "likedDomains": ["Cognitive Science", "Economics"],
+    "dislikedDomains": ["Pure Mathematics"]
   }
 }
 ```
 
-### 13.3 Memory Compiler
+### 9.4 WormholePath（虫洞路径）
 
-把自然语言反馈变成结构化 patch。
-
-```text
-反馈：这个虫洞很有趣，但数学太重
+```typescript
+type WormholePath = {
+  id: string;
+  startPaperId: string;
+  startConcepts: ConceptTag[];
+  bridgePapers: Paper[];     // 2-3 跳中间论文
+  targetPaperId: string;
+  targetConcepts: ConceptTag[];
+  explanation: string;       // 人话解释为什么拐到这里
+  scores: {
+    novelty: number;          // 概念差异度 0-1
+    bridge: number;           // 路径强度 0-1
+    quality: number;          // 目标论文质量 0-1
+    final: number;            // 加权总分
+  };
+};
 ```
 
-```json
+### 9.5 Interaction（交互记录）
+
+```typescript
+type Interaction = {
+  id: string;
+  userId: string;
+  query: string;
+  resultPaperIds: string[];
+  feedback: Feedback | null;
+  memoryUsed: string[];     // 这次用到了哪些记忆
+  createdAt: string;
+};
+
+type Feedback = {
+  targetType: "paper" | "wormhole" | "citation";
+  targetId: string;
+  rating: "too_theoretical" | "too_empirical" | "too_hard" | "just_right" | "interesting";
+  freeText: string | null;
+};
+```
+
+---
+
+## 10. 虫洞算法（已验证可行）
+
+### 10.1 数据基础
+
+OpenAlex 给每篇论文标了 10+ 个概念标签，每个带 score（0-1）和 level（0=大类 4=细类）。这些标签是现成的，不需要自己做 NLP 概念抽取。
+
+### 10.2 Novelty（概念差异度）
+
+```
+concepts_A = 用户当前论文的概念集合
+concepts_B = 候选虫洞论文的概念集合
+
+# 去掉大类（level=0）的干扰，只比 level >= 1 的概念
+concepts_A_filtered = {c.name for c in concepts_A if c.level >= 1 and c.score > 0.3}
+concepts_B_filtered = {c.name for c in concepts_B if c.level >= 1 and c.score > 0.3}
+
+overlap = concepts_A_filtered ∩ concepts_B_filtered
+only_B = concepts_B_filtered - concepts_A_filtered
+
+novelty = len(only_B) / len(concepts_B_filtered)   # B 独有概念占比
+```
+
+实测：Attention Is All You Need（机器翻译）→ Penn Treebank（语料库语言学），novelty ≈ 0.60。
+
+### 10.3 NoveltyFit（滑块适配度）
+
+```
+target_novelty = slider_value / 100
+novelty_fit = 1 - abs(novelty - target_novelty)
+```
+
+滑块 70 → target_novelty = 0.70 → 推 novelty 接近 0.70 的论文。
+滑块 20 → target_novelty = 0.20 → 推高重叠的论文。
+
+### 10.4 BridgeScore（路径强度）
+
+```
+# 从 A 到 B 找引用路径（1-3 跳）
+path_strength = average(edge.weight for edge in path)
+path_explainability = 1 - ((path_length - 2)^2 / 4)   # 2 跳最优，过长扣分
+bridge_score = 0.65 * path_strength + 0.35 * path_explainability
+```
+
+淘汰规则：
+- bridge_score < 0.35 的候选直接丢弃
+- 没有论文落点的候选直接丢弃
+
+### 10.5 QualityScore（目标论文质量）
+
+```
+quality_score =
+  0.45 * normalized_cited_by_count    # 被引数归一化
+  + 0.25 * open_access ? 1 : 0.5      # 开放获取加分
+  + 0.20 * has_abstract ? 1 : 0.3     # 有摘要加分
+  + 0.10 * difficulty_match           # 难度匹配用户
+```
+
+### 10.6 FinalScore
+
+```
+final_score =
+  0.40 * bridge_score
+  + 0.30 * novelty_fit
+  + 0.20 * quality_score
+  + 0.10 * diversity_score          # 与已推荐虫洞的多样性
+```
+
+### 10.7 记忆修正
+
+```
+if target_domain in memory.likedDomains:     final_score += 0.05
+if target_domain in memory.dislikedDomains:  final_score -= 0.08
+if target_needs_high_math and mathTolerance < 0.4:  final_score -= 0.10
+if memory.languagePref == "zh_first" and paper.is_chinese:  final_score += 0.04
+```
+
+---
+
+## 11. 反馈记忆引擎 — 七牛云赛道核心
+
+### 11.1 已建好的 Python 实现
+
+| 组件 | 文件 | 干什么 |
+|---|---|---|
+| 技能提炼 | `skill_extractor.py` | 多步任务完成 → 自动提炼成可复用技能；同义说法下次命中 → 自动注入 → uses+1 |
+| 分层记忆 | `memory_layers.py` | L1 常驻记忆（200 行去重）/ L2 会话归档（SQLite，token 检索 + 命中数排序）/ L4 用户画像 |
+| Agent 大脑 | `agent_brain.py` | get_system_prompt() 注入 7 个上下文：状态+记忆+任务+摘要+技能+画像+历史 |
+
+已通过端到端闭环测试：多步任务完成 → 技能提炼 → 同义说法命中 → uses 递增 → 无关请求不误命中 → L2 历史检索命中。
+
+### 11.2 怎么搬到 Web 版
+
+| 方案 | 做法 | 优点 | 缺点 |
+|---|---|---|---|
+| **路 A（推荐）** | 用 TypeScript 重写记忆引擎 | clean clone 体验好，npm install 就能跑 | 多 2-3 天工作量 |
+| **路 B** | Python 记忆引擎包 FastAPI 微服务 | 零重写，直接用测通代码 | 队友要装 Python + 依赖 |
+
+### 11.3 Memory Compiler
+
+把自然语言反馈变成结构化 patch：
+
+```
+反馈："这个方向很有趣，但数学太重"
+  ↓
 [
   {
     "key": "serendipity.likedDomains",
@@ -690,472 +580,636 @@ living_book_score =
 ]
 ```
 
-### 13.4 记忆预算
+### 11.4 记忆如何影响排序
 
-每次 Agent 调用最多注入：
+```typescript
+function rankWithMemory(papers: Paper[], memory: UserMemory): Paper[] {
+  return papers.map(p => {
+    let score = p.citedByCount;  // 基础分=被引数
 
-```text
-12 条记忆
-1200 字符以内
+    // 语言偏好
+    if (memory.reading?.languagePref === "zh_first" && p.isChinese)
+      score *= 1.15;
+
+    // 难度偏好
+    if (memory.difficulty?.mathTolerance < 0.4 && p.concepts.some(c => c.name === "Mathematics"))
+      score *= 0.7;
+
+    // 喜欢的领域加分
+    if (p.concepts.some(c => memory.serendipity?.likedDomains?.includes(c.name)))
+      score *= 1.1;
+
+    return { ...p, _rankScore: score };
+  }).sort((a, b) => b._rankScore - a._rankScore);
+}
 ```
 
-记忆选择公式：
+### 11.5 记忆预算（七牛云考查点）
 
-```text
+每次 Agent 调用最多注入：
+- 12 条记忆
+- 1200 字符以内
+
+记忆选择公式：
+```
 memory_relevance =
-  0.45 * 任务匹配
+  0.45 * 任务匹配度
   + 0.25 * 置信度
   + 0.15 * 新近程度
   + 0.15 * 历史成功率
 ```
 
+### 11.6 记忆成本分析
+
+| 操作 | 用不用 LLM | token 成本 | 耗时 |
+|---|---|---|---|
+| 论文搜索 | 不用 | 0 | ~200ms（OpenAlex API）|
+| 引用格式 | 不用 | 0 | ~100ms（CrossRef API + 模板）|
+| 记忆检索（L2）| 不用 | 0 | ~5ms（SQLite LIKE）|
+| 技能注入 | 不用 | 0 | ~1ms（文件读取）|
+| 论文摘要提取 | 用 Ollama | 低（分块）| ~3-5s |
+| 文献综述 | 用 Ollama | 中（多篇）| ~5-10s |
+
+**核心链路（搜索+引用+记忆）全是不用 LLM 的——记忆系统本身不烧 token。这是对比其他参赛队伍最大的优势。**
+
+---
+
+## 12. 数据来源 — 全免费，不用 API Key
+
+### OpenAlex（主力数据源）
+
+论文界的 Wikipedia，完全免费，请求头加邮箱就行。
+
+- **搜论文** — 关键词搜，返回标题/DOI/年份/作者/被引数/摘要/概念标签/开放获取状态
+- **论文摘要** — `abstract_inverted_index` 字段，倒排索引还原就是完整摘要
+- **概念标签** — 每篇论文自动标 10+ 个概念，带 score 和 level
+- **引用关系** — `referenced_works`（它引用了谁）+ `filter=cites:W...`（谁引用了它）
+
+实测：搜 "Attention Is All You Need" → 28 篇引用文献 + 6688 篇被引文献 + 10 个概念标签 + 完整摘要。
+
+### CrossRef（引用格式专用）
+
+DOI 的官方注册机构。给一个 DOI 返回完整书目信息：作者（姓+名分开）、标题、年份、期刊、卷号、期号、页码、论文类型。纯模板拼成 APA/MLA/国标。
+
+实测：DOI `10.1109/CVPR.2017.114` → 完整元数据 → 手动拼出 APA 和国标格式。
+
+### Semantic Scholar（备用，可不用）
+
+也有论文搜索和引用图谱，但无 Key 时频繁 429 限流。OpenAlex 覆盖了大部分功能。**可以完全不用。**
+
+### 限流对策
+
+| API | 风险 | 对策 |
+|---|---|---|
+| OpenAlex | 低 | User-Agent 带 mailto 即可 |
+| CrossRef | 低 | User-Agent 带 mailto 即可 |
+| Semantic Scholar | 高 | 申请免费 Key 或完全不用 |
+
+---
+
+## 13. 降级策略（缺什么都能跑，不骗人）
+
+| 如果这个没做完 | 系统怎么办 | 给用户看到什么 |
+|---|---|---|
+| OpenAlex 限流了 | 走本地缓存 seed 数据 | 标"离线缓存"徽标 |
+| CrossRef 挂了 | 让用户手动填元数据 | 标"手动模式" |
+| Ollama 挂了 | 摘要用 OpenAlex 原文摘要 | 标"原文摘要，未提取论点" |
+| 虫洞算法没写完 | 走引用图谱确定性路径（2 跳），滑块照样影响排序 | 用户无感知 |
+| 引用地图没画 | 只展示论文列表 | 隐藏地图入口 |
+| 推送没做 | 降级为站内通知 | "站内推送" |
+| 记忆引擎没搬完 | 用简化版（SQLite key-value 存偏好）| 功能降级但闭环 |
+
+**关键**：论文搜索、引用格式、记忆引擎这三个核心功能几乎不存在"做不出真"的风险——OpenAlex 和 CrossRef 是免费 API，记忆引擎已建好测通。
+
+---
+
 ## 14. 隐私与安全
 
-必须实现：
+- Demo seed 数据使用虚构论文和虚构用户
+- 不收集真实个人隐私
+- 用户可以查看和重置记忆
+- /memory 页提供"重置 Demo 记忆"按钮
+- ~~Living Library 隐私流程~~ — 已砍，不做社交匹配
 
-1. 用户默认不是 Living Library。
-2. 人物资料必须 opt-in 才能出现。
-3. 匿名匹配不暴露姓名、联系方式、学号。
-4. 联系请求必须双方同意。
-5. 用户可以关闭社交匹配。
-6. 用户可以查看和重置记忆。
-7. Demo seed 数据不得使用真实个人隐私。
-
-不能做：
-
-1. 自动推断敏感身份。
-2. 未经同意展示“某人会什么”。
-3. 把人物匹配做成公开排行榜。
-4. 把用户私密反馈展示给其他人。
+---
 
 ## 15. API 设计
 
 ### 15.1 搜索
 
-`POST /api/search`
+```
+POST /api/search
 
-```json
+请求：
 {
   "userId": "demo-user",
-  "query": "我想入门 AI Agent，准备用它做一个项目",
-  "taskType": "project",
-  "level": "beginner",
-  "sliderValue": 60
+  "query": "帮我找几篇 AI Agent 在科研中应用的论文",
+  "taskType": "project",       // project | research | coursework | exam
+  "level": "beginner",          // beginner | undergrad | graduate | research
+  "sliderValue": 60             // 虫洞意外度（可选，默认读记忆）
+}
+
+响应：
+{
+  "interactionId": "int_001",
+  "papers": [
+    {
+      "id": "W1234",
+      "title": "...",
+      "doi": "10.xxx/xxx",
+      "year": 2024,
+      "authors": [...],
+      "citedByCount": 42,
+      "abstract": "...",
+      "concepts": [{"name": "AI Agent", "score": 0.92}, ...],
+      "openAccess": true
+    }
+  ],
+  "readingPath": ["AI Agent", "Planning", "Tool Use", "Memory"],
+  "memoryUsed": ["偏好实证研究", "中文优先"],
+  "interactionId": "int_001"
 }
 ```
 
-返回：
+### 15.2 论文摘要
 
-```json
+```
+POST /api/summarize
+
+请求：
 {
-  "interactionId": "int_001",
-  "concepts": ["AI Agent", "Tool Use", "Planning"],
-  "resources": [],
-  "readingPath": ["AI Agent", "Planning", "Tool Use", "Memory", "Multi-Agent"],
-  "memoryUsed": ["中文优先", "综述优先"]
+  "paperId": "W1234",           // OpenAlex ID
+  "userId": "demo-user"
+}
+
+响应：
+{
+  "paperId": "W1234",
+  "abstract": "...",            // OpenAlex 原文摘要
+  "keyArgument": "...",         // Ollama 提取的核心论点
+  "mainConclusion": "...",      // Ollama 提取的主要结论
+  "introContext": "...",        // Ollama 提取的引言背景
+  "source": "ollama"            // ollama | openalex_only | cached
 }
 ```
 
-### 15.2 生成虫洞
+### 15.3 引用格式
 
-`POST /api/wormholes`
+```
+POST /api/citation
 
-```json
+请求：
+{
+  "doi": "10.1109/CVPR.2017.114",
+  "style": "apa"                // apa | mla | gbt7714 | chicago
+}
+
+响应：
+{
+  "doi": "10.1109/CVPR.2017.114",
+  "style": "apa",
+  "text": "Vaswani, A., Shazeer, N., ... (2017). Attention Is All You Need. Advances in Neural Information Processing Systems. https://doi.org/10.1109/CVPR.2017.114",
+  "metadata": {
+    "title": "Attention Is All You Need",
+    "authors": [...],
+    "year": 2017,
+    "container": "Advances in Neural Information Processing Systems",
+    "volume": null,
+    "page": "1013-1021"
+  },
+  "source": "crossref"
+}
+```
+
+### 15.4 提交反馈
+
+```
+POST /api/feedback
+
+请求：
 {
   "userId": "demo-user",
   "interactionId": "int_001",
-  "startConceptIds": ["c_ai_agent"],
+  "targetType": "paper",
+  "targetId": "W1234",
+  "rating": "too_theoretical",
+  "freeText": "这篇太理论了，我要实证的"
+}
+
+响应：
+{
+  "memoryPatches": [
+    {"key": "reading.prefEmpirical", "operation": "set", "value": true},
+    {"key": "difficulty.theoryTolerance", "operation": "decrement", "value": 0.1}
+  ],
+  "memoryUpdated": true
+}
+```
+
+### 15.5 生成虫洞
+
+```
+POST /api/wormholes
+
+请求：
+{
+  "userId": "demo-user",
+  "interactionId": "int_001",
+  "startPaperId": "W1234",
   "sliderValue": 70,
   "maxPaths": 3
 }
-```
 
-### 15.3 提交反馈
-
-`POST /api/feedback`
-
-```json
+响应：
 {
-  "userId": "demo-user",
-  "interactionId": "int_001",
-  "targetType": "wormhole",
-  "targetId": "wh_001",
-  "rating": "too_hard",
-  "freeText": "方向很有趣，但数学太难"
+  "wormholes": [
+    {
+      "id": "wh_001",
+      "path": ["W1234", "W5678", "W9012"],
+      "startConcepts": ["AI Agent", "Planning"],
+      "targetConcepts": ["Mechanism Design", "Game Theory"],
+      "targetPaper": {
+        "id": "W9012",
+        "title": "...",
+        "doi": "...",
+        "year": 1994,
+        "citedByCount": 5000
+      },
+      "explanation": "从 AI Agent 出发，Multi-Agent Coordination 研究多个主体如何协作，这跟机制设计研究多个主体如何在规则下行动有直接桥梁。",
+      "scores": {
+        "novelty": 0.68,
+        "bridge": 0.72,
+        "quality": 0.85,
+        "final": 0.74
+      }
+    }
+  ]
 }
 ```
 
-### 15.4 查询记忆
+### 15.6 查询/重置记忆
 
-`GET /api/memory?userId=demo-user`
+```
+GET /api/memory?userId=demo-user
 
-### 15.5 人物匹配
+响应：
+{
+  "userId": "demo-user",
+  "memory": {
+    "reading": {"languagePref": "zh_first", "summaryFirst": true},
+    "difficulty": {"mathTolerance": 0.42, "preferredLevel": "undergrad"},
+    "citation": {"defaultStyle": "apa"},
+    "serendipity": {"defaultSlider": 60, "likedDomains": ["Cognitive Science"]}
+  },
+  "history": [
+    {"timestamp": "2026-08-20T10:00:00Z", "action": "feedback", "detail": "偏好实证研究", "patches": [...]},
+    {"timestamp": "2026-08-20T10:05:00Z", "action": "feedback", "detail": "数学容忍度下降", "patches": [...]}
+  ]
+}
 
-`POST /api/matches`
+DELETE /api/memory?userId=demo-user
+-> 重置所有记忆到初始状态
+```
+
+### 统一错误格式
 
 ```json
 {
-  "userId": "demo-user",
-  "conceptIds": ["c_multi_agent_coordination"],
-  "mode": "collision"
+  "error": {
+    "code": "BAD_REQUEST" | "NOT_FOUND" | "INTERNAL_ERROR",
+    "message": "..."
+  }
 }
 ```
 
-### 15.6 联系请求
+---
 
-`POST /api/contact-requests`
+## 16. 数据库 Schema
 
-```json
-{
-  "userId": "demo-user",
-  "personMatchId": "pm_001",
-  "message": "我正在做多智能体项目，想约 15 分钟交流。"
+Prisma schema 需要以下模型：
+
+```prisma
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  memories  UserMemory[]
+  interactions Interaction[]
+}
+
+model Paper {
+  id            String   @id        // OpenAlex ID
+  doi           String?
+  title         String
+  year          Int?
+  venue         String?
+  citedByCount  Int      @default(0)
+  abstract      String?  // 重建后的文本
+  concepts      Json?    // ConceptTag[]
+  openAccess    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  interactions  Interaction[]
+}
+
+model UserMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  category  String   // reading | difficulty | citation | serendipity | task
+  key       String
+  value     Json
+  confidence Float   @default(0.5)
+  source    String   @default("explicit_feedback")
+  useCount  Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model Interaction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  query        String
+  resultPaperIds Json   // string[]
+  feedback     Json?    // Feedback
+  memoryUsed   Json?    // string[]
+  createdAt    DateTime @default(now())
+}
+
+model Feedback {
+  id              String   @id @default(cuid())
+  interactionId   String
+  targetType      String   // paper | wormhole | citation
+  targetId        String
+  rating          String   // too_theoretical | too_hard | just_right | interesting
+  freeText        String?
+  memoryPatches   Json?
+  createdAt       DateTime @default(now())
+}
+
+model WormholeRun {
+  id              String   @id @default(cuid())
+  userId          String
+  interactionId   String
+  startPaperId    String
+  sliderValue     Int
+  paths           Json     // WormholePath[]
+  createdAt       DateTime @default(now())
 }
 ```
 
-## 16. 数据库 schema
-
-Claude Code 应在 `prisma/schema.prisma` 中实现以下模型：
-
-```text
-User
-Session
-Concept
-ConceptEdge
-LibraryResource
-ResourceConcept
-LivingBookProfile
-LivingBookConcept
-UserMemory
-Interaction
-Feedback
-WormholeRun
-WormholePath
-PersonMatch
-ContactRequest
-```
-
-实现时可以参考英文版文档中的 Prisma schema，但最终 README 和注释应使用中文或中英混合的清晰命名说明。
+---
 
 ## 17. 前端页面
 
-### 17.1 `/`
+### 17.1 `/` — 首页
 
-图书馆 Agent 首页。
-
-必须包含：
-
-1. 主输入框。
-2. 任务类型选择。
-3. 难度选择。
-4. Demo 示例。
-5. 进入探索按钮。
-
-首页不是营销页，第一屏必须能直接使用。
-
-### 17.2 `/explore/[interactionId]`
-
-核心探索页。
+搜索框 + 论文列表 + 反馈条。第一屏必须能直接用。
 
 必须包含：
+- 主输入框（输入你想研究什么）
+- 任务类型选择（课程论文/科研项目/考试复习/项目开发）
+- 难度选择（入门/本科/研究生/科研）
+- Demo 示例文字
+- 搜索结果论文卡片列表
 
-1. 普通馆藏结果。
-2. 阅读路径。
-3. Serendipity Slider。
-4. 虫洞卡片。
-5. Unknown Unknowns。
-6. Living Library / Knowledge Collision 卡片。
-7. 反馈栏。
-8. 记忆更新提示。
+### 17.2 `/paper/[id]` — 论文详情
 
-### 17.3 `/map/[interactionId]`
+必须包含：
+- 论文标题/作者/年份/被引数
+- 摘要（原文 + Ollama 提取的论点/结论/引言）
+- 概念标签列表（可点击按概念筛论文）
+- 引用格式生成器（粘 DOI → 选格式 → 一键复制）
+- "试试知识虫洞"按钮
+- 反馈条（太理论/太实证/正好/太难）
 
-知识地图页。
+### 17.3 `/explore/[interactionId]` — 虫洞探索
 
-展示：
+必须包含：
+- 意外度滑块（0-100）
+- 虫洞卡片列表（起点→路径→终点 + 解释 + 分数）
+- 反馈按钮（有趣但太难 / 正好 / 不相关）
+- 反馈后记忆更新提示
+
+### 17.4 `/memory` — 记忆透明页（七牛云核心展示）
+
+必须包含：
+- 当前偏好画像（语言/难度/引用格式/虫洞偏好）
+- 最近记忆更新历史（时间线）
+- "重置 Demo 记忆"按钮
+- 默认意外度调整
+
+### 17.5 `/map/[interactionId]` — 引用关系地图（加分项）
+
+展示一篇论文的引用网络：当前论文 → 引用的论文 → 被引的论文，用 D3/Cytoscape 画可拖拽图。
+
+### 17.6 `/review` — 文献综述生成器（加分项）
+
+输入 3-5 篇论文 → Ollama 生成一段综述段落。
+
+---
+
+## 18. 组件设计
+
+| 组件 | 是什么 | 关键交互 |
+|---|---|---|
+| `PaperCard` | 论文卡片：标题/摘要/概念标签/被引数 | 概念标签可点筛选 |
+| `FeedbackBar` | 反馈条：「太理论」「太实证」「正好」「太难」 | **七牛云赛道心脏**——点击必须改变下次排序 |
+| `CitationFormatter` | 引用格式：DOI 输入 → 格式选择 → 一键复制 | 记住上次选择的格式 |
+| `WormholeCard` | 虫洞卡片：起点→路径→终点 + 解释 + 分数 | 展示"为什么拐到这里" |
+| `SerendipitySlider` | 意外度滑块：0-100 | 实时改变虫洞排序 |
+| `MemoryPanel` | 记忆画像 + 更新历史 | 七牛云核心展示 |
+| `ConceptTags` | 概念标签列表 | 可点击按概念筛选 |
+| `KnowledgeMap` | 引用关系网络图（D3/Cytoscape）| 可拖拽节点 |
+
+---
+
+## 19. Repo 结构
 
 ```text
-当前主题
-桥接概念
-目标概念
-馆藏资源
-Living Library 人物
-```
-
-### 17.4 `/memory`
-
-记忆透明页。
-
-用户可以：
-
-1. 查看当前偏好。
-2. 查看最近记忆更新。
-3. 重置 Demo 记忆。
-4. 关闭人物匹配。
-5. 调整默认意外度。
-
-### 17.5 `/living-library`
-
-活馆藏设置页。
-
-用户可以：
-
-1. 开启或关闭可发现状态。
-2. 选择匿名或实名。
-3. 添加擅长主题。
-4. 选择愿意帮助的方式。
-5. 查看联系请求。
-
-## 18. Repo 结构
-
-```text
-wormhole-library-agent/
+paperworm/
   app/
-    page.tsx
-    explore/[interactionId]/page.tsx
-    map/[interactionId]/page.tsx
-    memory/page.tsx
-    living-library/page.tsx
+    page.tsx                        # 首页：搜索框 + 论文列表
+    paper/[id]/page.tsx             # 论文详情：摘要 + 引用 + 虫洞入口
+    explore/[interactionId]/page.tsx # 虫洞探索：滑块 + 虫洞卡片
+    map/[interactionId]/page.tsx    # 引用关系地图
+    memory/page.tsx                 # 记忆画像 + 重置
+    review/page.tsx                 # 文献综述生成器
     api/
-      search/route.ts
-      wormholes/route.ts
-      feedback/route.ts
-      memory/route.ts
-      matches/route.ts
-      contact-requests/route.ts
+      search/route.ts               # POST 论文搜索
+      summarize/route.ts            # POST 论文摘要提取
+      citation/route.ts             # POST 引用格式生成
+      wormholes/route.ts            # POST 虫洞生成
+      feedback/route.ts             # POST 反馈提交
+      memory/route.ts              # GET/DELETE 记忆查询/重置
+
   components/
-    LibrarianSearchBox.tsx
-    ResourceCard.tsx
-    SerendipitySlider.tsx
-    WormholeCard.tsx
-    KnowledgeMap.tsx
-    MemoryPanel.tsx
-    LivingBookCard.tsx
+    PaperCard.tsx
     FeedbackBar.tsx
+    CitationFormatter.tsx
+    WormholeCard.tsx
+    SerendipitySlider.tsx
+    MemoryPanel.tsx
+    ConceptTags.tsx
+    KnowledgeMap.tsx
+
   lib/
+    types.ts                        # ★ 契约文件——全队数据唯一事实来源
     agent/
-      orchestrator.ts
-      tools.ts
-    catalog/
-      adapter.ts
-      seedCatalogAdapter.ts
-      ranking.ts
-    concepts/
-      conceptExtraction.ts
-      graph.ts
-      vectors.ts
+      orchestrator.ts               # ★ 集成核心——INTEGRATION POINT 全在这
+      tools.ts                      # 工具注册表
+    api/
+      openalex.ts                   # OpenAlex API 封装
+      crossref.ts                   # CrossRef API 封装
+    paper/
+      search.ts                     # 论文搜索 + 偏好排序
+      summarize.ts                  # 摘要提取（Ollama + OpenAlex 兜底）
+      citation.ts                   # 引用格式生成（模板拼接）
+      review.ts                     # 文献综述生成
     wormhole/
-      generate.ts
-      score.ts
-      paths.ts
+      generate.ts                   # 虫洞路径生成（引用 2-3 跳）
+      score.ts                      # 概念差异度 + bridge + quality 评分
+      paths.ts                      # 图路径搜索
     memory/
-      getMemory.ts
-      compileFeedback.ts
-      applyPatch.ts
-    matching/
-      collision.ts
-      livingLibrary.ts
-      consent.ts
+      getMemory.ts                  # 读取用户偏好
+      compileFeedback.ts            # 反馈 → 记忆 patch
+      applyPatch.ts                  # 应用 patch 到记忆
+      rankWithMemory.ts             # 按记忆重排搜索结果
     llm/
-      provider.ts
-      deterministicProvider.ts
-      openaiCompatibleProvider.ts
-    db/
-      prisma.ts
+      provider.ts                   # LLM 抽象（Ollama / 不可用）
+      deterministicProvider.ts       # 无 LLM 时的确定性分支
+
   prisma/
     schema.prisma
     seed.ts
+
   data/
-    seed-concepts.json
-    seed-edges.json
-    seed-resources.json
-    seed-living-books.json
+    seed-papers.json                # 50+ 篇论文（离线缓存用）
+    seed-concepts.json              # 50+ 概念
+    seed-edges.json                 # 80+ 概念关系边
+
   tests/
     unit/
+      search.test.ts
+      citation.test.ts
+      wormhole-score.test.ts
+      memory-compiler.test.ts
+      feedback-ranking.test.ts
     e2e/
+      demo.spec.ts
+
   docs/
     demo-script.md
     responsibility-packages.md
+
   README.md
 ```
 
-## 19. 三人责任包划分
+---
 
-本项目按“三人团队”划分，三人包含你本人。你主要负责架构整合、主应用闭环、接口冻结、验收统筹和 Demo harness；另外两名队友分别负责资源 grounding / Living Library，以及虫洞算法 / 反馈记忆。
+## 20. 三人责任包划分
 
-实际执行时，以 `outputs/responsibility-packages/` 下的三份责任子文档为准：
-
-1. `package-01-owner-integration.md`：你的任务包。
-2. `package-02-library-grounding-living-library.md`：队友一任务包。
-3. `package-03-wormhole-memory-algorithm.md`：队友二任务包。
-
-下面保留的是设计阶段的模块拆解参考，不作为最终人员分配依据。最终人员边界、交付物和验收标准均以三份子文档为准。
-
-分工原则来自数模分工 skill：每个包都必须是完整闭环，包含主优化目标、独立技术决策、实现、实验矩阵、结果解释和可验收交付物。禁止把某个人只分成“画图”“润色”“跑一下测试”。
-
-### 19.1 你的职责：总负责人 / 架构整合 / Demo 统筹
+### 20.1 队长（你）：架构整合 / 主应用闭环 / Demo 统筹
 
 | 项目 | 内容 |
 |---|---|
-| 分配对象 | 你 |
 | 责任范围 | 项目架构、接口冻结、任务拆解、进度控制、代码合并、测试验收、Demo 和答辩 |
-| 主优化目标 | 保证三名队员的成果能合成一个稳定可演示的 Wormhole Library Agent |
-| 独立技术决策 | 决定最终技术栈、repo 结构、API 契约、数据字段、Demo 主线和验收口径 |
-| 必做工作 | 建立主 repo；冻结 shared types；维护任务看板；合并三人 patch；跑完整测试；统一 UI 术语；写 README 和 Demo 脚本 |
-| 必做验收 | 每天至少一次集成；每个责任包必须能独立跑通测试；最终 3 分钟 Demo 必须在本地 clean seed 后完整跑通 |
-| 交付物 | 主 repo、接口文档、总 README、Demo 脚本、验收记录、最终答辩讲稿 |
-| 禁止接手 | 不替队员写核心算法；不替队员补完整实验矩阵；不把队员未完成模块默默改成静态假数据 |
-| 兜底边界 | 只做接口适配、冲突合并、轻量 bugfix；如果队员模块失败，降级为明确标注的 fallback，而不是伪装完成 |
+| 主优化目标 | 保证三名队员成果能合成一个稳定可演示的论文 Agent |
+| 必做工作 | 建主 repo；冻结 types.ts；维护任务看板；合并 patch；跑测试；统一 UI 术语；写 README 和 Demo 脚本 |
+| 必做验收 | 每天至少一次集成；每个责任包必须能独立跑通测试；最终 3 分钟 Demo 必须在 clean seed 后完整跑通 |
+| 交付物 | 主 repo、接口文档、总 README、Demo 脚本、验收记录、答辩讲稿 |
+| 兜底边界 | 只做接口适配、冲突合并、轻量 bugfix；队员模块失败时降级为标注的 fallback，不伪装完成 |
+| **禁止** | 不替队员写核心算法；不把队员未完成模块改成静态假数据 |
 
-你每天的统筹节奏：
+具体任务清单：
+1. 建 Next.js + Prisma 项目骨架
+2. 写 `lib/types.ts` 冻结所有数据结构
+3. 写 `orchestrator.ts` 标好所有 `INTEGRATION POINT`
+4. 写假数据引擎（fallback）让全链路第一天能跑
+5. 写 6 个页面 + 8 个组件的 UI 骨架
+6. 写 7 个 API route（收请求 → 转给 orchestrator → 返结果）
+7. 合并三人 patch，跑完整测试
+8. 写 README + Demo 脚本 + 答辩讲稿
 
-```text
-上午：冻结当天接口和验收目标
-中午：检查三名队员的最小可运行产物
-晚上：合并 patch，跑测试，更新 Demo 风险清单
-最后半天：只修阻断 Demo 的问题，不再加新功能
-```
-
-### 19.2 队员一：图书馆 Agent 主链路与馆藏 grounding
-
-| 项目 | 内容 |
-|---|---|
-| 分配对象 | 队员一 |
-| 责任范围 | AI 馆员主流程、馆藏检索、资源排序、阅读路径、API 主链路 |
-| 主优化目标 | 让产品首先像一个真正懂图书馆资源的 Agent，而不是泛聊天机器人 |
-| 独立技术决策 | 设计 `searchCatalog`、`rankLibraryResources`、`generateReadingPath` 的实现方式和资源排序权重 |
-| 必做实现 | `/api/search`、馆藏 seed 数据、资源卡字段、阅读路径生成、资源 grounding 文案、普通检索结果页的数据结构 |
-| 必做实验 | 不同任务类型下的资源排序对照：课程/项目/科研/考试；不同难度下的推荐差异；中文优先/英文优先的排序差异 |
-| 必做测试 | catalog ranking 单测、search API 测试、无 LLM fallback 测试 |
-| 交付物 | patch、seed 数据、API 返回样例、排序对照表、可写进答辩的“AI 馆员主链路”说明 |
-| 禁止触碰 | 不修改虫洞评分核心、不改人物匹配隐私规则、不把 UI 只做成静态卡片 |
-| 验收标准 | 输入“我想入门 AI Agent 做项目”后，能返回至少 5 个有理由、有难度、有位置/状态的资源和一条阅读路径 |
-
-队员一的具体任务清单：
-
-1. 设计 `LibraryResource` seed 数据，至少 30 条，覆盖书、论文、课程、学位论文。
-2. 为每条资源绑定 2 到 5 个 `Concept`。
-3. 实现 `searchCatalog(query, conceptIds, filters)`。
-4. 实现 `rankLibraryResources(resources, userMemory, taskType, level)`。
-5. 实现 `generateReadingPath(startConceptIds, taskType, level)`。
-6. 实现 `/api/search`。
-7. 给前端提供稳定 `ResourceCard` JSON。
-8. 写 `catalog-ranking.test.ts` 和 `search-api.test.ts`。
-9. 输出一张资源排序对照表，说明为什么项目型用户和科研型用户看到的结果不同。
-10. 给答辩准备 150 字以内说明：Wormhole 为什么首先是 AI 馆员。
-
-### 19.3 队员二：虫洞算法、Unknown Unknowns 与反馈记忆
+### 20.2 队友一：论文检索 / 馆藏 grounding / 引用格式
 
 | 项目 | 内容 |
 |---|---|
-| 分配对象 | 队员二 |
-| 责任范围 | 概念图谱、虫洞路径、Serendipity Slider、Unknown Unknowns、Memory Compiler |
-| 主优化目标 | 让“意外”可控、可解释、可复现，并能被反馈记忆持续调整 |
-| 独立技术决策 | 设计 novelty、bridge、quality、diversity 的权重；决定记忆 patch 如何影响排序 |
-| 必做实现 | `generateWormholes`、`rankWormholes`、`findUnknownUnknowns`、`compileFeedbackMemory`、记忆读取和更新、虫洞 API |
-| 必做实验 | slider=20/50/70/90 的虫洞结果对照；反馈前后排序变化对照；无馆藏落点候选淘汰实验 |
-| 必做测试 | noveltyFit 单测、低 bridge 淘汰测试、反馈更新 memory 测试、记忆影响排序测试 |
-| 交付物 | patch、算法说明、权重表、实验对照表、失败样例、可写进答辩的“可控偶然性”说明 |
-| 禁止触碰 | 不绕过馆藏 grounding，不生成随机无解释推荐，不直接暴露人物身份 |
-| 验收标准 | 同一查询在 slider=20 和 slider=70 下返回明显不同结果；用户反馈“太难”后，高数学资源排名下降 |
+| 责任范围 | 论文搜索、引用格式生成、资源排序、API 封装 |
+| 主优化目标 | 让 Agent 首先像真正懂论文的工具，不是泛聊天机器人 |
+| 必做实现 | `lib/api/openalex.ts`、`lib/api/crossref.ts`、`lib/paper/search.ts`、`lib/paper/citation.ts`、`/api/search`、`/api/citation` |
+| 必做实验 | 不同 taskType 下排序对照；中文优先/英文优先排序差异；引用格式三种对照 |
+| 必做测试 | search-api.test.ts、citation.test.ts、无 LLM fallback 测试 |
+| 交付物 | patch、API 封装、排序对照表、引用格式样例 |
+| 验收标准 | 输入"我想入门 AI Agent 做项目"返回至少 5 篇有摘要有概念的论文；粘 DOI 能生成正确的 APA/MLA/国标格式 |
 
-队员二的具体任务清单：
+具体任务清单：
+1. 封装 OpenAlex API（搜索、详情、引用关系、概念标签、摘要重建）
+2. 封装 CrossRef API（DOI 直查、标题搜索）
+3. 实现 `paper_search(query, filters)` 返回论文卡列表
+4. 实现 `citation_format(doi, style)` 返回格式化引用
+5. 填充 `data/seed-papers.json`（50+ 篇，离线缓存用）
+6. 写 search-api.test.ts 和 citation.test.ts
+7. 输出排序对照表：project vs research vs coursework 用户看到的不同结果
+8. 给答辩准备 150 字说明：PaperWorm 怎么帮你 30 秒判断一篇论文值不值得读
 
-1. 设计 `seed-concepts.json`，至少 50 个概念。
-2. 设计 `seed-edges.json`，至少 80 条概念边。
-3. 必须包含四条 Demo 概念链：Agent 到机制设计、Agent Memory 到认知心理学、Transformer 到相变、RAG 到图书馆学。
-4. 实现概念图路径搜索，支持长度 2 到 5。
-5. 实现 novelty、noveltyFit、bridgeScore、qualityScore、diversityScore。
-6. 实现 `generateWormholes` 和 `/api/wormholes`。
-7. 实现 `findUnknownUnknowns`。
-8. 实现 `compileFeedbackMemory` 和 `/api/feedback`。
-9. 写 slider 对照实验表：20/50/70/90 各返回什么，为什么不同。
-10. 写反馈前后对照表：反馈“太难”前后排名如何变化。
-11. 写 `wormhole-score.test.ts` 和 `memory-compiler.test.ts`。
-12. 给答辩准备 150 字以内说明：Wormhole 如何做到“不是随机，而是可控偶然”。
-
-### 19.4 队员三：Living Library、Knowledge Collision 与前端演示闭环
+### 20.3 队友二：虫洞算法 / 反馈记忆 / 概念图谱
 
 | 项目 | 内容 |
 |---|---|
-| 分配对象 | 队员三 |
-| 责任范围 | Living Library 模型、人物匹配、同意流程、核心页面、端到端 Demo |
-| 主优化目标 | 让图书馆从“资源库”变成“书、论文、课程、人”的知识网络，同时保证隐私安全 |
-| 独立技术决策 | 设计人物匹配卡、匿名展示、联系请求状态机和前端演示路径 |
-| 必做实现 | `/api/matches`、`/api/contact-requests`、Living Library 页面、Explore 页面人物卡、KnowledgeMap 可视化、Playwright Demo |
-| 必做实验 | 相似匹配 vs 互补碰撞对照；private/anonymous/named 三种 consent 状态测试；Demo 完整耗时测试 |
-| 必做测试 | 私密人物不出现、匿名人物不暴露身份、联系请求状态流转、Playwright Demo 流程 |
-| 交付物 | patch、人物 seed 数据、隐私状态机说明、端到端演示录屏或截图、可写进答辩的“Living Library”说明 |
-| 禁止触碰 | 不伪造真实个人信息，不默认公开联系方式，不把人物匹配做成普通好友推荐 |
-| 验收标准 | 搜索“多智能体协作”时能出现匿名机制设计方向人物卡；必须双方同意后才进入联系状态 |
+| 责任范围 | 概念图谱、虫洞路径生成、滑块排序、反馈记忆编译、记忆注入排序 |
+| 主优化目标 | 让"意外"可控、可解释、可复现，并能被反馈记忆持续调整 |
+| 必做实现 | `lib/wormhole/generate.ts`、`lib/wormhole/score.ts`、`lib/memory/compileFeedback.ts`、`lib/memory/applyPatch.ts`、`lib/memory/rankWithMemory.ts`、`/api/wormholes`、`/api/feedback`、`/api/memory` |
+| 必做实验 | slider=20/50/70/90 虫洞结果对照；反馈前后排序变化对照；低 bridge 淘汰实验 |
+| 必做测试 | wormhole-score.test.ts、memory-compiler.test.ts、feedback-ranking.test.ts |
+| 交付物 | patch、算法说明、权重表、实验对照表、可写进答辩的"可控偶然性"说明 |
+| 验收标准 | 同一查询 slider=20 和 slider=70 返回明显不同结果；用户反馈"太难"后高数学论文排名下降 |
 
-队员三的具体任务清单：
+具体任务清单：
+1. 实现 `generateWormholes(startPaperId, sliderValue)` — 引用 2-3 跳路径
+2. 实现 `score.ts` — novelty/bridge/quality/final 评分
+3. 实现 `compileFeedback(feedback)` — 反馈编译成 memory patch
+4. 实现 `applyPatch(memory, patches)` — 应用 patch 更新记忆
+5. 实现 `rankWithMemory(papers, memory)` — 按记忆重排搜索结果
+6. 填充 `data/seed-concepts.json`（50+ 概念）和 `data/seed-edges.json`（80+ 边）
+7. 写 slider 对照实验表：20/50/70/90 各返回什么，为什么不同
+8. 写反馈前后对照表：反馈"太难"前后排名如何变化
+9. 给答辩准备 150 字说明：PaperWorm 如何做到"不是随机，而是可控偶然"
 
-1. 设计 `seed-living-books.json`，至少 6 个 Living Library 人物，全部使用虚构数据。
-2. 实现 private、discoverable_anonymous、discoverable_named、paused 四种状态。
-3. 实现 `searchLivingLibrary`。
-4. 实现 `findKnowledgeCollisions`。
-5. 实现 `/api/matches`。
-6. 实现 `/api/contact-requests`。
-7. 实现首页、Explore 页面、Memory 页面、Living Library 页面。
-8. 实现 `KnowledgeMap`，能显示当前主题、桥接概念、目标概念、馆藏资源和 Living Library 人物。
-9. 写 consent 状态测试，证明 private 用户不会出现在结果中。
-10. 写 Playwright Demo 流程。
-11. 记录完整 Demo 耗时，目标控制在 3 分钟以内。
-12. 给答辩准备 150 字以内说明：Living Library 如何让图书馆收藏“人的经验”。
+### 20.4 接口约定（冻结后不许改）
 
-### 19.5 总负责人整合清单
+```typescript
+// 唯一事实来源：lib/types.ts
 
-总负责人只做整合，不接手队友核心实验。
-
-必须完成：
-
-1. 冻结 demo seed 数据版本。
-2. 统一术语：虫洞、意外度、活馆藏、知识碰撞、反馈记忆。
-3. 合并三人 patch。
-4. 跑完整测试。
-5. 跑 3 分钟 Demo。
-6. 写 README。
-7. 准备答辩脚本。
-8. 记录每个队员交付物 hash / 分支 / 运行命令。
-9. 维护一张风险表：未完成模块、阻断等级、降级方案、负责人。
-10. 每天结束前发一次整合状态：已合并、未合并、测试结果、明天第一优先级。
-
-总负责人不要做：
-
-1. 替队友写核心算法。
-2. 替队友跑完整实验矩阵。
-3. 替队友补没有实现的 API。
-4. 把队友截图或建议改造成可运行结果。
-5. 在最后一晚临时重写队友模块，除非是阻断 Demo 的小范围接口适配。
-
-### 19.6 三名队员接口约定
-
-三人并行开发前先冻结这些接口：
-
-```ts
-type ConceptId = string;
-type ResourceId = string;
+type PaperId = string;
 type UserId = string;
 type InteractionId = string;
 
-type ResourceCard = {
-  id: ResourceId;
+type PaperCard = {
+  id: PaperId;
   title: string;
-  type: string;
-  why: string;
-  location?: string;
-  availability: string;
-  difficulty: string;
-  conceptIds: ConceptId[];
+  doi: string | null;
+  year: number;
+  authors: string[];
+  citedByCount: number;
+  abstract: string | null;
+  concepts: ConceptTag[];
+  openAccess: boolean;
+  _rankScore?: number;       // 排序分（内部用）
+};
+
+type ConceptTag = {
+  id: string;
+  name: string;
+  score: number;
+  level: number;
 };
 
 type WormholeCard = {
   id: string;
-  path: string[];
+  path: PaperId[];
+  startConcepts: ConceptTag[];
+  targetConcepts: ConceptTag[];
+  targetPaper: PaperCard;
   explanation: string;
-  resourceIds: ResourceId[];
-  livingBookIds: string[];
   scores: {
     novelty: number;
     bridge: number;
@@ -1164,237 +1218,239 @@ type WormholeCard = {
   };
 };
 
-type PersonMatchCard = {
-  id: string;
-  displayMode: "anonymous" | "named";
-  headline: string;
-  bridge: string[];
-  collisionReason: string;
-  contactState: "request_required" | "pending" | "accepted" | "rejected";
+type CitationResult = {
+  doi: string;
+  style: "apa" | "mla" | "gbt7714" | "chicago";
+  text: string;
+  metadata: CitationMetadata;
+  source: "crossref" | "manual";
+};
+
+type Feedback = {
+  targetType: "paper" | "wormhole" | "citation";
+  targetId: string;
+  rating: "too_theoretical" | "too_empirical" | "too_hard" | "just_right" | "interesting";
+  freeText: string | null;
+};
+
+type MemoryPatch = {
+  key: string;
+  operation: "set" | "add_or_increment" | "decrement" | "remove";
+  value: unknown;
+  confidenceDelta: number;
 };
 ```
 
-接口冻结后，任何人修改字段都必须同步改测试和示例数据。
+冻结后，任何人修改字段都必须同步改测试和示例数据。**只允许加可选字段，禁止改名/删字段。**
 
-## 20. 实现优先级
+---
 
-### Day 1
+## 21. 实现优先级
 
-1. 建 Next.js + Prisma 项目。
-2. 完成 schema 和 seed。
-3. 跑通 `/api/search`。
-4. 跑通基础首页和 Explore 页面。
+### Day 1：骨架 + 核心搜索
 
-### Day 2
+1. 建 Next.js + Prisma 项目
+2. 完成 schema 和 seed 数据
+3. 封装 OpenAlex API（队友一）
+4. 跑通 `/api/search` — 能搜论文了
+5. 跑通基础首页和论文列表
+6. 冻结 types.ts
 
-1. 完成虫洞算法。
-2. 完成滑块排序。
-3. 完成反馈记忆。
-4. 完成 Living Library seed 和人物匹配。
+### Day 2：引用格式 + 反馈记忆
 
-### Day 3
+1. 封装 CrossRef API（队友一）
+2. 跑通 `/api/citation` — DOI → 引用格式
+3. 实现反馈记忆引擎（队友二）
+4. 跑通 `/api/feedback` + `/api/memory`
+5. 实现 `rankWithMemory` — 反馈后搜索结果排序变化
+6. **闭环验证**：搜论文 → 点"太理论" → 再搜 → 排序变了 ✓
 
-1. 完成知识地图。
-2. 完成隐私流程。
-3. 完成测试。
-4. 完成 Demo 脚本。
-5. 修 UI 和答辩故事。
+### Day 3：虫洞 + 摘要 + 测试 + Demo
 
-## 21. 测试与验收
+1. 实现虫洞算法（队友二）
+2. 跑通 `/api/wormholes` — 滑块改变结果
+3. 实现论文摘要（队长，Ollama + OpenAlex 兜底）
+4. 跑通 `/api/summarize`
+5. 写测试（单测 + E2E）
+6. 写 Demo 脚本
+7. 修 UI + 统一术语 + 准备答辩
 
-### 21.1 单元测试
+---
 
-必须覆盖：
+## 22. 测试与验收
 
-1. slider 越接近 candidate novelty，`noveltyFit` 越高。
-2. 没有资源落点的虫洞被淘汰。
-3. bridgeScore 过低的虫洞被淘汰。
-4. “太难”反馈会降低 mathTolerance。
-5. “太近”反馈会提高默认 novelty。
-6. likedDomain 会提升对应虫洞得分。
-7. private Living Library 不会出现在匹配结果中。
-8. Knowledge Collision 更偏好中等距离而非完全相同的人。
-
-### 21.2 API 测试
+### 22.1 单元测试
 
 必须覆盖：
 
-```text
-POST /api/search
-POST /api/wormholes
-POST /api/feedback
-GET /api/memory
-POST /api/matches
-POST /api/contact-requests
+- [ ] `paper_search` 返回论文列表，每篇有标题/摘要/概念/被引数
+- [ ] `citation_format` DOI → APA/MLA/国标格式正确（标点空格不错）
+- [ ] `compileFeedback` 反馈"太难" → mathTolerance 下降
+- [ ] `compileFeedback` 反馈"有趣" → likedDomains 加入
+- [ ] `rankWithMemory` 偏好实证 → 实证论文排名上升
+- [ ] `rankWithMemory` mathTolerance < 0.4 → 数学重论文排名下降
+- [ ] `generateWormholes` slider=20 vs slider=70 返回明显不同结果
+- [ ] `generateWormholes` 没有 paper 落点的虫洞被淘汰
+- [ ] `generateWormholes` bridge_score < 0.35 的候选被淘汰
+- [ ] `generateWormholes` 每条虫洞都有 explanation
+
+### 22.2 API 测试
+
+- [ ] POST /api/search — 返回论文列表 + memoryUsed
+- [ ] POST /api/citation — 返回格式化引用
+- [ ] POST /api/summarize — 返回摘要 + 论点/结论
+- [ ] POST /api/feedback — 返回 memoryPatches
+- [ ] GET /api/memory — 返回偏好画像 + 更新历史
+- [ ] DELETE /api/memory — 记忆重置
+- [ ] POST /api/wormholes — 返回虫洞列表 + 分数
+
+### 22.3 E2E Demo 测试
+
 ```
-
-### 21.3 E2E Demo 测试
-
-流程：
-
-```text
 打开首页
-  -> 输入：我想入门 AI Agent，准备用它做项目
-  -> 查看馆藏结果
-  -> 把滑块拖到 70
-  -> 生成机制设计虫洞
-  -> 提交反馈：有趣，但数学太难
-  -> 打开记忆页
-  -> 验证 mathTolerance 下降
+  -> 输入："我想入门 AI Agent，准备用它做一个项目"
+  -> 查看论文列表
+  -> 对一条结果点"太理论了"
+  -> 再搜一次 -> 排序明显变了，实证论文排前面
+  -> 点开一篇论文 -> 看到论点/结论提取
+  -> 点"生成引用" -> 粘 DOI -> APA 格式 -> 一键复制
+  -> 点"试试知识虫洞" -> 滑块拉到 70
+  -> 看到虫洞：AI Agent -> Multi-Agent -> Game Theory -> Mechanism Design
+  -> 点"太难了" -> 打开 /memory 页 -> mathTolerance 下降
+  -> 点"重置 Demo 记忆" -> 记忆归零
 ```
 
-## 22. Demo 脚本
+---
 
-### 开场
+## 23. Demo 脚本（3 分钟）
 
-普通图书馆 AI 帮你找你已经知道要找的东西。Wormhole 想解决另一个问题：你不知道自己还应该知道什么。
+### 开场（15 秒）
 
-### 第一步：AI 馆员
+Google Scholar 帮你搜论文，搜完就不管你了。PaperWorm 会记住你的口味——你说"太理论了"，下次它就优先推实证的。偶尔还会带你拐到一个你从没搜过的领域。
 
-输入：
+### 第一步：搜索 + 反馈（45 秒）
 
-```text
-我想入门 AI Agent，准备用它做一个项目。
-```
+输入：`我想入门 AI Agent，准备用它做一个项目`
 
-展示：
+展示：论文列表，每篇带摘要 + 概念标签 + 被引数。
 
-1. 入门书。
-2. 综述论文。
-3. 阅读路径。
-4. 馆藏位置和状态。
+对一条偏理论的论文点"太理论了"。
 
-### 第二步：打开虫洞
+### 第二步：记忆生效（30 秒）
 
-把意外度调到 70。
+再搜一次同样的关键词。
 
-展示：
+**重点**：结果排序明显变了——实证类论文排在前面，纯理论的沉到后面。UI 上标着"本次参考了你的偏好：偏好实证研究"。
 
-```text
-AI Agent
-  -> Multi-Agent Coordination
-  -> Game Theory
-  -> Mechanism Design
-```
+### 第三步：论文摘要 + 引用格式（30 秒）
 
-解释：
+点开一篇论文 → 看到论点/结论/引言三段提取。
 
-这不是随机推荐。多智能体协作和机制设计都研究“多个主体如何在规则下行动”。
+点"生成引用" → 粘 DOI → 选 APA → 一键复制。
 
-### 第三步：Unknown Unknowns
+### 第四步：知识虫洞（45 秒）
 
-展示：
+点"试试知识虫洞" → 意外度拉到 70。
 
-```text
-你可能不会主动搜索：Mechanism Design
-为什么相关：它可以帮助你设计多 Agent 系统中的规则和激励。
-```
+展示虫洞：AI Agent → Multi-Agent Coordination → Game Theory → Mechanism Design
 
-### 第四步：Knowledge Collision
+解释：这不是随机推荐。多智能体协作和机制设计都研究"多个主体如何在规则下行动"，有直接的知识桥梁。
 
-展示：
+点"太难了"。
 
-```text
-一位匿名同学正在研究机制设计，可能能帮你从经济学角度理解多智能体协作。
-```
+### 第五步：记忆透明页（15 秒）
 
-说明：
-
-只有双方同意后才会交换联系方式。
-
-### 第五步：反馈记忆
-
-输入反馈：
-
-```text
-这个方向很有趣，但数学太难了。
-```
-
-展示记忆变化：
-
-```text
-跨学科兴趣：上升
-经济学方向：上升
-数学难度容忍：下降
-```
+打开 /memory 页 → 看到：数学容忍度下降、经济学方向加入偏好、更新历史时间线。
 
 ### 收尾
 
-Wormhole 把图书馆从搜索框变成一个活的知识网络：书、论文、课程、书架和人，都可以通过一个会记住你的 AI 馆员被重新连接起来。
+PaperWorm 把论文搜索从"搜完就不管你了"变成"一个会记住你的 Agent"。搜索、引用、摘要都走免费 API 零 token 成本，反馈记忆走本地 SQLite 毫秒级响应。偶尔带你拐到一个你从没搜过的领域——这是"制造意外"。
 
-## 23. Claude Code 执行规则
-
-Claude Code 必须按以下顺序实现：
-
-1. 初始化项目。
-2. 建 Prisma schema。
-3. 写 seed 数据。
-4. 实现馆藏检索。
-5. 实现概念图谱。
-6. 实现虫洞评分。
-7. 实现反馈记忆。
-8. 实现人物匹配。
-9. 实现前端页面。
-10. 写测试。
-11. 跑验收命令。
-12. 写 README。
-
-最低验收命令：
-
-```bash
-npm run lint
-npm run test
-npm run build
-```
-
-如果配置了 Playwright：
-
-```bash
-npm run test:e2e
-```
+---
 
 ## 24. Seed 数据要求
 
-至少包含：
+### 离线缓存用（OpenAlex 限流时的 fallback）
 
-1. 50 个概念。
-2. 80 条概念边。
-3. 30 个馆藏资源。
-4. 6 个 Living Library 人物。
-5. 1 个 demo user。
-6. 3 条 demo memory。
+| 文件 | 数量 | 内容 |
+|---|---|---|
+| `seed-papers.json` | 50+ 篇 | 论文（标题/DOI/年份/作者/摘要/概念/被引数）|
+| `seed-concepts.json` | 50+ 个 | 概念节点（name/aliases/domain/score）|
+| `seed-edges.json` | 80+ 条 | 概念关系边（source/target/weight）|
 
-必须包含的概念链：
+### 必须包含的概念链（虫洞 Demo 用）
 
-```text
-AI Agent -> Multi-Agent Coordination -> Game Theory -> Mechanism Design
-AI Agent -> Agent Memory -> Human Memory -> Cognitive Psychology -> Forgetting Curve
-Transformer -> Information Theory -> Statistical Physics -> Phase Transition
-RAG -> Information Retrieval -> Library Science -> Personal Knowledge Management
-```
+1. AI Agent → Multi-Agent Coordination → Game Theory → Mechanism Design
+2. AI Agent → Agent Memory → Human Memory → Cognitive Psychology → Forgetting Curve
+3. Transformer → Information Theory → Statistical Physics → Phase Transition
+4. RAG → Information Retrieval → Library Science → Personal Knowledge Management
 
-必须包含的资源：
+### 必须包含的论文
 
-```text
-Artificial Intelligence: A Modern Approach
-Multiagent Systems
-An Introduction to Game Theory
-Cognitive Psychology and Its Implications
-Introduction to Information Retrieval
-图书馆学 / 知识管理相关资源
-```
+- Artificial Intelligence: A Modern Approach
+- Attention Is All You Need
+- Multiagent Systems (Wooldridge)
+- An Introduction to Game Theory (Osborne)
+- Cognitive Psychology and Its Implications
+- Introduction to Information Retrieval
 
-## 25. 最终完成定义
+### Demo 用户
+
+- 1 个 demo user（`demo-user`）
+- 3 条初始 memory（偏好实证、中文优先、mathTolerance=0.5）
+
+---
+
+## 25. 硬规矩（不许造假）
+
+1. **反馈必须真的改变后续推荐**。用户说"太理论了"，下次搜索排序必须真的变。
+2. **记忆必须有据可查**。/memory 页展示偏好画像 + 更新历史，不是黑箱。
+3. **引用格式必须是真的**。APA 就是 APA，标点空格不能错。调 CrossRef 拿真实元数据，不编造。
+4. **论文摘要必须是论文内容的真实提取**。Ollama 挂了就用 OpenAlex 原文摘要，不能用通用废话编。
+5. **虫洞必须落在真实论文上**。终点必须是有 DOI 的真实论文，不能凭空编。
+6. **每个虫洞必须展示路径**。展示 A→B→C 的引用链 + 人话解释，让用户理解"为什么拐到这里"。
+7. **滑块必须真实改变排序**。slider=20 和 slider=70 返回明显不同的虫洞。
+8. **clone 下来必须能跑**。npm install && npm run dev 就能起步，不依赖外部 API Key。
+9. **降级必须标注**。用了 fallback 数据就标"离线缓存"，Ollama 挂了就标"原文摘要"。不骗用户。
+
+---
+
+## 26. 最终完成定义
 
 项目完成必须同时满足：
 
-1. 本地能运行。
-2. 首页就是可用 Agent，不是概念介绍。
-3. 馆藏资源可检索。
-4. 虫洞路径可生成。
-5. 滑块会改变排序。
-6. 反馈会改变记忆。
-7. 记忆会影响下一次推荐。
-8. Living Library 人物匹配遵守同意流程。
-9. 三人责任包都有独立交付物。
-10. Demo 能在 3 分钟内讲完。
+- [ ] 本地能运行（npm install && npm run dev）
+- [ ] 首页就是可用的论文搜索 Agent，不是概念介绍页
+- [ ] 论文搜索返回真实论文数据（OpenAlex API）
+- [ ] 引用格式生成正确（CrossRef API + 模板，APA/MLA/国标）
+- [ ] 反馈会改变记忆（compileFeedback → memory patch）
+- [ ] 记忆会影响下一次搜索排序（rankWithMemory）
+- [ ] /memory 页展示偏好画像 + 更新历史
+- [ ] 虫洞路径可生成且滑块影响排序
+- [ ] 每条虫洞有解释和路径
+- [ ] 论文摘要可提取论点/结论（Ollama 挂了走 OpenAlex 原文）
+- [ ] 三人责任包都有独立交付物
+- [ ] Demo 能在 3 分钟内讲完
+- [ ] 无 LLM API Key 时核心链路可跑（搜索+引用+记忆）
+
+---
+
+## 附录：跟 v1.3 原版的差异对照
+
+| 维度 | v1.3 原版 | v2.0 改版 |
+|---|---|---|
+| 产品定位 | 图书馆垂类 Agent | 论文 Agent（会记住你） |
+| 主赛道 | 四赛道并列 | 七牛云为主，开放原子/奇绩创坛为加分 |
+| 馆藏数据 | 自建 seed | OpenAlex API（免费真实）|
+| 引用格式 | 无 | CrossRef API + 模板（APA/MLA/国标）|
+| 论文摘要 | 无 | OpenAlex 摘要重建 + Ollama 提取论点 |
+| 记忆引擎 | 从零写 | 已有 Python 版，TS 重写 or 包微服务 |
+| 虫洞算法 | NLP 语义相似度 | OpenAlex 概念标签集合运算（已验证）|
+| Living Library | 核心功能 | **砍掉** |
+| Knowledge Collision | 核心功能 | **砍掉** |
+| 人物匹配 | 核心功能 | **砍掉** |
+| 前端页面 | 5 个页面 | 6 个页面（新增论文详情 + 综述）|
+| API 路由 | 6 个 | 7 个（新增 citation + summarize）|
+| Demo 主线 | 虫洞为主 | 反馈→记忆→排序变化为主 |
+| 降级策略 | 有 | 有 + 验证过的 API fallback |
+| 记忆成本 | 未分析 | 有成本表（核心链路零 token）|
