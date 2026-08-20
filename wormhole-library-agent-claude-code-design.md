@@ -871,6 +871,26 @@ DELETE /api/memory?userId=demo-user
 -> Resets all memory to initial state
 ```
 
+### 15.7 Literature Review
+
+```
+POST /api/review
+
+Request:
+{
+  "userId": "demo-user",
+  "paperIds": ["W1234", "W5678", "W9012"],   // 3-5 OpenAlex IDs
+  "focus": "methods"                           // Optional: methods | findings | timeline
+}
+
+Response:
+{
+  "reviewText": "...",                         // Review paragraph
+  "papersUsed": ["W1234", "W5678", "W9012"],
+  "source": "ollama"                           // ollama | concat (falls back to abstract concatenation if Ollama down)
+}
+```
+
 ### Unified Error Format
 
 ```json
@@ -1005,6 +1025,40 @@ Visualizes a paper's citation network: current paper → referenced papers → c
 
 Input 3–5 papers → Ollama generates a review paragraph.
 
+### 17.7 Page ↔ API Call Mapping (Frontend Wiring Table)
+
+| Page | Endpoint | Method | Trigger | Notes |
+|---|---|---|---|---|
+| `/` | `/api/search` | POST | Submit search | Returns paper list + memoryUsed |
+| `/` | `/api/memory` | GET | First load | Prefills task type/difficulty/slider defaults (from memory) |
+| `/paper/[id]` | `/api/summarize` | POST | Enter page | Abstract + argument/conclusion/intro |
+| `/paper/[id]` | `/api/citation` | POST | Click "generate citation" | DOI already known (from search results), no manual paste |
+| `/paper/[id]` | `/api/feedback` | POST | Click feedback bar | `targetType: "paper"` |
+| `/paper/[id]` | Navigate to `/explore/[interactionId]` | — | Click "try knowledge wormhole" | URL carries `startPaperId` |
+| `/explore/[interactionId]` | `/api/wormholes` | POST | Slider change (300ms debounce) | sliderValue re-ranks wormholes in real time |
+| `/explore/[interactionId]` | `/api/feedback` | POST | Click feedback button | `targetType: "wormhole"` |
+| `/memory` | `/api/memory` | GET | Enter page | Preference profile + update history |
+| `/memory` | `/api/memory` | DELETE | Click "reset" (after confirm dialog) | Memory cleared and refreshed |
+| `/review` | `/api/review` | POST | Click "generate review" | Passes 3–5 paperIds |
+| `/map/[interactionId]` | Reuses `/api/wormholes` response | — | Enter page | D3 graph data comes from path + bridgePapers, no separate endpoint |
+
+**Frontend data flow conventions**:
+- Page-level state lives in the URL (`interactionId`, `startPaperId` in URL — survives refresh)
+- No Redux/global store — React `useState` + props passing is enough with only 7 endpoints
+- After interactions that need memory refresh, just GET `/api/memory` again — no local optimistic sync
+
+### 17.8 UI State Specification (Every Data Page Follows)
+
+| State | Display | Forbidden |
+|---|---|---|
+| loading | Skeleton screen (paper card / wormhole card shaped placeholders) | Blank page, full-page spinner overlay |
+| error | Error message + retry button | Silent failure, blank page |
+| empty | Guidance text + clickable demo example input | Blank page |
+| fallback | **Badge always visible**: "Offline cache" / "Manual mode" / "Raw abstract" / "Concatenated mode" | Degraded without telling the user |
+| feedback submit | Button immediately grays out + "Recorded to memory" toast | Waiting for API response before giving feedback feel |
+
+Fallback badge rule: if the response's `source` field doesn't equal the normal value (`crossref` / `ollama`), the corresponding badge must be displayed. This maps to hard rule #9 in Section 25.
+
 ---
 
 ## 18. Component Design
@@ -1019,6 +1073,57 @@ Input 3–5 papers → Ollama generates a review paragraph.
 | `MemoryPanel` | Memory profile + update history | Qiniu Cloud core display |
 | `ConceptTags` | Concept tag list | Clickable to filter by concept |
 | `KnowledgeMap` | Citation network graph (D3/Cytoscape) | Draggable nodes |
+
+### Component Props Contract (Frozen Together with types.ts)
+
+```typescript
+// All types imported from lib/types.ts — components must not define duplicate types
+
+PaperCardProps = {
+  paper: PaperCard;
+  onFeedback: (rating: Feedback["rating"]) => void;
+  onConceptClick: (concept: ConceptTag) => void;
+}
+
+FeedbackBarProps = {
+  targetType: Feedback["targetType"];
+  targetId: string;
+  disabled?: boolean;                          // Grayed out after submit
+  onSubmitted: (patches: MemoryPatch[]) => void; // For parent component to toast "Recorded to memory"
+}
+
+CitationFormatterProps = {
+  doi: string | null;                          // When null, show DOI input box
+  defaultStyle: CitationResult["style"];       // Default format from memory
+  onCopied: (text: string) => void;            // Copy success toast
+}
+
+WormholeCardProps = {
+  wormhole: WormholeCard;
+  onFeedback: (rating: Feedback["rating"]) => void;
+}
+
+SerendipitySliderProps = {
+  value: number;                               // 0-100
+  onChange: (v: number) => void;               // Parent debounces 300ms before calling /api/wormholes
+}
+
+MemoryPanelProps = {
+  memory: Record<string, unknown>;             // The memory field from GET /api/memory
+  history: { timestamp: string; action: string; detail: string; patches?: MemoryPatch[] }[];
+  onReset: () => void;                         // Confirm dialog handled internally
+}
+
+ConceptTagsProps = {
+  concepts: ConceptTag[];
+  onSelect: (conceptName: string) => void;     // Triggers re-search by concept
+}
+
+KnowledgeMapProps = {
+  path: PaperId[];                             // Wormhole path A -> B -> C
+  papers: Record<PaperId, PaperCard>;          // Node data from /api/wormholes response
+}
+```
 
 ---
 
@@ -1040,6 +1145,7 @@ paperworm/
       wormholes/route.ts            # POST wormhole generation
       feedback/route.ts             # POST feedback submission
       memory/route.ts              # GET/DELETE memory query/reset
+      review/route.ts              # POST literature review generation
 
   components/
     PaperCard.tsx
@@ -1303,6 +1409,7 @@ Must cover:
 - [ ] GET /api/memory — returns preference profile + update history
 - [ ] DELETE /api/memory — memory reset
 - [ ] POST /api/wormholes — returns wormhole list + scores
+- [ ] POST /api/review — returns review paragraph (falls back to concat with labeled source if Ollama down)
 
 ### 22.3 E2E Demo Test
 
