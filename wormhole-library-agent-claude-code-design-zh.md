@@ -871,6 +871,26 @@ DELETE /api/memory?userId=demo-user
 -> 重置所有记忆到初始状态
 ```
 
+### 15.7 文献综述
+
+```
+POST /api/review
+
+请求：
+{
+  "userId": "demo-user",
+  "paperIds": ["W1234", "W5678", "W9012"],   // 3-5 篇 OpenAlex ID
+  "focus": "methods"                           // 可选：methods | findings | timeline
+}
+
+响应：
+{
+  "reviewText": "...",                         // 综述段落
+  "papersUsed": ["W1234", "W5678", "W9012"],
+  "source": "ollama"                           // ollama | concat（Ollama 挂了走摘要拼接）
+}
+```
+
 ### 统一错误格式
 
 ```json
@@ -1005,6 +1025,40 @@ model WormholeRun {
 
 输入 3-5 篇论文 → Ollama 生成一段综述段落。
 
+### 17.7 页面 ↔ API 调用映射（前端接线总表）
+
+| 页面 | 接口 | 方法 | 触发时机 | 说明 |
+|---|---|---|---|---|
+| `/` | `/api/search` | POST | 提交搜索 | 返回论文列表 + memoryUsed |
+| `/` | `/api/memory` | GET | 首次加载 | 预填任务类型/难度/滑块默认值（来自记忆） |
+| `/paper/[id]` | `/api/summarize` | POST | 进入页面 | 摘要 + 论点/结论/引言 |
+| `/paper/[id]` | `/api/citation` | POST | 点"生成引用" | DOI 已知（来自搜索结果），不用手粘 |
+| `/paper/[id]` | `/api/feedback` | POST | 点反馈条 | `targetType: "paper"` |
+| `/paper/[id]` | 跳转 `/explore/[interactionId]` | — | 点"试试知识虫洞" | URL 带 `startPaperId` |
+| `/explore/[interactionId]` | `/api/wormholes` | POST | 滑块变化（防抖 300ms） | sliderValue 实时重排虫洞 |
+| `/explore/[interactionId]` | `/api/feedback` | POST | 点反馈按钮 | `targetType: "wormhole"` |
+| `/memory` | `/api/memory` | GET | 进入页面 | 偏好画像 + 更新历史 |
+| `/memory` | `/api/memory` | DELETE | 点"重置"（确认弹窗后） | 记忆归零并刷新 |
+| `/review` | `/api/review` | POST | 点"生成综述" | 传 3-5 篇 paperIds |
+| `/map/[interactionId]` | 复用 `/api/wormholes` 响应 | — | 进入页面 | D3 图数据来自 path + bridgePapers，不另开接口 |
+
+**前端数据流约定**：
+- 页面级状态走 URL（`interactionId`、`startPaperId` 在 URL 里，刷新不丢）
+- 不引 Redux/全局 store——React `useState` + props 传递够了，接口一共 7 个
+- 交互后需要刷新记忆的，直接再 GET `/api/memory`，不做本地乐观同步
+
+### 17.8 UI 状态规范（每个数据页面统一遵守）
+
+| 状态 | 展示 | 禁止 |
+|---|---|---|
+| loading | 骨架屏（论文卡/虫洞卡形状的占位块） | 白屏、转圈遮全页 |
+| error | 错误文案 + 重试按钮 | 静默失败、白屏 |
+| empty | 引导文案 + 可点击的 Demo 示例输入 | 空白页 |
+| fallback | **徽标常显**："离线缓存" / "手动模式" / "原文摘要" / "拼接模式" | 降级了但不告诉用户 |
+| feedback 提交 | 按钮立即变灰 + "已记录到记忆" toast | 等 API 响应才给反馈感 |
+
+fallback 徽标判定规则：响应里 `source` 字段不等于正常值（`crossref`/`ollama`）就必须显示对应徽标。这条对应第 25 节硬规矩第 9 条。
+
 ---
 
 ## 18. 组件设计
@@ -1019,6 +1073,57 @@ model WormholeRun {
 | `MemoryPanel` | 记忆画像 + 更新历史 | 七牛云核心展示 |
 | `ConceptTags` | 概念标签列表 | 可点击按概念筛选 |
 | `KnowledgeMap` | 引用关系网络图（D3/Cytoscape）| 可拖拽节点 |
+
+### 组件 Props 契约（与 types.ts 同步冻结）
+
+```typescript
+// 所有类型从 lib/types.ts 导入，组件不得自定义重复类型
+
+PaperCardProps = {
+  paper: PaperCard;
+  onFeedback: (rating: Feedback["rating"]) => void;
+  onConceptClick: (concept: ConceptTag) => void;
+}
+
+FeedbackBarProps = {
+  targetType: Feedback["targetType"];
+  targetId: string;
+  disabled?: boolean;                          // 提交后置灰
+  onSubmitted: (patches: MemoryPatch[]) => void; // 供父组件 toast "已记录到记忆"
+}
+
+CitationFormatterProps = {
+  doi: string | null;                          // null 时显示 DOI 输入框
+  defaultStyle: CitationResult["style"];       // 记忆里的默认格式
+  onCopied: (text: string) => void;            // 复制成功 toast
+}
+
+WormholeCardProps = {
+  wormhole: WormholeCard;
+  onFeedback: (rating: Feedback["rating"]) => void;
+}
+
+SerendipitySliderProps = {
+  value: number;                               // 0-100
+  onChange: (v: number) => void;               // 父组件防抖 300ms 再调 /api/wormholes
+}
+
+MemoryPanelProps = {
+  memory: Record<string, unknown>;             // GET /api/memory 的 memory 字段
+  history: { timestamp: string; action: string; detail: string; patches?: MemoryPatch[] }[];
+  onReset: () => void;                         // 内部做确认弹窗
+}
+
+ConceptTagsProps = {
+  concepts: ConceptTag[];
+  onSelect: (conceptName: string) => void;     // 触发按概念重新搜索
+}
+
+KnowledgeMapProps = {
+  path: PaperId[];                             // 虫洞路径 A -> B -> C
+  papers: Record<PaperId, PaperCard>;          // 节点数据，来自 /api/wormholes 响应
+}
+```
 
 ---
 
@@ -1040,6 +1145,7 @@ paperworm/
       wormholes/route.ts            # POST 虫洞生成
       feedback/route.ts             # POST 反馈提交
       memory/route.ts              # GET/DELETE 记忆查询/重置
+      review/route.ts              # POST 文献综述生成
 
   components/
     PaperCard.tsx
@@ -1303,6 +1409,7 @@ type MemoryPatch = {
 - [ ] GET /api/memory — 返回偏好画像 + 更新历史
 - [ ] DELETE /api/memory — 记忆重置
 - [ ] POST /api/wormholes — 返回虫洞列表 + 分数
+- [ ] POST /api/review — 返回综述段落（Ollama 挂了走 concat 并标注 source）
 
 ### 22.3 E2E Demo 测试
 
