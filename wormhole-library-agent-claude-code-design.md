@@ -1,1854 +1,1456 @@
-# Wormhole Library Agent engineering design
+# PaperWorm — Paper Agent Engineering Design Document
 
-Version: 1.0  
-Target implementer: Claude Code  
-Primary goal: Build a runnable hackathon MVP, not a concept deck.  
-Product position: A library-domain AI agent with controlled serendipity and feedback memory.
+Version: 2.0 (restructured from v1.3, aligned to Qiniu Cloud main track + paper research direction)
+Purpose: Feed directly to Claude Code / teammates for MVP implementation
 
-## 1. Problem framing
+---
 
-Wormhole Library Agent is not a generic knowledge recommendation app. It is a vertical library agent whose main job is to help a student use the library better:
+## 0. Up Front: What Changed in This Version
 
-1. Search and explain real library resources.
-2. Turn a vague learning/research goal into a reading path.
-3. Open a controlled "knowledge wormhole" from the user's current topic to unexpected but explainable library resources.
-4. Match users with useful people when a knowledge collision is valuable.
-5. Treat consenting people as "living library" resources.
-6. Learn from feedback so future searches, wormholes, and matches become more accurate.
+The v1.3 original positioned itself as a "library-domain agent." After discussion, we pivoted to a **paper agent** for three reasons:
 
-The key product sentence:
+1. **Qiniu Cloud track is the best fit** — the prompt requires "feedback memory agent + real scenario." Academic research is a real scenario, and the memory engine is already built.
+2. **All data is free** — OpenAlex + CrossRef APIs are verified working. Paper search, citations, concepts, and abstracts are all covered. No need to build a catalog from scratch.
+3. **Library DNA doesn't match** — the DUT Library track wants "space-level transformation." A personal paper tool doesn't fit; forcing it would produce a chimera.
 
-> Wormhole is an AI librarian that can find what you asked for, and also knows when to lead you to a shelf, paper, or person you never knew to search for.
+Change summary:
 
-## 2. Hackathon track mapping
-
-| Track | Requirement signal from the prompt | Wormhole response |
+| v1.3 Original | v2.0 Changed To | Why |
 |---|---|---|
-| Track 2: Library evolution | Reimagine the library beyond a management/search system; examples include AI librarian, knowledge map, second brain, sleeping books, people studying similar questions meeting each other | Product body. Wormhole is first a library agent with catalog search, reading paths, shelf/location awareness, library resource cards, and library-space metaphors |
-| Track 3: Serendipity | Technology should not only predict the next thing the user already wants; it should create useful accidents and unfamiliar encounters | Knowledge Wormhole, Serendipity Slider, Unknown Unknowns, and Knowledge Collision are the core innovation mechanisms |
-| Track 4: Feedback memory | Agent should accept feedback, turn it into reusable preferences/rules/experience, and use it later while controlling cost and accuracy | Memory Compiler stores structured reading preferences, novelty preferences, difficulty tolerance, language preference, match comfort, and memory tests |
+| Library catalog (self-built seed) | Paper search (OpenAlex API) | Free real data, no self-build |
+| Living Library (humans as living books) | **Cut** | Social matching needs network effects; can't build for real in a competition |
+| Wormhole via NLP semantic similarity | Wormhole via OpenAlex concept-tag set operations | Verified, deterministic algorithm, no NLP needed |
+| Memory system written from scratch | Existing Python version (skill_extractor + memory_layers); rewrite in TS or wrap as microservice | Saves 3–5 days |
+| Four tracks side by side | Qiniu Cloud as primary; OpenAtom / Miracle Academy as bonus | Focus, avoid chimera |
+| No citation feature | Added: DOI → APA / MLA / GB-T format | Real pain point, Miracle Academy anchor |
+| No paper summarization | Added: argument / conclusion / intro extraction | Demo killer feature |
 
-Important positioning rule:
+**Primary track**: Qiniu Cloud — "Lightweight Agent System with Feedback Memory Capability"
+**Bonus tracks**: OpenAtom (wormhole = manufacturing surprise), Miracle Academy (papers are long & tedious = real pain point)
+**Not pursuing**: DUT Library (wrong DNA)
 
-Track 2 is the main category. Track 3 and Track 4 are capabilities inside the library agent.
+---
 
-## 3. Product definition
+## 1. Runtime Architecture
 
-### 3.1 Product name
+Same as v1.3 — a Next.js monolithic web app:
 
-Wormhole Library Agent
-
-### 3.2 Target users
-
-1. Undergraduate students starting a course paper or project.
-2. Graduate students exploring adjacent research areas.
-3. Students who know a broad interest but do not know the right search keywords.
-4. Students willing to share knowledge as "living books".
-
-### 3.3 Core promise
-
-Given a topic such as "I want to learn AI Agent for a project", Wormhole returns:
-
-1. Direct library resources: books, papers, chapters, courses, and locations.
-2. A normal reading path.
-3. One to three knowledge wormholes that lead to unexpected but explainable resources.
-4. Optional people matches through Knowledge Collision and Living Library.
-5. A feedback interface that updates future behavior.
-
-### 3.4 Non-goals
-
-Do not build these in MVP:
-
-1. Full university catalog integration.
-2. AR indoor navigation.
-3. Full Neo4j-scale knowledge graph.
-4. Real-time chat between matched users.
-5. Automatic import of all browsing/reading history.
-6. Social network feed.
-7. Complex multi-agent orchestration UI.
-
-The MVP must feel like a library product even with seeded/demo data.
-
-## 4. User flows
-
-### 4.1 First-time research flow
-
-```text
-User opens app
-  -> enters: "I want to learn AI Agent for a project"
-  -> selects goal: project / beginner
-  -> Wormhole searches library resources
-  -> Wormhole shows direct resources and reading path
-  -> User moves Serendipity Slider to "cross-disciplinary"
-  -> Wormhole generates knowledge wormholes
-  -> User opens one wormhole
-  -> Wormhole explains the knowledge bridge and shows library resources
-  -> User gives feedback: "interesting, but too math-heavy"
-  -> Memory is updated
+```
+Browser
+  -> Next.js API Routes
+  -> Paper Agent Orchestrator
+  -> Tool functions + External APIs + Database
 ```
 
-### 4.2 Returning user memory flow
+The agent is not a chatbot — it's a **tool orchestrator**: receive user task → plan → call tools → return results → collect feedback → update memory → auto-reference next time.
 
-```text
-User asks: "Find me resources about Agent Memory"
-  -> Agent retrieves memory:
-     - Chinese or overview-first resources preferred
-     - likes CS -> cognitive science wormholes
-     - medium math tolerance
-  -> Agent returns normal resources
-  -> Agent proactively suggests:
-     Agent Memory -> long-term memory -> human memory -> forgetting curve
-  -> User accepts or rejects
-```
+### Tech Stack
 
-### 4.3 Knowledge Collision flow
-
-```text
-User researches: "multi-agent coordination"
-  -> Agent detects a collision candidate:
-     another user studying "mechanism design in economics"
-  -> Agent explains why the match exists:
-     shared bridge = strategic behavior under rules
-  -> Agent asks for opt-in:
-     "Send an anonymous 15-minute discussion invitation?"
-  -> Only after both users consent, reveal contact/channel
-```
-
-### 4.4 Living Library flow
-
-```text
-User searches: "I want to start robot learning"
-  -> Results include:
-     - books
-     - papers
-     - courses
-     - living books
-  -> A living book profile appears:
-     "Student A, has built two robot navigation projects, willing to answer beginner questions"
-  -> User requests a meeting
-  -> Living book owner accepts or rejects
-```
-
-## 5. Core features
-
-### 5.1 AI Librarian
-
-Purpose: handle ordinary library tasks.
-
-Capabilities:
-
-1. Understand user intent: course, project, research, exam, curiosity.
-2. Search books, papers, chapters, and living-library profiles.
-3. Explain why each resource is useful.
-4. Recommend reading order.
-5. Show location/status for physical books.
-
-MVP behavior:
-
-Use seeded catalog data with realistic fields. If a real catalog API exists later, replace only the catalog adapter.
-
-### 5.2 Knowledge Wormhole
-
-Purpose: generate an explainable path from current topic to an unexpected library resource.
-
-Example:
-
-```text
-Multi-Agent Systems
-  -> Agent Coordination
-  -> Game Theory
-  -> Mechanism Design
-  -> library book: An Introduction to Game Theory
-```
-
-Each wormhole must include:
-
-1. Start concept.
-2. 3-5 bridge concepts.
-3. Destination concept.
-4. At least one library resource or living-library profile at the destination.
-5. Explanation in plain language.
-6. Novelty, bridge, quality, and confidence scores.
-
-### 5.3 Serendipity Slider
-
-Purpose: let the user control how far from their comfort zone today's exploration should be.
-
-UI labels:
-
-| Slider range | Label | Meaning |
-|---:|---|---|
-| 0-20 | Nearby shelf | same field, slightly new |
-| 21-40 | Next aisle | adjacent field |
-| 41-60 | Across the floor | clear cross-field link |
-| 61-80 | Another building | far but explainable |
-| 81-100 | Throw me into space | very surprising, still bridged |
-
-Algorithmic rule:
-
-The slider is not decoration. It sets `target_novelty = slider / 100`.
-
-### 5.4 Unknown Unknowns
-
-Purpose: surface areas the user probably does not know to search for.
-
-Definition:
-
-An Unknown Unknown is a concept that:
-
-1. Is not in the user's known/recent concept set.
-2. Has a medium-to-high bridge score from the user's current topic.
-3. Has enough library resources to explore.
-4. Falls near the requested novelty target.
-
-Example:
-
-For "Agent Memory":
-
-```text
-Known: LangGraph memory, vector database, RAG
-Unknown Unknowns:
-  - cognitive psychology
-  - forgetting curve
-  - memory consolidation
-  - personal information management
-```
-
-### 5.5 Knowledge Collision
-
-Purpose: match people whose knowledge areas are different but mutually useful.
-
-Not "similar interests". The value is complementarity.
-
-Example:
-
-```text
-User A: multi-agent coordination
-User B: mechanism design
-Bridge: strategic behavior under constraints
-Collision reason: A can bring implementation/agent systems; B can bring incentive/rule design
-```
-
-### 5.6 Living Library
-
-Purpose: model people as opt-in library resources.
-
-A living book is a person who explicitly consents to be discoverable for certain topics and interaction types.
-
-Living book fields:
-
-1. Display name or alias.
-2. Expertise concepts.
-3. Current interests.
-4. Willing-to-help areas.
-5. Difficulty level they can support.
-6. Availability.
-7. Consent scope.
-8. Contact policy.
-
-### 5.7 Feedback memory
-
-Purpose: compile feedback into structured rules, not raw chat logs.
-
-Feedback examples:
-
-| User feedback | Memory update |
-|---|---|
-| "This is interesting, but too math-heavy" | Lower math tolerance for cross-disciplinary wormholes |
-| "Give me Chinese intros first" | Set language preference to Chinese-first |
-| "This was too close to what I already know" | Increase novelty target |
-| "Don't match me with people unless I ask" | Set social matching mode to manual |
-| "I like this CS -> psychology jump" | Increase domain affinity for cognitive science |
-
-## 6. MVP boundary
-
-### 6.1 Must build
-
-1. Home/search page with AI librarian prompt.
-2. Search results with library resources.
-3. Serendipity Slider.
-4. Wormhole generation with visible paths.
-5. Feedback buttons and free-text feedback.
-6. Memory summary panel.
-7. People match cards with consent-safe mock flow.
-8. Seeded catalog, concept graph, and living-library profiles.
-9. Tests for algorithm scoring, memory compilation, API contracts, and at least one end-to-end demo path.
-
-### 6.2 Can fake, but cleanly
-
-1. Library catalog: seeded dataset with adapter interface.
-2. Embeddings: deterministic local pseudo-embeddings or precomputed JSON vectors.
-3. LLM: optional provider abstraction with deterministic fallback templates.
-4. Contact request: store pending request, do not send real email/message.
-
-### 6.3 Must not fake
-
-1. Feedback must actually change later recommendations.
-2. Slider value must actually change wormhole ranking.
-3. Every wormhole must land on a resource or person.
-4. People matching must require opt-in fields.
-5. App must run locally from a clean clone.
-
-## 7. System architecture
-
-Use a single Next.js TypeScript app for MVP.
-
-Recommended stack:
-
-1. Next.js App Router.
-2. TypeScript.
-3. Prisma.
-4. SQLite for hackathon local demo.
-5. React Flow or Cytoscape.js for knowledge map visualization.
-6. Tailwind CSS or existing project styling.
-7. Vitest for unit tests.
-8. Playwright for one end-to-end demo test.
-9. Optional OpenAI-compatible LLM provider behind `LlmProvider`.
-
-Architecture:
-
-```mermaid
-flowchart TD
-  U["User"] --> UI["Next.js UI"]
-  UI --> API["App Router API routes"]
-  API --> Agent["Library Agent Orchestrator"]
-  Agent --> Tools["Agent tools"]
-  Tools --> Catalog["Catalog adapter"]
-  Tools --> Graph["Concept graph service"]
-  Tools --> Memory["Memory service"]
-  Tools --> Match["Collision matching service"]
-  Tools --> Living["Living library service"]
-  Catalog --> DB["SQLite via Prisma"]
-  Graph --> DB
-  Memory --> DB
-  Match --> DB
-  Living --> DB
-```
-
-Core principle:
-
-Keep services deterministic and testable. LLM calls should improve explanations, not be required for ranking correctness.
-
-## 8. Agent tool design
-
-The agent is an orchestrator that calls typed internal tools. Implement each tool as a TypeScript function with input/output schema validation.
-
-### 8.1 Tool list
-
-| Tool | Purpose | Must be deterministic |
+| Layer | Choice | Notes |
 |---|---|---|
-| `searchCatalog` | Search books/papers/courses by concept/query | yes |
-| `getResourceDetails` | Return location/status/chapter metadata | yes |
-| `extractConcepts` | Convert user query into concept candidates | fallback yes, LLM optional |
-| `getUserMemory` | Load structured memory for user/session | yes |
-| `rankLibraryResources` | Rank normal search results | yes |
-| `generateWormholes` | Generate candidate paths and scores | yes |
-| `rankWormholes` | Apply novelty/bridge/quality/memory scoring | yes |
-| `findKnowledgeCollisions` | Find complementary people matches | yes |
-| `searchLivingLibrary` | Find opt-in living books | yes |
-| `compileFeedbackMemory` | Convert feedback into memory patches | fallback yes, LLM optional |
-| `recordInteraction` | Store query/results/feedback event | yes |
-
-### 8.2 Tool contracts
-
-```ts
-export type SearchCatalogInput = {
-  query: string;
-  conceptIds?: string[];
-  resourceTypes?: Array<"book" | "paper" | "course" | "thesis">;
-  language?: "zh" | "en" | "any";
-  limit?: number;
-};
-
-export type SearchCatalogResult = {
-  resources: LibraryResourceCard[];
-};
-```
-
-```ts
-export type GenerateWormholesInput = {
-  userId: string;
-  startConceptIds: string[];
-  sliderValue: number;
-  maxPaths: number;
-};
-
-export type WormholePath = {
-  id: string;
-  startConceptId: string;
-  bridgeConceptIds: string[];
-  destinationConceptId: string;
-  resourceIds: string[];
-  livingBookIds: string[];
-  novelty: number;
-  noveltyFit: number;
-  bridgeScore: number;
-  qualityScore: number;
-  diversityScore: number;
-  finalScore: number;
-  explanation: string;
-};
-```
-
-```ts
-export type CompileFeedbackMemoryInput = {
-  userId: string;
-  interactionId: string;
-  targetType: "resource" | "wormhole" | "person_match";
-  targetId: string;
-  rating: "too_close" | "just_right" | "too_far" | "too_hard" | "not_relevant" | "useful";
-  freeText?: string;
-};
-
-export type MemoryPatch = {
-  key: string;
-  value: unknown;
-  confidenceDelta: number;
-  reason: string;
-};
-```
-
-## 9. Data model
-
-### 9.1 Main entities
-
-```text
-User
-Session
-Concept
-ConceptEdge
-LibraryResource
-ResourceConcept
-LivingBookProfile
-LivingBookConcept
-UserConceptAffinity
-UserMemory
-Interaction
-Feedback
-WormholeRun
-WormholePath
-PersonMatch
-ContactRequest
-```
-
-### 9.2 Concept model
-
-Concepts are the shared language between resources, users, wormholes, and people.
-
-```ts
-type Concept = {
-  id: string;
-  name: string;
-  aliases: string[];
-  domain: string;
-  description: string;
-  embedding: number[];
-  popularity: number;
-  createdAt: Date;
-};
-```
-
-### 9.3 Resource model
-
-```ts
-type LibraryResource = {
-  id: string;
-  type: "book" | "paper" | "course" | "thesis";
-  title: string;
-  authors: string[];
-  year?: number;
-  language: "zh" | "en";
-  abstract?: string;
-  location?: string;
-  callNumber?: string;
-  availability: "available" | "checked_out" | "online" | "unknown";
-  difficulty: "intro" | "undergrad" | "graduate" | "research";
-  qualityScore: number;
-  sourceUrl?: string;
-};
-```
-
-### 9.4 Memory model
-
-Use structured memory instead of storing all chat as context.
-
-Memory categories:
-
-| Category | Keys |
-|---|---|
-| Reading preference | `language`, `resource_type_order`, `summary_first`, `max_results` |
-| Difficulty | `math_tolerance`, `paper_density`, `preferred_level` |
-| Serendipity | `default_slider`, `novelty_mean`, `novelty_std`, `liked_domains`, `disliked_domains` |
-| Task preference | `coursework_strategy`, `research_strategy`, `project_strategy` |
-| Social preference | `matching_mode`, `anonymous_first`, `living_book_opt_in` |
-| Cost control | `memory_confidence`, `last_used_at`, `use_count` |
-
-Example memory:
-
-```json
-{
-  "userId": "demo-user",
-  "reading": {
-    "language": "zh_first",
-    "resourceTypeOrder": ["book", "survey_paper", "paper"],
-    "summaryFirst": true,
-    "maxResults": 6
-  },
-  "difficulty": {
-    "preferredLevel": "undergrad",
-    "mathTolerance": 0.45,
-    "paperDensity": 0.35
-  },
-  "serendipity": {
-    "defaultSlider": 62,
-    "noveltyMean": 0.62,
-    "noveltyStd": 0.14,
-    "likedDomains": ["Cognitive Science", "Economics"],
-    "dislikedDomains": []
-  },
-  "social": {
-    "matchingMode": "ask_first",
-    "anonymousFirst": true,
-    "livingBookOptIn": false
-  }
-}
-```
-
-## 10. Recommendation and wormhole algorithm
-
-### 10.1 Concept extraction
-
-Input:
-
-```text
-"I want to learn AI Agent for a project"
-```
-
-Output:
-
-```json
-{
-  "concepts": ["AI Agent", "LLM Agent", "Tool Use", "Planning"],
-  "taskType": "project",
-  "level": "beginner"
-}
-```
-
-Implementation:
-
-1. First pass: keyword/alias matching against seeded `Concept`.
-2. Optional LLM pass: use only if API key exists.
-3. Always return deterministic fallback.
-
-### 10.2 User vector
-
-Compute from recent interactions and memory:
-
-```text
-user_vector =
-  weighted_average(
-    recent_query_concepts * 0.45,
-    clicked_resource_concepts * 0.25,
-    positive_feedback_concepts * 0.20,
-    explicit_profile_concepts * 0.10
-  )
-```
-
-For a first-time demo user, use concepts extracted from the current query.
-
-### 10.3 Novelty
-
-```text
-similarity = cosine(user_vector, candidate_concept_vector)
-novelty = 1 - similarity
-target_novelty = slider_value / 100
-novelty_fit = 1 - abs(novelty - target_novelty)
-```
-
-Clamp all values to `[0, 1]`.
-
-### 10.4 Bridge score
-
-A wormhole must have a bridge. Use concept graph paths.
-
-For each candidate destination concept:
-
-1. Find paths of length 2-5 from start concept to destination.
-2. Score each path:
-
-```text
-path_strength = average(edge.weight)
-path_explainability = 1 - ((path_length - 3)^2 / 9)
-bridge_score = 0.65 * path_strength + 0.35 * path_explainability
-```
-
-Reject candidates with:
-
-```text
-bridge_score < 0.35
-```
-
-### 10.5 Quality score
-
-```text
-quality_score =
-  0.45 * max_resource_quality
-  + 0.25 * availability_score
-  + 0.20 * resource_count_score
-  + 0.10 * difficulty_fit
-```
-
-Availability:
-
-| Status | Score |
-|---|---:|
-| available | 1.0 |
-| online | 0.9 |
-| checked_out | 0.4 |
-| unknown | 0.5 |
-
-### 10.6 Diversity score
-
-Prevent all wormholes from going to the same domain.
-
-```text
-diversity_score = 1 - max_similarity_to_already_selected_destination
-```
-
-For first candidate, `diversity_score = 1`.
-
-### 10.7 Final score
-
-```text
-final_score =
-  0.40 * bridge_score
-  + 0.30 * novelty_fit
-  + 0.20 * quality_score
-  + 0.10 * diversity_score
-```
-
-Memory adjustment:
-
-```text
-if destination.domain in memory.serendipity.likedDomains:
-  final_score += 0.05
-
-if destination.domain in memory.serendipity.dislikedDomains:
-  final_score -= 0.08
-
-if destination requires math and memory.difficulty.mathTolerance < 0.4:
-  final_score -= 0.10
-```
-
-### 10.8 Pseudocode
-
-```ts
-export async function generateWormholes(input: GenerateWormholesInput) {
-  const memory = await getUserMemory(input.userId);
-  const userVector = await buildUserVector(input.userId, input.startConceptIds);
-  const targetNovelty = input.sliderValue / 100;
-  const destinations = await findCandidateDestinations(input.startConceptIds);
-
-  const scored = [];
-  for (const destination of destinations) {
-    const paths = findConceptPaths(input.startConceptIds, destination.id, { min: 2, max: 5 });
-    const bestPath = scoreAndPickBestPath(paths);
-    if (!bestPath || bestPath.bridgeScore < 0.35) continue;
-
-    const novelty = 1 - cosine(userVector, destination.embedding);
-    const noveltyFit = 1 - Math.abs(novelty - targetNovelty);
-    const resources = await findResourcesByConcept(destination.id);
-    const livingBooks = await findLivingBooksByConcept(destination.id);
-    if (resources.length === 0 && livingBooks.length === 0) continue;
-
-    const qualityScore = scoreQuality(resources, livingBooks, memory);
-    scored.push({
-      destination,
-      bestPath,
-      resources,
-      livingBooks,
-      novelty,
-      noveltyFit,
-      qualityScore
-    });
-  }
-
-  return selectDiverseTopK(scored, input.maxPaths, memory);
-}
-```
-
-## 11. Person matching mechanism
-
-### 11.1 Match types
-
-| Type | Meaning |
-|---|---|
-| Similar research | Two users study close topics |
-| Complementary collision | Two users study different topics connected by a strong bridge |
-| Mentor living book | One user can help another at the right difficulty level |
-| Unknown unknown guide | One user has experience in a domain the other is entering |
-
-MVP should focus on complementary collision and mentor living book.
-
-### 11.2 Collision score
-
-For user A and user B:
-
-```text
-topic_distance = 1 - cosine(A.vector, B.vector)
-bridge_strength = max_bridge_score(A.concepts, B.concepts)
-complementarity = count(B.expertise intersects A.unknown_unknowns) normalized
-availability = B.opt_in && compatible_time ? 1 : 0
-privacy_ok = both users allow matching ? 1 : 0
-
-collision_score =
-  0.30 * topic_distance_fit
-  + 0.30 * bridge_strength
-  + 0.25 * complementarity
-  + 0.10 * availability
-  + 0.05 * prior_feedback_fit
-```
-
-Where:
-
-```text
-topic_distance_fit = 1 - abs(topic_distance - 0.55)
-```
-
-Reason:
-
-People should not be identical, but also not unrelated.
-
-### 11.3 Privacy-safe match flow
-
-1. System computes match.
-2. User sees anonymous explanation:
-   "A student studying mechanism design may help your multi-agent coordination project."
-3. User can request contact.
-4. Other user receives request with requester-visible profile.
-5. Only after acceptance is contact revealed.
-
-No direct identity reveal in recommendation cards.
-
-## 12. Living Library model
-
-### 12.1 Concept
-
-In Wormhole, a person can be a library resource only through explicit consent.
-
-Living Library changes the library from:
-
-```text
-books + papers
-```
-
-to:
-
-```text
-books + papers + people + experience
-```
-
-### 12.2 Profile states
-
-| State | Meaning |
-|---|---|
-| private | user has no living-book profile |
-| discoverable_anonymous | can appear as anonymous living book |
-| discoverable_named | display name can be shown |
-| paused | temporarily hidden |
-
-### 12.3 Interaction types
-
-| Type | Meaning |
-|---|---|
-| async_answer | user accepts written questions |
-| coffee_chat | user accepts 15-minute meeting |
-| project_review | user can review a project idea |
-| reading_guide | user can suggest first resources |
-
-### 12.4 Ranking living books
-
-```text
-living_book_score =
-  0.35 * expertise_match
-  + 0.20 * difficulty_fit
-  + 0.20 * willingness_match
-  + 0.15 * availability
-  + 0.10 * past_helpfulness
-```
-
-## 13. Memory structure and update rules
-
-### 13.1 Memory Compiler
-
-Convert feedback into durable structured memory.
-
-Raw feedback:
-
-```text
-"This economics wormhole is interesting, but the math is too hard."
-```
-
-Compiled memory patches:
-
-```json
-[
-  {
-    "key": "serendipity.likedDomains",
-    "operation": "add_or_increment",
-    "value": "Economics",
-    "confidenceDelta": 0.08,
-    "reason": "User said economics wormhole is interesting"
-  },
-  {
-    "key": "difficulty.mathTolerance",
-    "operation": "decrement",
-    "value": 0.08,
-    "confidenceDelta": 0.10,
-    "reason": "User said math is too hard"
-  }
-]
-```
-
-### 13.2 Memory confidence
-
-Each memory item has:
-
-```ts
-type UserMemoryItem = {
-  id: string;
-  userId: string;
-  category: string;
-  key: string;
-  valueJson: unknown;
-  confidence: number;
-  source: "explicit_feedback" | "implicit_click" | "profile" | "system_inferred";
-  useCount: number;
-  successCount: number;
-  lastUsedAt?: Date;
-};
-```
-
-Update confidence:
-
-```text
-explicit feedback: +0.10 to +0.25
-accepted recommendation using memory: +0.05
-rejected recommendation using memory: -0.08
-unused for long time: decay by 0.02 per week in future work
-```
-
-### 13.3 Memory retrieval budget
-
-Do not inject all memory into every agent call.
-
-For each task, retrieve:
-
-1. Always: reading preference, difficulty, serendipity.
-2. If social feature is invoked: social preference.
-3. If task type is known: matching task preference.
-
-Limit memory context:
-
-```text
-max 12 memory items
-max 1200 characters rendered into LLM prompt
-```
-
-Ranking memory items:
-
-```text
-memory_relevance =
-  0.45 * task_key_match
-  + 0.25 * confidence
-  + 0.15 * recency
-  + 0.15 * historical_success_rate
-```
-
-### 13.4 Memory unit tests
-
-Create deterministic tests from important feedback.
-
-Example:
-
-```ts
-it("uses Chinese overview-first resources for demo user", async () => {
-  await seedMemory("demo-user", {
-    reading: { language: "zh_first", resourceTypeOrder: ["book", "survey_paper", "paper"] }
-  });
-
-  const result = await searchAndRankResources({
-    userId: "demo-user",
-    query: "Diffusion Model"
-  });
-
-  expect(result.resources[0].language).toBe("zh");
-  expect(result.resources[0].difficulty).not.toBe("research");
-});
-```
-
-## 14. Privacy and safety
-
-### 14.1 Data minimization
-
-Store only what the MVP needs:
-
-1. Query text.
-2. Extracted concepts.
-3. Clicked resource IDs.
-4. Feedback.
-5. Structured memory.
-6. Living-library consent fields.
-
-Do not store:
-
-1. Full chat logs forever.
-2. Private notes by default.
-3. Real contact information in demo seed data.
-4. Hidden identity in anonymous match cards.
-
-### 14.2 Consent rules
-
-1. Users are not living books unless they opt in.
-2. Contact is hidden until both sides accept.
-3. Matching can be disabled.
-4. A living book can pause discoverability.
-5. The UI must show why a person appeared.
-
-### 14.3 Recommendation safety
-
-1. Do not recommend people for medical, legal, or high-risk counseling.
-2. Do not infer sensitive traits.
-3. Do not show "this person knows X" unless the profile explicitly lists X.
-4. Do not overstate resource availability if it is mock or unknown.
-
-### 14.4 Demo disclosure
-
-If using seeded data, display a small "Demo catalog" label in development/demo mode.
-
-## 15. API design
-
-Base path: `/api`
-
-### 15.1 Create search session
-
-`POST /api/search`
-
-Request:
-
-```json
-{
-  "userId": "demo-user",
-  "query": "I want to learn AI Agent for a project",
-  "taskType": "project",
-  "level": "beginner",
-  "sliderValue": 60
-}
-```
-
-Response:
-
-```json
-{
-  "interactionId": "int_001",
-  "concepts": [
-    { "id": "c_ai_agent", "name": "AI Agent" }
-  ],
-  "resources": [
-    {
-      "id": "r_aima",
-      "type": "book",
-      "title": "Artificial Intelligence: A Modern Approach",
-      "why": "Start with the Intelligent Agents chapter for a project-level overview.",
-      "location": "Main Library 3F TP Area",
-      "availability": "available",
-      "difficulty": "undergrad"
-    }
-  ],
-  "readingPath": [
-    "AI Agent",
-    "Planning",
-    "Tool Use",
-    "Memory",
-    "Multi-Agent Systems"
-  ],
-  "memoryUsed": [
-    "overview-first resources",
-    "medium novelty preference"
-  ]
-}
-```
-
-### 15.2 Generate wormholes
-
-`POST /api/wormholes`
-
-Request:
-
-```json
-{
-  "userId": "demo-user",
-  "interactionId": "int_001",
-  "startConceptIds": ["c_ai_agent"],
-  "sliderValue": 70,
-  "maxPaths": 3
-}
-```
-
-Response:
-
-```json
-{
-  "wormholes": [
-    {
-      "id": "wh_001",
-      "path": [
-        "AI Agent",
-        "Multi-Agent Coordination",
-        "Game Theory",
-        "Mechanism Design"
-      ],
-      "destination": "Mechanism Design",
-      "explanation": "You are studying how agents coordinate. Mechanism design studies how rules shape strategic behavior.",
-      "scores": {
-        "novelty": 0.68,
-        "bridge": 0.82,
-        "quality": 0.77,
-        "final": 0.78
-      },
-      "resources": ["r_game_theory_intro"],
-      "livingBooks": ["lb_econ_student_anonymous"]
-    }
-  ]
-}
-```
-
-### 15.3 Submit feedback
-
-`POST /api/feedback`
-
-Request:
-
-```json
-{
-  "userId": "demo-user",
-  "interactionId": "int_001",
-  "targetType": "wormhole",
-  "targetId": "wh_001",
-  "rating": "too_hard",
-  "freeText": "Interesting, but the math part is too difficult."
-}
-```
-
-Response:
-
-```json
-{
-  "memoryPatches": [
-    {
-      "key": "serendipity.likedDomains",
-      "value": "Economics",
-      "reason": "User found the economics wormhole interesting."
-    },
-    {
-      "key": "difficulty.mathTolerance",
-      "value": 0.37,
-      "reason": "User found the math too difficult."
-    }
-  ],
-  "memorySummary": {
-    "defaultSlider": 62,
-    "mathTolerance": 0.37,
-    "likedDomains": ["Economics"]
-  }
-}
-```
-
-### 15.4 Get memory
-
-`GET /api/memory?userId=demo-user`
-
-Response:
-
-```json
-{
-  "memory": {
-    "reading": {
-      "language": "zh_first",
-      "resourceTypeOrder": ["book", "survey_paper", "paper"]
-    },
-    "difficulty": {
-      "preferredLevel": "undergrad",
-      "mathTolerance": 0.37
-    },
-    "serendipity": {
-      "defaultSlider": 62,
-      "likedDomains": ["Economics"]
-    }
-  }
-}
-```
-
-### 15.5 Find people matches
-
-`POST /api/matches`
-
-Request:
-
-```json
-{
-  "userId": "demo-user",
-  "conceptIds": ["c_multi_agent_coordination"],
-  "mode": "collision"
-}
-```
-
-Response:
-
-```json
-{
-  "matches": [
-    {
-      "id": "pm_001",
-      "displayMode": "anonymous",
-      "headline": "A student studying mechanism design may help your coordination question.",
-      "bridge": ["Multi-Agent Coordination", "Game Theory", "Mechanism Design"],
-      "collisionReason": "You bring agent implementation; they bring incentive design.",
-      "contactState": "request_required"
-    }
-  ]
-}
-```
-
-### 15.6 Create contact request
-
-`POST /api/contact-requests`
-
-Request:
-
-```json
-{
-  "userId": "demo-user",
-  "personMatchId": "pm_001",
-  "message": "I am working on a multi-agent project and would love a 15-minute chat."
-}
-```
-
-Response:
-
-```json
-{
-  "requestId": "cr_001",
-  "status": "pending"
-}
-```
-
-## 16. Database schema
-
-Implement this as `prisma/schema.prisma`. SQLite is sufficient for MVP.
-
-```prisma
-model User {
-  id          String   @id @default(cuid())
-  name        String?
-  createdAt   DateTime @default(now())
-  sessions    Session[]
-  memories    UserMemory[]
-  interactions Interaction[]
-  livingBookProfile LivingBookProfile?
-}
-
-model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-}
-
-model Concept {
-  id          String   @id
-  name        String
-  aliasesJson String   @default("[]")
-  domain      String
-  description String
-  embeddingJson String @default("[]")
-  popularity  Float    @default(0.5)
-  outgoingEdges ConceptEdge[] @relation("ConceptFrom")
-  incomingEdges ConceptEdge[] @relation("ConceptTo")
-  resourceLinks ResourceConcept[]
-  livingBookLinks LivingBookConcept[]
-}
-
-model ConceptEdge {
-  id            String @id @default(cuid())
-  fromConceptId String
-  toConceptId   String
-  relation      String
-  weight        Float  @default(0.5)
-  explanation   String
-  fromConcept   Concept @relation("ConceptFrom", fields: [fromConceptId], references: [id])
-  toConcept     Concept @relation("ConceptTo", fields: [toConceptId], references: [id])
-
-  @@index([fromConceptId])
-  @@index([toConceptId])
-}
-
-model LibraryResource {
-  id           String @id
-  type         String
-  title        String
-  authorsJson  String @default("[]")
-  year         Int?
-  language     String
-  abstract     String?
-  location     String?
-  callNumber   String?
-  availability String
-  difficulty   String
-  qualityScore Float  @default(0.5)
-  sourceUrl    String?
-  concepts     ResourceConcept[]
-}
-
-model ResourceConcept {
-  id         String @id @default(cuid())
-  resourceId String
-  conceptId  String
-  weight     Float @default(1.0)
-  resource   LibraryResource @relation(fields: [resourceId], references: [id])
-  concept    Concept @relation(fields: [conceptId], references: [id])
-
-  @@unique([resourceId, conceptId])
-  @@index([conceptId])
-}
-
-model LivingBookProfile {
-  id              String @id @default(cuid())
-  userId          String @unique
-  user            User   @relation(fields: [userId], references: [id])
-  displayName     String?
-  displayMode     String @default("anonymous")
-  bio             String?
-  expertiseLevel  String @default("peer")
-  willingTypesJson String @default("[]")
-  availabilityJson String @default("{}")
-  consentState    String @default("private")
-  helpfulnessScore Float @default(0.5)
-  concepts        LivingBookConcept[]
-}
-
-model LivingBookConcept {
-  id              String @id @default(cuid())
-  livingBookId    String
-  conceptId       String
-  relation        String
-  weight          Float @default(1.0)
-  livingBook      LivingBookProfile @relation(fields: [livingBookId], references: [id])
-  concept         Concept @relation(fields: [conceptId], references: [id])
-
-  @@unique([livingBookId, conceptId, relation])
-  @@index([conceptId])
-}
-
-model UserMemory {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  category    String
-  key         String
-  valueJson   String
-  confidence  Float    @default(0.5)
-  source      String
-  useCount    Int      @default(0)
-  successCount Int     @default(0)
-  lastUsedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([userId, category, key])
-}
-
-model Interaction {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
-  query           String
-  taskType        String?
-  level           String?
-  sliderValue     Int
-  extractedConceptsJson String @default("[]")
-  createdAt       DateTime @default(now())
-  feedback        Feedback[]
-  wormholeRuns    WormholeRun[]
-}
-
-model Feedback {
-  id            String   @id @default(cuid())
-  interactionId String
-  interaction   Interaction @relation(fields: [interactionId], references: [id])
-  userId        String
-  targetType    String
-  targetId      String
-  rating        String
-  freeText      String?
-  memoryPatchesJson String @default("[]")
-  createdAt     DateTime @default(now())
-}
-
-model WormholeRun {
-  id             String @id @default(cuid())
-  interactionId  String
-  interaction    Interaction @relation(fields: [interactionId], references: [id])
-  userId         String
-  startConceptsJson String
-  sliderValue    Int
-  createdAt      DateTime @default(now())
-  paths          WormholePath[]
-}
-
-model WormholePath {
-  id             String @id @default(cuid())
-  runId          String
-  run            WormholeRun @relation(fields: [runId], references: [id])
-  pathConceptsJson String
-  destinationConceptId String
-  resourceIdsJson String @default("[]")
-  livingBookIdsJson String @default("[]")
-  novelty        Float
-  noveltyFit     Float
-  bridgeScore    Float
-  qualityScore   Float
-  diversityScore Float
-  finalScore     Float
-  explanation    String
-}
-
-model PersonMatch {
-  id              String @id @default(cuid())
-  requesterUserId String
-  targetUserId    String
-  matchType       String
-  bridgeConceptsJson String
-  score           Float
-  explanation     String
-  status          String @default("suggested")
-  createdAt       DateTime @default(now())
-}
-
-model ContactRequest {
-  id             String @id @default(cuid())
-  personMatchId  String
-  requesterUserId String
-  targetUserId   String
-  message        String
-  status         String @default("pending")
-  createdAt      DateTime @default(now())
-}
-```
-
-## 17. Frontend pages
-
-### 17.1 `/`
-
-Main AI librarian interface.
-
-Visible components:
-
-1. Query input: "What are you trying to explore in the library today?"
-2. Goal chips: course, project, research, exam, curiosity.
-3. Level chips: beginner, undergraduate, graduate, research.
-4. Submit button.
-5. Demo seed examples.
-
-No marketing hero. The first screen is the usable agent.
-
-### 17.2 `/explore/[interactionId]`
-
-Core results page.
-
-Layout:
-
-1. Left: AI librarian answer and direct resources.
-2. Right/top: Serendipity Slider.
-3. Center: reading path and wormhole cards.
-4. Bottom: feedback controls.
-
-Resource card fields:
-
-1. title
-2. type
-3. why this resource
-4. location/status
-5. difficulty
-6. concepts
-
-Wormhole card fields:
-
-1. path visualization
-2. "why this jump works"
-3. destination resources
-4. novelty/bridge labels
-5. feedback buttons
-
-### 17.3 `/map/[interactionId]`
-
-Knowledge map view.
-
-Use React Flow or Cytoscape.js.
-
-Nodes:
-
-1. current topic
-2. bridge concepts
-3. destination concepts
-4. resources
-5. living books
-
-Edges:
-
-1. concept relation
-2. resource grounding
-3. person expertise
-
-### 17.4 `/memory`
-
-Memory transparency page.
-
-Show:
-
-1. reading preference
-2. difficulty preference
-3. serendipity preference
-4. social preference
-5. recent memory updates
-
-Allow:
-
-1. reset demo memory
-2. disable social matching
-3. change default slider
-
-### 17.5 `/living-library`
-
-Living Library profile page.
-
-For MVP:
-
-1. Toggle discoverability.
-2. Choose anonymous/named mode.
-3. Add expertise concepts.
-4. Add willing-to-help types.
-5. Show incoming contact requests.
-
-## 18. Repo structure
-
-```text
-wormhole-library-agent/
-  app/
-    page.tsx
-    explore/[interactionId]/page.tsx
-    map/[interactionId]/page.tsx
-    memory/page.tsx
-    living-library/page.tsx
-    api/
-      search/route.ts
-      wormholes/route.ts
-      feedback/route.ts
-      memory/route.ts
-      matches/route.ts
-      contact-requests/route.ts
-  components/
-    LibrarianSearchBox.tsx
-    ResourceCard.tsx
-    SerendipitySlider.tsx
-    WormholeCard.tsx
-    KnowledgeMap.tsx
-    MemoryPanel.tsx
-    LivingBookCard.tsx
-    FeedbackBar.tsx
-  lib/
-    agent/
-      orchestrator.ts
-      prompts.ts
-      tools.ts
-    catalog/
-      adapter.ts
-      seedCatalogAdapter.ts
-      ranking.ts
-    concepts/
-      conceptExtraction.ts
-      graph.ts
-      vectors.ts
-    wormhole/
-      generate.ts
-      score.ts
-      paths.ts
-    memory/
-      getMemory.ts
-      compileFeedback.ts
-      applyPatch.ts
-      renderMemoryContext.ts
-    matching/
-      collision.ts
-      livingLibrary.ts
-      consent.ts
-    llm/
-      provider.ts
-      deterministicProvider.ts
-      openaiCompatibleProvider.ts
-    db/
-      prisma.ts
-    validation/
-      schemas.ts
-  prisma/
-    schema.prisma
-    seed.ts
-  data/
-    seed-concepts.json
-    seed-edges.json
-    seed-resources.json
-    seed-living-books.json
-  tests/
-    unit/
-      wormhole-score.test.ts
-      memory-compiler.test.ts
-      collision-score.test.ts
-      catalog-ranking.test.ts
-    e2e/
-      demo-flow.spec.ts
-  docs/
-    demo-script.md
-    product-notes.md
-  package.json
-  README.md
-  .env.example
-```
-
-## 19. Implementation priority
-
-### Phase 1: Deterministic core
-
-Build first:
-
-1. Prisma schema and seed data.
-2. Catalog search and ranking.
-3. Concept extraction fallback.
-4. Wormhole path generation and scoring.
-5. Feedback memory compilation.
-6. Unit tests.
-
-Acceptance:
-
-Given query "AI Agent" and slider 70, the system returns a wormhole to "Mechanism Design" or "Cognitive Psychology" with a valid bridge and resource.
-
-### Phase 2: UI vertical slice
-
-Build:
-
-1. Home page.
-2. Explore results page.
-3. Slider-triggered wormhole regeneration.
-4. Feedback buttons update memory.
-5. Memory panel shows changed preferences.
-
-Acceptance:
-
-The judge can use the app without reading instructions.
-
-### Phase 3: People layer
-
-Build:
-
-1. Living book seed profiles.
-2. Collision matching service.
-3. Anonymous match cards.
-4. Contact request mock flow.
-
-Acceptance:
-
-For "multi-agent coordination", the app suggests an anonymous mechanism-design living book and explains the bridge.
-
-### Phase 4: Polish and demo reliability
-
-Build:
-
-1. Knowledge map page.
-2. Better card copy.
-3. Demo reset button.
-4. Playwright demo flow.
-5. README with one-command setup.
-
-Acceptance:
-
-Fresh install runs seed, starts app, and completes demo flow.
-
-## 20. Tests and acceptance
-
-### 20.1 Unit tests
-
-Required tests:
-
-1. `noveltyFit` peaks when candidate novelty matches slider.
-2. Wormhole candidates without resources are rejected.
-3. Low bridge score candidates are rejected.
-4. Memory feedback "too hard" lowers math tolerance.
-5. Memory feedback "too close" raises default novelty.
-6. Liked domain adds a positive score adjustment.
-7. Social match is hidden if living book consent is private.
-8. Collision score prefers medium distance over identical users.
-
-### 20.2 API tests
-
-Required:
-
-1. `POST /api/search` returns interaction ID and resources.
-2. `POST /api/wormholes` returns paths grounded in resources.
-3. `POST /api/feedback` returns memory patches.
-4. `GET /api/memory` reflects feedback update.
-5. `POST /api/matches` returns only consent-safe matches.
-
-### 20.3 E2E test
-
-Demo path:
-
-1. Open home.
-2. Search "I want to learn AI Agent for a project".
-3. See direct library resources.
-4. Move slider to 70.
-5. Generate wormholes.
-6. Open "Mechanism Design" wormhole.
-7. Submit "interesting but too math-heavy".
-8. Open memory page and verify math tolerance changed.
-
-### 20.4 Human acceptance checklist
-
-The MVP is accepted only if:
-
-1. It feels like a library agent before it feels like a generic chatbot.
-2. Every wormhole has a visible path.
-3. Every wormhole lands on a real seeded resource or living book.
-4. Slider changes ranking in an obvious way.
-5. Feedback changes later behavior.
-6. People recommendations are opt-in and privacy-safe.
-7. Demo can be completed in under 3 minutes.
-
-## 21. Demo script
-
-### 21.1 Opening
-
-"Most library AI products answer what you already know how to ask. Wormhole helps with the harder problem: the knowledge you did not know you should search for."
-
-### 21.2 Step 1: AI librarian
-
-Input:
-
-```text
-I want to learn AI Agent for a project. I am a beginner.
-```
-
-Show:
-
-1. Books.
-2. Papers or surveys.
-3. Reading path.
-4. Library location/status.
-
-Say:
-
-"This is the normal librarian layer. It grounds everything in library resources."
-
-### 21.3 Step 2: Serendipity Slider
-
-Move slider to 70.
-
-Say:
-
-"Now I am telling the librarian I want to leave my comfort zone, but not randomly."
-
-Show wormhole:
-
-```text
-AI Agent
-  -> Multi-Agent Coordination
-  -> Game Theory
-  -> Mechanism Design
-```
-
-Say:
-
-"The jump is surprising, but explainable. It also lands on a real book."
-
-### 21.4 Step 3: Unknown Unknowns
-
-Show a card:
-
-```text
-You probably would not search for: Mechanism Design
-Why it matters: It studies how rules shape strategic behavior, which is central to multi-agent coordination.
-```
-
-### 21.5 Step 4: Knowledge Collision
-
-Show anonymous match:
-
-```text
-A student studying mechanism design may help your multi-agent project.
-```
-
-Say:
-
-"This is not people-you-may-know. It is people you should accidentally know."
-
-### 21.6 Step 5: Feedback memory
-
-Submit:
-
-```text
-Interesting, but the math part is too difficult.
-```
-
-Show memory update:
-
-```text
-Cross-disciplinary interest: increased
-Economics affinity: increased
-Math tolerance: decreased
-```
-
-Say:
-
-"The agent did not just save a chat log. It compiled feedback into behavior rules."
-
-### 21.7 Closing
-
-"Wormhole turns the library from a search box into a living knowledge network: books, papers, shelves, and people, connected by an agent that remembers what kinds of accidents are useful to you."
-
-## 22. Claude Code execution rules
-
-Claude Code must follow these rules exactly.
-
-### 22.1 Build rules
-
-1. Build a runnable MVP, not a prototype shell.
-2. Use the stack in this document unless the existing repo already has a stack.
-3. Keep the first vertical slice small and complete.
-4. Prefer deterministic services over LLM-only behavior.
-5. All LLM behavior must have a deterministic fallback.
-6. Do not add Neo4j, Qdrant, separate FastAPI, auth providers, or real messaging services in MVP.
-7. Do not implement AR navigation.
-8. Do not expose contact identity before consent.
-9. Do not leave placeholder buttons that do nothing.
-10. Do not create pages that only explain the idea; every page must perform a user action.
-
-### 22.2 Development sequence
-
-Claude Code should implement in this order:
-
-1. Initialize project if none exists.
-2. Add Prisma schema.
-3. Add seed datasets.
-4. Implement concept graph and scoring functions.
-5. Implement memory compiler.
-6. Implement API routes.
-7. Implement UI components.
-8. Implement pages.
-9. Add tests.
-10. Run verification.
-11. Write README and demo script.
-
-### 22.3 Verification commands
-
-At minimum:
-
-```bash
-npm run lint
-npm run test
-npm run build
-```
-
-If Playwright is installed:
-
-```bash
-npm run test:e2e
-```
-
-### 22.4 Seed data requirements
-
-Seed data must include at least:
-
-1. 50 concepts.
-2. 80 concept edges.
-3. 30 library resources.
-4. 6 living book profiles.
-5. 1 demo user.
-6. 3 preloaded memory items for the demo user.
-
-Required demo concept chains:
-
-```text
-AI Agent -> Multi-Agent Coordination -> Game Theory -> Mechanism Design
-AI Agent -> Agent Memory -> Human Memory -> Cognitive Psychology -> Forgetting Curve
-Transformer -> Information Theory -> Statistical Physics -> Phase Transition
-RAG -> Information Retrieval -> Library Science -> Personal Knowledge Management
-```
-
-Required demo resources:
-
-1. Artificial Intelligence: A Modern Approach.
-2. Multiagent Systems.
-3. An Introduction to Game Theory.
-4. Cognitive Psychology and Its Implications.
-5. Introduction to Information Retrieval.
-6. A library-science or knowledge-management resource.
-
-### 22.5 UI quality rules
-
-1. The first screen must be the agent input, not a marketing landing page.
-2. Use stable card sizes and avoid layout shift.
-3. Slider labels must explain distance without long instruction text.
-4. Resource cards must show location/status.
-5. Wormhole paths must be visually scannable.
-6. Feedback controls must be one click plus optional text.
-7. Memory updates must be visible immediately after feedback.
-
-### 22.6 Definition of done
-
-The task is done when:
-
-1. The app runs locally.
-2. The demo script works from a fresh database seed.
-3. Unit tests pass.
-4. Build passes.
-5. README explains setup, seed, run, test, and demo path.
-6. The final app clearly presents Wormhole as a library-domain agent.
-
-## 23. README quick start content
-
-Claude Code should include this in the final README:
+| Frontend | Next.js App Router + React + TypeScript | Pages / API / logic in one project |
+| Backend | Next.js API Routes | No separate FastAPI server |
+| Database | SQLite + Prisma | Stable for local demo; can migrate to PostgreSQL later |
+| External APIs | OpenAlex (primary) + CrossRef (citations) | All free, no API key needed |
+| LLM | Ollama local (optional) | Only enhances summary/review; does not drive core ranking |
+| Knowledge graph | OpenAlex concepts + in-memory graph search | No Neo4j |
+| Visualization | D3.js / Cytoscape.js | Citation relationship map |
+| Testing | Vitest + Playwright | Algorithm unit tests + Demo flow e2e |
+
+### Deployment
 
 ```bash
 npm install
 npm run db:push
 npm run db:seed
 npm run dev
+# http://localhost:3000
 ```
 
-Then open:
+No database install, no API key config, no Ollama required to run the core flow.
+
+---
+
+## 2. Track Mapping
+
+### Primary Track: Qiniu Cloud — Lightweight Agent System with Feedback Memory
+
+Original prompt: User inputs task → Agent plans + calls pre-built tools + generates results → User gives feedback → System deposits preferences/rules/experience → Future similar tasks auto-reference memory.
+
+Evaluation criteria: Memory cost (token cost, time), conversation speed, memory effectiveness and accuracy of use.
+
+**Our answers**:
+
+| Criterion | How We Solve It |
+|---|---|
+| Agent basic flow | User input → orchestrator plans → calls paper_search / citation_format / paper_summarize tools → returns structured results |
+| Memory preference recording | User feedback → compileFeedback compiles into preference patch → stored in L1 resident memory + L4 user profile |
+| Future task reference | New request arrives → retrieve relevant history → inject reusable preferences/skills → Agent reflects them in results |
+| **Memory cost** | Paper search and citation formatting go through APIs — **zero token cost**. Summaries use OpenAlex raw abstract as fallback; Ollama only called when extracting arguments |
+| **Conversation speed** | Core flow is all API + SQLite queries — **millisecond response**. Only summary extraction goes through LLM |
+| **Memory effectiveness** | /memory page visualizes preference profile + update history. In demo, after feedback, re-search shows visibly different ranking |
+
+**Real scenario**: Academic paper research — every grad student repeatedly searches papers, filters, reads abstracts, formats citations. This is a real repetitive task with real personalization needs (empirical vs. theoretical, citation format preference).
+
+### Bonus Track: OpenAtom — Manufacturing Surprise
+
+The knowledge wormhole feature directly hits "don't keep guessing what the user wants next; try creating something they didn't even know they'd encounter." Shown as one of the agent's recommendation strategies, not a standalone product.
+
+### Bonus Track: Miracle Academy — Patching Reality
+
+"Papers are long & tedious + citation formats are torture" is a pain point anyone who's written a paper can empathize with. Citation generation + paper summarization = patches for the academic research workflow.
+
+---
+
+## 3. Product Definition
+
+PaperWorm is a **paper agent that remembers you**.
+
+Google Scholar helps you search papers and then leaves you alone. PaperWorm remembers your taste — whether you prefer empirical or theoretical work, whether you like APA or GB-T, whether you think certain fields are too math-heavy — and next time you search, it automatically filters and ranks for you.
+
+Specifically, it does these things:
+
+**Agent tools (pre-built capabilities):**
+
+1. **Search papers** — keyword search, returns list + concept tags + citation count, ranked by your preferences
+2. **Read papers** — paper too long? Extracts key argument, conclusion, and intro context
+3. **Generate citations** — paste a DOI, auto-generate APA / MLA / GB-T format, one-click copy
+4. **Literature review draft** — give it 3–5 papers, generates a review paragraph
+
+**How feedback memory works:**
+
+- You say "this is too theoretical, I want empirical" → remembers "prefers empirical research"
+- You say "use APA format" → next time defaults to APA
+- You say "this direction is interesting but the math is too hard" → remembers "low math tolerance," next time pushes less mathematical papers
+- Next search → auto-references memory, prioritizes papers matching your preferences
+
+**Differentiation bonus — Knowledge Wormhole:**
+
+The agent occasionally starts from the paper you're reading, follows the citation graph 2–3 hops, and recommends a paper from an unrelated field whose ideas could help you. For example, reading the Transformer paper → wormhole to AlphaFold (protein structure prediction also uses attention mechanisms). This isn't random recommendation — it's a deterministic path through the citation graph + concept divergence.
+
+### Target Users
+
+- Undergraduates writing course papers
+- Graduate students finding research directions
+- People tortured by citation formats
+- Anyone who wants to quickly judge if a paper is worth reading
+
+---
+
+## 4. Core Concepts
+
+### 4.1 Paper Search (paper_search)
+
+Calls the OpenAlex API to search papers. Returns title, DOI, year, authors, citation count, abstract, concept tags. Ranked by the user's stored preferences (empirical/theoretical, Chinese-first/English-first, etc.).
+
+**Data source verified**: OpenAlex is free, just add an email to the request header, rate limits are generous.
+
+### 4.2 Citation Format Generation (citation_format)
+
+Paste DOI → call CrossRef API for full metadata → pure string template assembles APA / MLA / GB-T 7714 format. No AI, no LLM needed.
+
+**Verified**: DOI `10.1109/CVPR.2017.114` returns full authors/title/year/journal/volume/issue/pages; manually assembled APA and GB-T formats.
+
+### 4.3 Paper Summary Extraction (paper_summarize)
+
+OpenAlex's `abstract_inverted_index` field can reconstruct the full abstract. Ollama extracts "core argument / main conclusion / intro context" in three segments. If Ollama is down, falls back to the OpenAlex raw abstract, labeled "raw abstract, arguments not extracted."
+
+### 4.4 Feedback Memory (feedback_memory)
+
+User feedback isn't just stored as chat history — it's compiled into structured preferences:
+
+```
+User feedback: "This direction is interesting, but the math is too heavy"
+  ↓ compileFeedback compiles into patch
+  ↓
+{
+  "serendipity.likedDomains": ["Economics"],   // likes Economics direction
+  "difficulty.mathTolerance": 0.38,             // math tolerance drops
+  "reading.summaryFirst": true                  // show summary first
+}
+  ↓
+Next paper search → ranking logic references these preferences → math-heavy papers drop in rank
+```
+
+**Existing Python implementation**: `skill_extractor.py` (skill extraction) + `memory_layers.py` (L1 resident + L2 SQLite retrieval + L4 profile), passed end-to-end closed-loop testing. Two paths to port to web (see Section 13).
+
+### 4.5 Knowledge Wormhole (wormhole_suggest) — Bonus Feature
+
+Starting from the paper the user is reading, follows the citation chain 2–3 hops, recommends a paper with high concept divergence.
+
+**Verified algorithm** (no NLP needed, set operations):
+
+1. OpenAlex tags each paper with 10+ concepts, each with a score
+2. User reads paper A (concepts: Transformer / Machine Translation / BLEU)
+3. A cites B, look up B's concepts (Corpus Linguistics / Linguistics / Philosophy)
+4. A and B have little concept overlap → divergence ≈ 60% → B is the wormhole destination
+5. Slider controls divergence threshold: low slider pushes high-overlap papers, high slider pushes cross-domain papers
+
+**Verified case**: Reading "Attention Is All You Need" → wormhole to "Penn Treebank" (1993 corpus linguistics). Even better: the first paper to cite Transformer is AlphaFold — from AI to biology.
+
+### 4.6 Serendipity Slider — Bonus Feature
+
+Users control how far from their knowledge comfort zone they want to go today:
+
+| Range | Meaning |
+|---|---|
+| 0–20 | Nearby shelf: new papers in the same field |
+| 21–40 | Adjacent shelf: neighboring fields |
+| 41–60 | Cross-floor: clearly interdisciplinary |
+| 61–80 | Different building: distant but with a clear bridge |
+| 81–100 | Deep space: high surprise but still not random |
+
+The slider must genuinely participate in wormhole ranking.
+
+---
+
+## 5. User Flows
+
+### 5.1 First Use
+
+```
+User opens homepage
+  -> Types: "I want to find papers on AI agents in scientific research"
+  -> Agent calls paper_search (OpenAlex)
+  -> Returns paper list, each with abstract + concept tags + citation count
+  -> User clicks "too theoretical" on one result
+  -> System remembers "prefers empirical research"
+```
+
+### 5.2 Second Use (Memory Takes Effect)
+
+```
+User types: "Help me find papers on agent memory"
+  -> System reads memory: prefers empirical, Chinese-first, low math tolerance
+  -> paper_search returns results auto-ranked by preferences
+  -> Empirical papers ranked first, pure theoretical ones sink to bottom
+  -> System proactively offers a wormhole: Agent Memory → Human Memory → Cognitive Psychology
+```
+
+### 5.3 Citation Format Flow
+
+```
+User clicks "generate citation" on paper detail page
+  -> Pastes DOI: 10.1109/CVPR.2017.114
+  -> System calls CrossRef API for metadata
+  -> Selects format: APA / MLA / GB-T 7714
+  -> One-click copy
+  -> User says "always use APA from now on"
+  -> System remembers default format
+```
+
+---
+
+## 6. MVP Boundaries
+
+### 6.1 Must Implement (Core for Qiniu Cloud Defense)
+
+| Feature | Description | Data Source | Uses LLM |
+|---|---|---|---|
+| **Paper search** | Keyword search, returns list + abstract + concepts, ranked by preferences | OpenAlex API | No |
+| **Citation format** | DOI → APA/MLA/GB-T, one-click copy | CrossRef API + templates | No |
+| **Feedback memory** | Feedback → store preferences → auto-reference next search ranking | Local SQLite + files | No |
+
+### 6.2 Showcase Capabilities (Make the Agent Look Smarter)
+
+| Feature | Description | Data Source | Uses LLM |
+|---|---|---|---|
+| **Paper summary** | Extract argument/conclusion/intro | OpenAlex abstract + Ollama | Yes (degradable) |
+| **Literature review** | Give 3–5 papers → generate review paragraph | Multi-paper abstracts + Ollama | Yes |
+| **Citation map** | Visualize a paper's citation network | OpenAlex + D3 | No |
+| **Reading gap analysis** | "You've read A, B, C, but should read D" | Citation graph set difference | No |
+
+### 6.3 Differentiation Bonus
+
+| Feature | Description | Track |
+|---|---|---|
+| **Knowledge wormhole** | Citation 2–3 hops + concept divergence | OpenAtom |
+| **In-app push** | Timed recommendations + occasional wormhole | Qiniu Cloud (memory being continuously used) |
+
+### 6.4 Not Doing
+
+- ~~Living Library (humans as living books)~~ — social matching needs network effects, cut
+- ~~Knowledge Collision (person matching)~~ — depends on Living Library, cut together
+- ~~AR book finding~~
+- ~~Real push notification system~~ — downgraded to in-app notification
+- ~~Neo4j / Qdrant~~
+- ~~Real user login system~~
+
+---
+
+## 7. System Architecture
+
+```
+User browser
+  |
+  v
+Next.js API Routes (7 endpoints)
+  |
+  v
+orchestrator.ts (sole dispatcher)
+  |
+  +-> paper_search() -----> OpenAlex API
+  +-> citation_format() --> CrossRef API
+  +-> paper_summarize() --> OpenAlex + Ollama
+  +-> wormhole_suggest() -> OpenAlex (references + concepts)
+  +-> compileFeedback() -> Memory engine (SQLite + files)
+  +-> getMemory() -------> Memory engine
+  +-> buildInjection() --> Memory engine
+```
+
+Core principles:
+- Ranking and path generation must be deterministic code
+- LLM only polishes summary text; does not drive core ranking
+- Without LLM/Ollama, the demo still runs completely (OpenAlex has its own abstracts)
+- All tools must have type definitions and tests
+
+---
+
+## 8. Tool Design
+
+| Tool | Purpose | MVP Requirement | Data Source |
+|---|---|---|---|
+| `paper_search` | Keyword paper search | Must return paper cards (title/abstract/concepts/citation count) | OpenAlex |
+| `citation_format` | DOI → citation format | Must support APA/MLA/GB-T | CrossRef + templates |
+| `paper_summarize` | Extract argument/conclusion/intro | Fall back to OpenAlex raw abstract if Ollama down | OpenAlex + Ollama |
+| `compileFeedback` | Feedback → memory patch | Must change subsequent ranking | Local |
+| `getMemory` | Read user preferences | Return structured preferences | Local |
+| `buildInjection` | Inject preferences into search results | Re-rank search results by preference | Local |
+| `wormhole_suggest` | Citation 2–3 hops + concept divergence | Slider must affect results | OpenAlex |
+| `findUnknownUnknowns` | Find fields the user hasn't searched but are relevant | Based on novelty + bridge | OpenAlex |
+| `generateReview` | Generate review paragraph from multiple papers | Fall back to concatenation if Ollama down | Multi-paper abstracts + Ollama |
+
+---
+
+## 9. Data Models
+
+### 9.1 Paper
+
+```typescript
+type Paper = {
+  id: string;              // OpenAlex ID
+  doi: string | null;
+  title: string;
+  authors: Author[];
+  year: number;
+  venue: string | null;     // Journal/conference
+  citedByCount: number;
+  abstract: string | null;  // Reconstructed from inverted_index
+  concepts: ConceptTag[];   // OpenAlex concept tags
+  openAccess: boolean;
+  openAccessPdf: string | null;
+};
+
+type Author = {
+  name: string;
+  orcid: string | null;
+  institution: string | null;
+};
+
+type ConceptTag = {
+  id: string;              // OpenAlex concept ID
+  name: string;
+  score: number;           // 0-1 relevance
+  level: number;           // 0=broad category, 4=fine-grained
+};
+```
+
+### 9.2 CitationFormat
+
+```typescript
+type CitationFormat = {
+  doi: string;
+  style: "apa" | "mla" | "gbt7714" | "chicago";
+  text: string;            // Assembled citation text
+  source: "crossref" | "manual";
+};
+
+type CitationMetadata = {
+  doi: string;
+  title: string;
+  authors: { family: string; given: string }[];
+  year: number;
+  containerTitle: string;   // Journal/conference name
+  volume: string | null;
+  issue: string | null;
+  page: string | null;
+  publisher: string | null;
+  type: string;             // "journal-article" | "proceedings-article" | ...
+};
+```
+
+### 9.3 UserMemory
+
+```typescript
+type UserMemory = {
+  userId: string;
+  category: "reading" | "difficulty" | "citation" | "serendipity" | "task";
+  key: string;              // e.g. "reading.languagePref"
+  value: unknown;           // e.g. "zh_first"
+  confidence: number;       // 0-1
+  source: "explicit_feedback" | "implicit_click" | "system_inferred";
+  useCount: number;
+  updatedAt: string;
+};
+```
+
+Memory example:
+```json
+{
+  "reading": {
+    "languagePref": "zh_first",
+    "summaryFirst": true,
+    "resultCount": 5
+  },
+  "difficulty": {
+    "preferredLevel": "undergrad",
+    "mathTolerance": 0.42
+  },
+  "citation": {
+    "defaultStyle": "apa"
+  },
+  "serendipity": {
+    "defaultSlider": 60,
+    "likedDomains": ["Cognitive Science", "Economics"],
+    "dislikedDomains": ["Pure Mathematics"]
+  }
+}
+```
+
+### 9.4 WormholePath
+
+```typescript
+type WormholePath = {
+  id: string;
+  startPaperId: string;
+  startConcepts: ConceptTag[];
+  bridgePapers: Paper[];     // 2-3 hop intermediate papers
+  targetPaperId: string;
+  targetConcepts: ConceptTag[];
+  explanation: string;       // Human-readable explanation of why we ended up here
+  scores: {
+    novelty: number;          // Concept divergence 0-1
+    bridge: number;           // Path strength 0-1
+    quality: number;          // Target paper quality 0-1
+    final: number;            // Weighted total score
+  };
+};
+```
+
+### 9.5 Interaction
+
+```typescript
+type Interaction = {
+  id: string;
+  userId: string;
+  query: string;
+  resultPaperIds: string[];
+  feedback: Feedback | null;
+  memoryUsed: string[];     // Which memories were used this time
+  createdAt: string;
+};
+
+type Feedback = {
+  targetType: "paper" | "wormhole" | "citation";
+  targetId: string;
+  rating: "too_theoretical" | "too_empirical" | "too_hard" | "just_right" | "interesting";
+  freeText: string | null;
+};
+```
+
+---
+
+## 10. Wormhole Algorithm (Verified Feasible)
+
+### 10.1 Data Foundation
+
+OpenAlex tags each paper with 10+ concept labels, each with a score (0–1) and level (0=broad, 4=fine-grained). These tags are pre-existing — no need to do your own NLP concept extraction.
+
+### 10.2 Novelty (Concept Divergence)
+
+```
+concepts_A = concept set of user's current paper
+concepts_B = concept set of candidate wormhole paper
+
+# Filter out broad-category (level=0) noise, only compare level >= 1 concepts
+concepts_A_filtered = {c.name for c in concepts_A if c.level >= 1 and c.score > 0.3}
+concepts_B_filtered = {c.name for c in concepts_B if c.level >= 1 and c.score > 0.3}
+
+overlap = concepts_A_filtered ∩ concepts_B_filtered
+only_B = concepts_B_filtered - concepts_A_filtered
+
+novelty = len(only_B) / len(concepts_B_filtered)   # Proportion of B-only concepts
+```
+
+Verified: "Attention Is All You Need" (machine translation) → "Penn Treebank" (corpus linguistics), novelty ≈ 0.60.
+
+### 10.3 NoveltyFit (Slider Fit)
+
+```
+target_novelty = slider_value / 100
+novelty_fit = 1 - abs(novelty - target_novelty)
+```
+
+Slider 70 → target_novelty = 0.70 → pushes papers with novelty near 0.70.
+Slider 20 → target_novelty = 0.20 → pushes high-overlap papers.
+
+### 10.4 BridgeScore (Path Strength)
+
+```
+# Find citation path from A to B (1-3 hops)
+path_strength = average(edge.weight for edge in path)
+path_explainability = 1 - ((path_length - 2)^2 / 4)   # 2 hops is optimal, penalize longer
+bridge_score = 0.65 * path_strength + 0.35 * path_explainability
+```
+
+Elimination rules:
+- Candidates with bridge_score < 0.35 are discarded
+- Candidates with no paper landing point are discarded
+
+### 10.5 QualityScore (Target Paper Quality)
+
+```
+quality_score =
+  0.45 * normalized_cited_by_count    # Normalized citation count
+  + 0.25 * open_access ? 1 : 0.5      # Open access bonus
+  + 0.20 * has_abstract ? 1 : 0.3     # Has abstract bonus
+  + 0.10 * difficulty_match           # Difficulty match to user
+```
+
+### 10.6 FinalScore
+
+```
+final_score =
+  0.40 * bridge_score
+  + 0.30 * novelty_fit
+  + 0.20 * quality_score
+  + 0.10 * diversity_score          # Diversity from already-recommended wormholes
+```
+
+### 10.7 Memory Correction
+
+```
+if target_domain in memory.likedDomains:     final_score += 0.05
+if target_domain in memory.dislikedDomains:  final_score -= 0.08
+if target_needs_high_math and mathTolerance < 0.4:  final_score -= 0.10
+if memory.languagePref == "zh_first" and paper.is_chinese:  final_score += 0.04
+```
+
+---
+
+## 11. Feedback Memory Engine — Qiniu Cloud Track Core
+
+### 11.1 Existing Python Implementation
+
+| Component | File | What It Does |
+|---|---|---|
+| Skill extraction | `skill_extractor.py` | Multi-step task completion → auto-extract reusable skill; synonymous phrasing matches next time → auto-inject → uses+1 |
+| Layered memory | `memory_layers.py` | L1 resident memory (200 lines deduplicated) / L2 session archive (SQLite, token retrieval + hit-count ranking) / L4 user profile |
+| Agent brain | `agent_brain.py` | get_system_prompt() injects 7 contexts: status + memory + task + summary + skill + profile + history |
+
+Passed end-to-end closed-loop testing: multi-step task completion → skill extraction → synonymous phrasing match → uses increment → unrelated requests don't false-match → L2 history retrieval hits.
+
+### 11.2 How to Port to Web
+
+| Option | Approach | Pros | Cons |
+|---|---|---|---|
+| **Option A (recommended)** | Rewrite memory engine in TypeScript | Clean clone experience, npm install and run | 2–3 extra days of work |
+| **Option B** | Wrap Python memory engine as FastAPI microservice | Zero rewrite, use tested code directly | Teammates need to install Python + dependencies |
+
+### 11.3 Memory Compiler
+
+Turns natural-language feedback into structured patches:
+
+```
+Feedback: "This direction is interesting, but the math is too heavy"
+  ↓
+[
+  {
+    "key": "serendipity.likedDomains",
+    "operation": "add_or_increment",
+    "value": "Economics",
+    "confidenceDelta": 0.08
+  },
+  {
+    "key": "difficulty.mathTolerance",
+    "operation": "decrement",
+    "value": 0.08,
+    "confidenceDelta": 0.10
+  }
+]
+```
+
+### 11.4 How Memory Affects Ranking
+
+```typescript
+function rankWithMemory(papers: Paper[], memory: UserMemory): Paper[] {
+  return papers.map(p => {
+    let score = p.citedByCount;  // Base score = citation count
+
+    // Language preference
+    if (memory.reading?.languagePref === "zh_first" && p.isChinese)
+      score *= 1.15;
+
+    // Difficulty preference
+    if (memory.difficulty?.mathTolerance < 0.4 && p.concepts.some(c => c.name === "Mathematics"))
+      score *= 0.7;
+
+    // Liked domain bonus
+    if (p.concepts.some(c => memory.serendipity?.likedDomains?.includes(c.name)))
+      score *= 1.1;
+
+    return { ...p, _rankScore: score };
+  }).sort((a, b) => b._rankScore - a._rankScore);
+}
+```
+
+### 11.5 Memory Budget (Qiniu Cloud Evaluation Point)
+
+Per agent call, inject at most:
+- 12 memory entries
+- Within 1200 characters
+
+Memory selection formula:
+```
+memory_relevance =
+  0.45 * task_match
+  + 0.25 * confidence
+  + 0.15 * recency
+  + 0.15 * historical_success_rate
+```
+
+### 11.6 Memory Cost Analysis
+
+| Operation | Uses LLM | Token Cost | Latency |
+|---|---|---|---|
+| Paper search | No | 0 | ~200ms (OpenAlex API) |
+| Citation format | No | 0 | ~100ms (CrossRef API + template) |
+| Memory retrieval (L2) | No | 0 | ~5ms (SQLite LIKE) |
+| Skill injection | No | 0 | ~1ms (file read) |
+| Paper summary extraction | Ollama | Low (chunked) | ~3–5s |
+| Literature review | Ollama | Medium (multi-paper) | ~5–10s |
+
+**The core flow (search + citation + memory) uses zero LLM — the memory system itself costs zero tokens. This is our biggest advantage over other competing teams.**
+
+---
+
+## 12. Data Sources — All Free, No API Key
+
+### OpenAlex (Primary Data Source)
+
+The Wikipedia of academic papers. Completely free, just add an email to the request header.
+
+- **Search papers** — keyword search, returns title/DOI/year/authors/citation count/abstract/concept tags/open access status
+- **Paper abstract** — `abstract_inverted_index` field, reconstructing the inverted index gives the full abstract
+- **Concept tags** — each paper auto-tagged with 10+ concepts, with score and level
+- **Citation relationships** — `referenced_works` (what it cites) + `filter=cites:W...` (what cites it)
+
+Verified: Searched "Attention Is All You Need" → 28 referenced works + 6688 citing works + 10 concept tags + full abstract.
+
+### CrossRef (For Citation Formatting)
+
+The official DOI registration agency. Given a DOI, returns full bibliographic info: authors (family + given names separated), title, year, journal, volume, issue, pages, article type. Pure template assembly into APA/MLA/GB-T.
+
+Verified: DOI `10.1109/CVPR.2017.114` → full metadata → manually assembled APA and GB-T formats.
+
+### Semantic Scholar (Backup, can skip)
+
+Also has paper search and citation graph, but without an API key, frequent 429 rate limiting. OpenAlex covers most of its functionality. **Can be completely unused.**
+
+### Rate Limit Strategy
+
+| API | Risk | Strategy |
+|---|---|---|
+| OpenAlex | Low | Add mailto to User-Agent |
+| CrossRef | Low | Add mailto to User-Agent |
+| Semantic Scholar | High | Apply for free key or don't use at all |
+
+---
+
+## 13. Degradation Strategy (Runs Without Everything, No Faking)
+
+| If This Isn't Done | What the System Does | What the User Sees |
+|---|---|---|
+| OpenAlex rate-limited | Use local cached seed data | "Offline cache" badge |
+| CrossRef down | Let user manually fill metadata | "Manual mode" label |
+| Ollama down | Summary uses OpenAlex raw abstract | "Raw abstract, arguments not extracted" label |
+| Wormhole algorithm incomplete | Use citation graph deterministic path (2 hops), slider still affects ranking | User doesn't notice |
+| Citation map not drawn | Only show paper list | Hide map entry |
+| Push not implemented | Downgrade to in-app notification | "In-app push" |
+| Memory engine not fully ported | Use simplified version (SQLite key-value for preferences) | Feature degraded but closed loop |
+
+**Key point**: Paper search, citation formatting, and memory engine — these three core features have almost zero risk of "can't build for real." OpenAlex and CrossRef are free APIs, and the memory engine is already built and tested.
+
+---
+
+## 14. Privacy & Security
+
+- Demo seed data uses fictional papers and fictional users
+- No real personal data collected
+- Users can view and reset their memory
+- /memory page provides "Reset Demo Memory" button
+- ~~Living Library privacy flow~~ — cut, no social matching
+
+---
+
+## 15. API Design
+
+### 15.1 Search
+
+```
+POST /api/search
+
+Request:
+{
+  "userId": "demo-user",
+  "query": "I want to find papers on AI agents in scientific research",
+  "taskType": "project",       // project | research | coursework | exam
+  "level": "beginner",          // beginner | undergrad | graduate | research
+  "sliderValue": 60             // Wormhole surprise level (optional, defaults from memory)
+}
+
+Response:
+{
+  "interactionId": "int_001",
+  "papers": [
+    {
+      "id": "W1234",
+      "title": "...",
+      "doi": "10.xxx/xxx",
+      "year": 2024,
+      "authors": [...],
+      "citedByCount": 42,
+      "abstract": "...",
+      "concepts": [{"name": "AI Agent", "score": 0.92}, ...],
+      "openAccess": true
+    }
+  ],
+  "readingPath": ["AI Agent", "Planning", "Tool Use", "Memory"],
+  "memoryUsed": ["prefers empirical research", "Chinese-first"],
+  "interactionId": "int_001"
+}
+```
+
+### 15.2 Paper Summary
+
+```
+POST /api/summarize
+
+Request:
+{
+  "paperId": "W1234",           // OpenAlex ID
+  "userId": "demo-user"
+}
+
+Response:
+{
+  "paperId": "W1234",
+  "abstract": "...",            // OpenAlex raw abstract
+  "keyArgument": "...",         // Ollama-extracted core argument
+  "mainConclusion": "...",      // Ollama-extracted main conclusion
+  "introContext": "...",        // Ollama-extracted intro context
+  "source": "ollama"            // ollama | openalex_only | cached
+}
+```
+
+### 15.3 Citation Format
+
+```
+POST /api/citation
+
+Request:
+{
+  "doi": "10.1109/CVPR.2017.114",
+  "style": "apa"                // apa | mla | gbt7714 | chicago
+}
+
+Response:
+{
+  "doi": "10.1109/CVPR.2017.114",
+  "style": "apa",
+  "text": "Vaswani, A., Shazeer, N., ... (2017). Attention Is All You Need. Advances in Neural Information Processing Systems. https://doi.org/10.1109/CVPR.2017.114",
+  "metadata": {
+    "title": "Attention Is All You Need",
+    "authors": [...],
+    "year": 2017,
+    "container": "Advances in Neural Information Processing Systems",
+    "volume": null,
+    "page": "1013-1021"
+  },
+  "source": "crossref"
+}
+```
+
+### 15.4 Submit Feedback
+
+```
+POST /api/feedback
+
+Request:
+{
+  "userId": "demo-user",
+  "interactionId": "int_001",
+  "targetType": "paper",
+  "targetId": "W1234",
+  "rating": "too_theoretical",
+  "freeText": "This is too theoretical, I want empirical work"
+}
+
+Response:
+{
+  "memoryPatches": [
+    {"key": "reading.prefEmpirical", "operation": "set", "value": true},
+    {"key": "difficulty.theoryTolerance", "operation": "decrement", "value": 0.1}
+  ],
+  "memoryUpdated": true
+}
+```
+
+### 15.5 Generate Wormholes
+
+```
+POST /api/wormholes
+
+Request:
+{
+  "userId": "demo-user",
+  "interactionId": "int_001",
+  "startPaperId": "W1234",
+  "sliderValue": 70,
+  "maxPaths": 3
+}
+
+Response:
+{
+  "wormholes": [
+    {
+      "id": "wh_001",
+      "path": ["W1234", "W5678", "W9012"],
+      "startConcepts": ["AI Agent", "Planning"],
+      "targetConcepts": ["Mechanism Design", "Game Theory"],
+      "targetPaper": {
+        "id": "W9012",
+        "title": "...",
+        "doi": "...",
+        "year": 1994,
+        "citedByCount": 5000
+      },
+      "explanation": "Starting from AI Agent, Multi-Agent Coordination studies how multiple agents cooperate — this has a direct bridge to Mechanism Design, which studies how multiple agents act under rules.",
+      "scores": {
+        "novelty": 0.68,
+        "bridge": 0.72,
+        "quality": 0.85,
+        "final": 0.74
+      }
+    }
+  ]
+}
+```
+
+### 15.6 Query / Reset Memory
+
+```
+GET /api/memory?userId=demo-user
+
+Response:
+{
+  "userId": "demo-user",
+  "memory": {
+    "reading": {"languagePref": "zh_first", "summaryFirst": true},
+    "difficulty": {"mathTolerance": 0.42, "preferredLevel": "undergrad"},
+    "citation": {"defaultStyle": "apa"},
+    "serendipity": {"defaultSlider": 60, "likedDomains": ["Cognitive Science"]}
+  },
+  "history": [
+    {"timestamp": "2026-08-20T10:00:00Z", "action": "feedback", "detail": "prefers empirical research", "patches": [...]},
+    {"timestamp": "2026-08-20T10:05:00Z", "action": "feedback", "detail": "math tolerance decreased", "patches": [...]}
+  ]
+}
+
+DELETE /api/memory?userId=demo-user
+-> Resets all memory to initial state
+```
+
+### Unified Error Format
+
+```json
+{
+  "error": {
+    "code": "BAD_REQUEST" | "NOT_FOUND" | "INTERNAL_ERROR",
+    "message": "..."
+  }
+}
+```
+
+---
+
+## 16. Database Schema
+
+Prisma schema requires the following models:
+
+```prisma
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  memories  UserMemory[]
+  interactions Interaction[]
+}
+
+model Paper {
+  id            String   @id        // OpenAlex ID
+  doi           String?
+  title         String
+  year          Int?
+  venue         String?
+  citedByCount  Int      @default(0)
+  abstract      String?  // Reconstructed text
+  concepts      Json?    // ConceptTag[]
+  openAccess    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  interactions  Interaction[]
+}
+
+model UserMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  category  String   // reading | difficulty | citation | serendipity | task
+  key       String
+  value     Json
+  confidence Float   @default(0.5)
+  source    String   @default("explicit_feedback")
+  useCount  Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model Interaction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  query        String
+  resultPaperIds Json   // string[]
+  feedback     Json?    // Feedback
+  memoryUsed   Json?    // string[]
+  createdAt    DateTime @default(now())
+}
+
+model Feedback {
+  id              String   @id @default(cuid())
+  interactionId   String
+  targetType      String   // paper | wormhole | citation
+  targetId        String
+  rating          String   // too_theoretical | too_hard | just_right | interesting
+  freeText        String?
+  memoryPatches   Json?
+  createdAt       DateTime @default(now())
+}
+
+model WormholeRun {
+  id              String   @id @default(cuid())
+  userId          String
+  interactionId   String
+  startPaperId    String
+  sliderValue     Int
+  paths           Json     // WormholePath[]
+  createdAt       DateTime @default(now())
+}
+```
+
+---
+
+## 17. Frontend Pages
+
+### 17.1 `/` — Homepage
+
+Search box + paper list + feedback bar. First screen must be immediately usable.
+
+Must include:
+- Main input box (what you want to research)
+- Task type selector (coursework / research project / exam prep / project development)
+- Difficulty selector (beginner / undergrad / graduate / research)
+- Demo example text
+- Search result paper card list
+
+### 17.2 `/paper/[id]` — Paper Detail
+
+Must include:
+- Paper title / authors / year / citation count
+- Abstract (raw + Ollama-extracted argument/conclusion/intro)
+- Concept tag list (clickable to filter papers by concept)
+- Citation format generator (paste DOI → select format → one-click copy)
+- "Try Knowledge Wormhole" button
+- Feedback bar (too theoretical / too empirical / just right / too hard)
+
+### 17.3 `/explore/[interactionId]` — Wormhole Exploration
+
+Must include:
+- Surprise slider (0–100)
+- Wormhole card list (start → path → destination + explanation + scores)
+- Feedback buttons (interesting but too hard / just right / irrelevant)
+- Memory update notification after feedback
+
+### 17.4 `/memory` — Memory Transparency Page (Qiniu Cloud Core Display)
+
+Must include:
+- Current preference profile (language / difficulty / citation format / wormhole preferences)
+- Recent memory update history (timeline)
+- "Reset Demo Memory" button
+- Default surprise level adjustment
+
+### 17.5 `/map/[interactionId]` — Citation Relationship Map (Bonus)
+
+Visualizes a paper's citation network: current paper → referenced papers → citing papers, drawn as a draggable graph using D3/Cytoscape.
+
+### 17.6 `/review` — Literature Review Generator (Bonus)
+
+Input 3–5 papers → Ollama generates a review paragraph.
+
+---
+
+## 18. Component Design
+
+| Component | What It Is | Key Interaction |
+|---|---|---|
+| `PaperCard` | Paper card: title/abstract/concept tags/citation count | Concept tags clickable for filtering |
+| `FeedbackBar` | Feedback bar: "Too theoretical" "Too empirical" "Just right" "Too hard" | **Heart of Qiniu Cloud track** — clicking must change next ranking |
+| `CitationFormatter` | Citation format: DOI input → format select → one-click copy | Remembers last selected format |
+| `WormholeCard` | Wormhole card: start → path → destination + explanation + scores | Shows "why we ended up here" |
+| `SerendipitySlider` | Surprise slider: 0–100 | Real-time changes wormhole ranking |
+| `MemoryPanel` | Memory profile + update history | Qiniu Cloud core display |
+| `ConceptTags` | Concept tag list | Clickable to filter by concept |
+| `KnowledgeMap` | Citation network graph (D3/Cytoscape) | Draggable nodes |
+
+---
+
+## 19. Repo Structure
 
 ```text
-http://localhost:3000
+paperworm/
+  app/
+    page.tsx                        # Homepage: search box + paper list
+    paper/[id]/page.tsx             # Paper detail: abstract + citation + wormhole entry
+    explore/[interactionId]/page.tsx # Wormhole exploration: slider + wormhole cards
+    map/[interactionId]/page.tsx    # Citation relationship map
+    memory/page.tsx                 # Memory profile + reset
+    review/page.tsx                 # Literature review generator
+    api/
+      search/route.ts               # POST paper search
+      summarize/route.ts            # POST paper summary extraction
+      citation/route.ts             # POST citation format generation
+      wormholes/route.ts            # POST wormhole generation
+      feedback/route.ts             # POST feedback submission
+      memory/route.ts              # GET/DELETE memory query/reset
+
+  components/
+    PaperCard.tsx
+    FeedbackBar.tsx
+    CitationFormatter.tsx
+    WormholeCard.tsx
+    SerendipitySlider.tsx
+    MemoryPanel.tsx
+    ConceptTags.tsx
+    KnowledgeMap.tsx
+
+  lib/
+    types.ts                        # ★ Contract file — single source of truth for the whole team
+    agent/
+      orchestrator.ts               # ★ Integration core — INTEGRATION POINT lives here
+      tools.ts                      # Tool registry
+    api/
+      openalex.ts                   # OpenAlex API wrapper
+      crossref.ts                   # CrossRef API wrapper
+    paper/
+      search.ts                     # Paper search + preference ranking
+      summarize.ts                  # Summary extraction (Ollama + OpenAlex fallback)
+      citation.ts                   # Citation format generation (template assembly)
+      review.ts                     # Literature review generation
+    wormhole/
+      generate.ts                   # Wormhole path generation (citation 2–3 hops)
+      score.ts                      # Concept divergence + bridge + quality scoring
+      paths.ts                      # Graph path search
+    memory/
+      getMemory.ts                  # Read user preferences
+      compileFeedback.ts            # Feedback → memory patch
+      applyPatch.ts                  # Apply patch to memory
+      rankWithMemory.ts             # Re-rank search results by memory
+    llm/
+      provider.ts                   # LLM abstraction (Ollama / unavailable)
+      deterministicProvider.ts       # Deterministic branch when no LLM
+
+  prisma/
+    schema.prisma
+    seed.ts
+
+  data/
+    seed-papers.json                # 50+ papers (offline cache fallback)
+    seed-concepts.json              # 50+ concepts
+    seed-edges.json                 # 80+ concept relationship edges
+
+  tests/
+    unit/
+      search.test.ts
+      citation.test.ts
+      wormhole-score.test.ts
+      memory-compiler.test.ts
+      feedback-ranking.test.ts
+    e2e/
+      demo.spec.ts
+
+  docs/
+    demo-script.md
+    responsibility-packages.md
+
+  README.md
 ```
 
-Demo query:
+---
 
-```text
-I want to learn AI Agent for a project. I am a beginner.
+## 20. Three-Person Responsibility Packages
+
+### 20.1 Team Lead (You): Architecture Integration / Main App Loop / Demo Coordination
+
+| Item | Content |
+|---|---|
+| Scope | Project architecture, interface freezing, task decomposition, progress control, code merging, test acceptance, demo and defense |
+| Primary optimization goal | Ensure three members' work combines into a stable, demoable paper agent |
+| Must-do | Set up main repo; freeze types.ts; maintain task board; merge patches; run tests; unify UI terminology; write README and demo script |
+| Acceptance | At least one integration per day; each responsibility package must independently pass tests; final 3-minute demo must run completely after clean seed |
+| Deliverables | Main repo, interface docs, main README, demo script, acceptance records, defense slides |
+| Fallback boundary | Only do interface adaptation, conflict merges, lightweight bugfix; when a member's module fails, degrade to labeled fallback, don't fake completion |
+| **Forbidden** | Don't write core algorithms for members; don't replace unfinished modules with static fake data |
+
+Specific task list:
+1. Set up Next.js + Prisma project skeleton
+2. Write `lib/types.ts` to freeze all data structures
+3. Write `orchestrator.ts` with all `INTEGRATION POINT`s marked
+4. Write fake data engine (fallback) so the full flow runs from day one
+5. Write 6 pages + 8 component UI skeletons
+6. Write 7 API routes (receive request → pass to orchestrator → return result)
+7. Merge three members' patches, run complete tests
+8. Write README + demo script + defense slides
+
+### 20.2 Member 1: Paper Retrieval / Citation Format / API Wrappers
+
+| Item | Content |
+|---|---|
+| Scope | Paper search, citation format generation, result ranking, API wrappers |
+| Primary optimization goal | Make the agent feel like a tool that genuinely understands papers, not a generic chatbot |
+| Must implement | `lib/api/openalex.ts`, `lib/api/crossref.ts`, `lib/paper/search.ts`, `lib/paper/citation.ts`, `/api/search`, `/api/citation` |
+| Must experiment | Ranking comparison across different taskTypes; Chinese-first vs. English-first ranking differences; citation format comparison across three styles |
+| Must test | search-api.test.ts, citation.test.ts, no-LLM fallback test |
+| Deliverables | Patch, API wrappers, ranking comparison table, citation format samples |
+| Acceptance criteria | Inputting "I want to get started with AI agents for a project" returns at least 5 papers with abstracts and concepts; pasting a DOI generates correct APA/MLA/GB-T formats |
+
+Specific task list:
+1. Wrap OpenAlex API (search, details, citation relationships, concept tags, abstract reconstruction)
+2. Wrap CrossRef API (DOI lookup, title search)
+3. Implement `paper_search(query, filters)` returning paper card list
+4. Implement `citation_format(doi, style)` returning formatted citation
+5. Populate `data/seed-papers.json` (50+ papers, offline cache)
+6. Write search-api.test.ts and citation.test.ts
+7. Output ranking comparison table: project vs. research vs. coursework users see different results
+8. Prepare 150-word defense explanation: how PaperWorm helps you judge if a paper is worth reading in 30 seconds
+
+### 20.3 Member 2: Wormhole Algorithm / Feedback Memory / Concept Graph
+
+| Item | Content |
+|---|---|
+| Scope | Concept graph, wormhole path generation, slider ranking, feedback memory compilation, memory-injected ranking |
+| Primary optimization goal | Make "surprise" controllable, explainable, reproducible, and continuously adjustable via feedback memory |
+| Must implement | `lib/wormhole/generate.ts`, `lib/wormhole/score.ts`, `lib/memory/compileFeedback.ts`, `lib/memory/applyPatch.ts`, `lib/memory/rankWithMemory.ts`, `/api/wormholes`, `/api/feedback`, `/api/memory` |
+| Must experiment | slider=20/50/70/90 wormhole result comparison; pre/post-feedback ranking change comparison; low-bridge elimination experiment |
+| Must test | wormhole-score.test.ts, memory-compiler.test.ts, feedback-ranking.test.ts |
+| Deliverables | Patch, algorithm docs, weight table, experiment comparison tables, "controlled serendipity" explanation for defense |
+| Acceptance criteria | Same query with slider=20 vs. slider=70 returns visibly different results; after user feedback "too hard," math-heavy papers drop in ranking |
+
+Specific task list:
+1. Implement `generateWormholes(startPaperId, sliderValue)` — citation 2–3 hop paths
+2. Implement `score.ts` — novelty/bridge/quality/final scoring
+3. Implement `compileFeedback(feedback)` — compile feedback into memory patch
+4. Implement `applyPatch(memory, patches)` — apply patch to update memory
+5. Implement `rankWithMemory(papers, memory)` — re-rank search results by memory
+6. Populate `data/seed-concepts.json` (50+ concepts) and `data/seed-edges.json` (80+ edges)
+7. Write slider comparison experiment table: what 20/50/70/90 each return and why they differ
+8. Write pre/post-feedback comparison table: how ranking changes after "too hard" feedback
+9. Prepare 150-word defense explanation: how PaperWorm achieves "not random, but controlled serendipity"
+
+### 20.4 Interface Contract (Frozen — No Changes After Freeze)
+
+```typescript
+// Single source of truth: lib/types.ts
+
+type PaperId = string;
+type UserId = string;
+type InteractionId = string;
+
+type PaperCard = {
+  id: PaperId;
+  title: string;
+  doi: string | null;
+  year: number;
+  authors: string[];
+  citedByCount: number;
+  abstract: string | null;
+  concepts: ConceptTag[];
+  openAccess: boolean;
+  _rankScore?: number;       // Ranking score (internal use)
+};
+
+type ConceptTag = {
+  id: string;
+  name: string;
+  score: number;
+  level: number;
+};
+
+type WormholeCard = {
+  id: string;
+  path: PaperId[];
+  startConcepts: ConceptTag[];
+  targetConcepts: ConceptTag[];
+  targetPaper: PaperCard;
+  explanation: string;
+  scores: {
+    novelty: number;
+    bridge: number;
+    quality: number;
+    final: number;
+  };
+};
+
+type CitationResult = {
+  doi: string;
+  style: "apa" | "mla" | "gbt7714" | "chicago";
+  text: string;
+  metadata: CitationMetadata;
+  source: "crossref" | "manual";
+};
+
+type Feedback = {
+  targetType: "paper" | "wormhole" | "citation";
+  targetId: string;
+  rating: "too_theoretical" | "too_empirical" | "too_hard" | "just_right" | "interesting";
+  freeText: string | null;
+};
+
+type MemoryPatch = {
+  key: string;
+  operation: "set" | "add_or_increment" | "decrement" | "remove";
+  value: unknown;
+  confidenceDelta: number;
+};
 ```
 
-## 24. Final implementation note
+After freezing, anyone modifying fields must also update tests and sample data. **Only optional fields may be added; renaming or deleting fields is forbidden.**
 
-The product should never explain itself as "a combination of tracks 2, 3, and 4" in the UI. That is only for judging and documentation.
+---
 
-In the product, it should feel like one coherent thing:
+## 21. Implementation Priority
 
-> A librarian who knows the library, remembers how you learn, and can open useful wormholes to books, papers, shelves, and people you would not have found alone.
+### Day 1: Skeleton + Core Search
+
+1. Set up Next.js + Prisma project
+2. Complete schema and seed data
+3. Wrap OpenAlex API (Member 1)
+4. Get `/api/search` working — can search papers
+5. Get basic homepage and paper list working
+6. Freeze types.ts
+
+### Day 2: Citation Format + Feedback Memory
+
+1. Wrap CrossRef API (Member 1)
+2. Get `/api/citation` working — DOI → citation format
+3. Implement feedback memory engine (Member 2)
+4. Get `/api/feedback` + `/api/memory` working
+5. Implement `rankWithMemory` — ranking changes after feedback
+6. **Closed-loop verification**: search papers → click "too theoretical" → search again → ranking changed ✓
+
+### Day 3: Wormhole + Summary + Tests + Demo
+
+1. Implement wormhole algorithm (Member 2)
+2. Get `/api/wormholes` working — slider changes results
+3. Implement paper summary (Lead, Ollama + OpenAlex fallback)
+4. Get `/api/summarize` working
+5. Write tests (unit + e2e)
+6. Write demo script
+7. Fix UI + unify terminology + prepare defense
+
+---
+
+## 22. Testing & Acceptance
+
+### 22.1 Unit Tests
+
+Must cover:
+
+- [ ] `paper_search` returns paper list, each with title/abstract/concepts/citation count
+- [ ] `citation_format` DOI → APA/MLA/GB-T format correct (punctuation and spacing correct)
+- [ ] `compileFeedback` feedback "too hard" → mathTolerance decreases
+- [ ] `compileFeedback` feedback "interesting" → likedDomains adds entry
+- [ ] `rankWithMemory` prefers empirical → empirical papers rise in rank
+- [ ] `rankWithMemory` mathTolerance < 0.4 → math-heavy papers drop in rank
+- [ ] `generateWormholes` slider=20 vs. slider=70 returns visibly different results
+- [ ] `generateWormholes` wormholes with no paper landing point are eliminated
+- [ ] `generateWormholes` candidates with bridge_score < 0.35 are eliminated
+- [ ] `generateWormholes` every wormhole has an explanation
+
+### 22.2 API Tests
+
+- [ ] POST /api/search — returns paper list + memoryUsed
+- [ ] POST /api/citation — returns formatted citation
+- [ ] POST /api/summarize — returns abstract + argument/conclusion
+- [ ] POST /api/feedback — returns memoryPatches
+- [ ] GET /api/memory — returns preference profile + update history
+- [ ] DELETE /api/memory — memory reset
+- [ ] POST /api/wormholes — returns wormhole list + scores
+
+### 22.3 E2E Demo Test
+
+```
+Open homepage
+  -> Type: "I want to get started with AI agents for a project"
+  -> View paper list
+  -> Click "too theoretical" on one result
+  -> Search again -> ranking visibly changed, empirical papers on top
+  -> Open a paper -> see argument/conclusion extraction
+  -> Click "generate citation" -> paste DOI -> APA format -> one-click copy
+  -> Click "try knowledge wormhole" -> drag slider to 70
+  -> See wormhole: AI Agent -> Multi-Agent -> Game Theory -> Mechanism Design
+  -> Click "too hard" -> open /memory page -> mathTolerance decreased
+  -> Click "reset demo memory" -> memory cleared
+```
+
+---
+
+## 23. Demo Script (3 Minutes)
+
+### Opening (15 seconds)
+
+Google Scholar helps you search papers and then leaves you alone. PaperWorm remembers your taste — you say "too theoretical," and next time it prioritizes empirical work. Occasionally it even takes you to a field you've never searched before.
+
+### Step 1: Search + Feedback (45 seconds)
+
+Input: `I want to get started with AI agents for a project`
+
+Show: Paper list, each with abstract + concept tags + citation count.
+
+Click "too theoretical" on a theory-heavy paper.
+
+### Step 2: Memory Takes Effect (30 seconds)
+
+Search again with the same keywords.
+
+**Highlight**: Results ranking visibly changed — empirical papers on top, pure theoretical ones pushed down. UI shows "Referenced your preferences: prefers empirical research."
+
+### Step 3: Paper Summary + Citation Format (30 seconds)
+
+Open a paper → see argument/conclusion/intro extraction.
+
+Click "generate citation" → paste DOI → select APA → one-click copy.
+
+### Step 4: Knowledge Wormhole (45 seconds)
+
+Click "try knowledge wormhole" → drag surprise slider to 70.
+
+Show wormhole: AI Agent → Multi-Agent Coordination → Game Theory → Mechanism Design
+
+Explain: This isn't random. Multi-agent coordination and mechanism design both study "how multiple agents act under rules" — there's a direct knowledge bridge.
+
+Click "too hard."
+
+### Step 5: Memory Transparency Page (15 seconds)
+
+Open /memory page → see: math tolerance decreased, Economics added to liked domains, update history timeline.
+
+### Closing
+
+PaperWorm turns paper search from "search and leave you alone" into "an agent that remembers you." Search, citation, and summary all use free APIs at zero token cost. Feedback memory runs on local SQLite with millisecond response. And occasionally it takes you to a field you've never searched — that's "manufacturing surprise."
+
+---
+
+## 24. Seed Data Requirements
+
+### For Offline Cache (Fallback When OpenAlex Rate-Limits)
+
+| File | Count | Content |
+|---|---|---|
+| `seed-papers.json` | 50+ | Papers (title/DOI/year/authors/abstract/concepts/citation count) |
+| `seed-concepts.json` | 50+ | Concept nodes (name/aliases/domain/score) |
+| `seed-edges.json` | 80+ | Concept relationship edges (source/target/weight) |
+
+### Required Concept Chains (For Wormhole Demo)
+
+1. AI Agent → Multi-Agent Coordination → Game Theory → Mechanism Design
+2. AI Agent → Agent Memory → Human Memory → Cognitive Psychology → Forgetting Curve
+3. Transformer → Information Theory → Statistical Physics → Phase Transition
+4. RAG → Information Retrieval → Library Science → Personal Knowledge Management
+
+### Required Papers
+
+- Artificial Intelligence: A Modern Approach
+- Attention Is All You Need
+- Multiagent Systems (Wooldridge)
+- An Introduction to Game Theory (Osborne)
+- Cognitive Psychology and Its Implications
+- Introduction to Information Retrieval
+
+### Demo User
+
+- 1 demo user (`demo-user`)
+- 3 initial memories (prefers empirical, Chinese-first, mathTolerance=0.5)
+
+---
+
+## 25. Hard Rules (No Faking)
+
+1. **Feedback must genuinely change subsequent recommendations.** User says "too theoretical" → next search ranking must actually change.
+2. **Memory must be inspectable.** /memory page shows preference profile + update history, not a black box.
+3. **Citation format must be real.** APA is APA — punctuation and spacing must be correct. Calls CrossRef for real metadata, no fabrication.
+4. **Paper summaries must be genuine extractions from paper content.** If Ollama is down, use OpenAlex raw abstract — can't use generic filler.
+5. **Wormholes must land on real papers.** The destination must be a real paper with a DOI — can't invent one.
+6. **Every wormhole must show its path.** Show the A→B→C citation chain + human-readable explanation so the user understands "why we ended up here."
+7. **The slider must genuinely change ranking.** slider=20 and slider=70 return visibly different wormholes.
+8. **Clone must run.** npm install && npm run dev starts it up, no external API key dependency.
+9. **Degradation must be labeled.** If fallback data is used, label it "offline cache." If Ollama is down, label it "raw abstract." Don't deceive the user.
+
+---
+
+## 26. Definition of Done
+
+Project completion requires all of the following:
+
+- [ ] Runs locally (npm install && npm run dev)
+- [ ] Homepage is a usable paper search agent, not a concept intro page
+- [ ] Paper search returns real paper data (OpenAlex API)
+- [ ] Citation format generation is correct (CrossRef API + templates, APA/MLA/GB-T)
+- [ ] Feedback changes memory (compileFeedback → memory patch)
+- [ ] Memory affects next search ranking (rankWithMemory)
+- [ ] /memory page shows preference profile + update history
+- [ ] Wormhole paths can be generated and slider affects ranking
+- [ ] Every wormhole has explanation and path
+- [ ] Paper summary can extract argument/conclusion (falls back to OpenAlex raw if Ollama down)
+- [ ] All three responsibility packages have independent deliverables
+- [ ] Demo can be presented in 3 minutes
+- [ ] Core flow runs without LLM API key (search + citation + memory)
+
+---
+
+## Appendix: Differences from v1.3 Original
+
+| Dimension | v1.3 Original | v2.0 Revised |
+|---|---|---|
+| Product positioning | Library-domain agent | Paper agent (that remembers you) |
+| Primary track | Four tracks side by side | Qiniu Cloud primary; OpenAtom / Miracle Academy as bonus |
+| Catalog data | Self-built seed | OpenAlex API (free, real) |
+| Citation format | None | CrossRef API + templates (APA/MLA/GB-T) |
+| Paper summary | None | OpenAlex abstract reconstruction + Ollama argument extraction |
+| Memory engine | Written from scratch | Existing Python version; TS rewrite or wrap as microservice |
+| Wormhole algorithm | NLP semantic similarity | OpenAlex concept-tag set operations (verified) |
+| Living Library | Core feature | **Cut** |
+| Knowledge Collision | Core feature | **Cut** |
+| Person matching | Core feature | **Cut** |
+| Frontend pages | 5 pages | 6 pages (added paper detail + review) |
+| API routes | 6 | 7 (added citation + summarize) |
+| Demo mainline | Wormhole-centric | Feedback → memory → ranking change-centric |
+| Degradation strategy | Yes | Yes + verified API fallback |
+| Memory cost | Not analyzed | Has cost table (core flow zero tokens) |
