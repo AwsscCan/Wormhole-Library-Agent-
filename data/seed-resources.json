@@ -1,95 +1,653 @@
 {
-  "_comment": "PLACEHOLDER seed by 队友01 — 队友02 负责扩充到 30+ 资源。字段结构冻结，对齐 lib/types.ts ResourceCard（authors 数组、conceptIds 绑定 2-5 个概念）",
+  "_comment": "队友02 扩充：31 条馆藏资源（书/论文/课程/学位论文）。conceptIds 对齐冻结概念。",
   "resources": [
     {
       "id": "r_aima",
       "type": "book",
       "title": "Artificial Intelligence: A Modern Approach",
-      "authors": ["Stuart Russell", "Peter Norvig"],
+      "authors": [
+        "Stuart Russell",
+        "Peter Norvig"
+      ],
       "year": 2020,
       "language": "en",
-      "abstract": "The standard AI textbook; the Intelligent Agents chapter is a project-level overview.",
-      "location": "Main Library 3F TP Area",
-      "callNumber": "TP18/R96",
+      "abstract": "AI 领域最权威的教材，覆盖搜索、规划、学习、感知与 Agent 设计，是入门和进阶的首选。",
       "availability": "available",
       "difficulty": "undergrad",
-      "qualityScore": 0.95,
-      "conceptIds": ["c_ai_agent", "c_planning", "c_tool_use"]
+      "qualityScore": 0.97,
+      "conceptIds": [
+        "c_ai_agent",
+        "c_planning"
+      ],
+      "location": "三层东区 TP18 架",
+      "callNumber": "TP18/R961"
     },
     {
       "id": "r_multiagent_systems",
       "type": "book",
-      "title": "Multiagent Systems",
-      "authors": ["Yoav Shoham", "Kevin Leyton-Brown"],
+      "title": "Multiagent Systems: Algorithmic, Game-Theoretic, and Logical Foundations",
+      "authors": [
+        "Yoav Shoham",
+        "Kevin Leyton-Brown"
+      ],
       "year": 2009,
       "language": "en",
-      "abstract": "Algorithmic, game-theoretic, and logical foundations of multiagent systems.",
-      "location": "Main Library 3F TP Area",
-      "callNumber": "TP18/S55",
+      "abstract": "系统讲解多智能体系统的算法基础、博弈论与逻辑框架，是多 Agent 研究的核心参考书。",
       "availability": "available",
       "difficulty": "graduate",
-      "qualityScore": 0.9,
-      "conceptIds": ["c_multi_agent_coordination", "c_game_theory", "c_ai_agent"]
+      "qualityScore": 0.93,
+      "conceptIds": [
+        "c_multi_agent_coordination",
+        "c_game_theory",
+        "c_mechanism_design",
+        "c_ai_agent"
+      ],
+      "location": "三层东区 TP18 架",
+      "callNumber": "TP18/S559"
     },
     {
       "id": "r_game_theory_intro",
       "type": "book",
       "title": "An Introduction to Game Theory",
-      "authors": ["Martin J. Osborne"],
+      "authors": [
+        "Martin J. Osborne"
+      ],
       "year": 2003,
       "language": "en",
-      "abstract": "Accessible introduction to strategic interaction and mechanism design basics.",
-      "location": "Main Library 2F F Area",
-      "callNumber": "F224/O81",
+      "abstract": "博弈论标准入门教材，从纳什均衡到机制设计，循序渐进，适合计算机背景的跨学科读者。",
       "availability": "available",
       "difficulty": "undergrad",
-      "qualityScore": 0.88,
-      "conceptIds": ["c_game_theory", "c_mechanism_design"]
+      "qualityScore": 0.9,
+      "conceptIds": [
+        "c_game_theory",
+        "c_mechanism_design"
+      ],
+      "location": "四层西区 F0 架",
+      "callNumber": "F0/O81"
     },
     {
       "id": "r_cognitive_psych",
       "type": "book",
       "title": "Cognitive Psychology and Its Implications",
-      "authors": ["John R. Anderson"],
+      "authors": [
+        "John R. Anderson"
+      ],
       "year": 2015,
       "language": "en",
-      "abstract": "Covers human memory, learning, and the forgetting curve.",
-      "location": "Main Library 4F B Area",
-      "callNumber": "B842/A54",
-      "availability": "checked_out",
+      "abstract": "认知心理学经典教材，涵盖记忆、注意、语言、问题求解，是理解人类认知机制的必读书目。",
+      "availability": "available",
       "difficulty": "undergrad",
-      "qualityScore": 0.85,
-      "conceptIds": ["c_cognitive_psychology", "c_human_memory", "c_forgetting_curve"]
+      "qualityScore": 0.88,
+      "conceptIds": [
+        "c_cognitive_psychology",
+        "c_human_memory",
+        "c_forgetting_curve"
+      ],
+      "location": "五层南区 B842 架",
+      "callNumber": "B842/A547"
     },
     {
       "id": "r_intro_ir",
       "type": "book",
       "title": "Introduction to Information Retrieval",
-      "authors": ["Christopher D. Manning", "Prabhakar Raghavan", "Hinrich Schütze"],
+      "authors": [
+        "Christopher D. Manning",
+        "Prabhakar Raghavan",
+        "Hinrich Schütze"
+      ],
       "year": 2008,
       "language": "en",
-      "abstract": "Classic IR textbook, foundation for RAG-style systems.",
-      "location": "Online + Main Library 3F TP Area",
-      "callNumber": "TP391/M28",
+      "abstract": "信息检索领域权威教材，涵盖索引、检索模型、相关性排序和向量空间模型，网上可免费获取。",
       "availability": "online",
-      "difficulty": "undergrad",
-      "qualityScore": 0.9,
-      "conceptIds": ["c_information_retrieval", "c_rag"]
+      "difficulty": "graduate",
+      "qualityScore": 0.95,
+      "conceptIds": [
+        "c_information_retrieval",
+        "c_library_science"
+      ],
+      "location": "三层东区 TP393 架",
+      "callNumber": "TP393/M278"
+    },
+    {
+      "id": "r_library_science_zh",
+      "type": "book",
+      "title": "图书馆学概论",
+      "authors": [
+        "吴慰慈",
+        "邵巍"
+      ],
+      "year": 2019,
+      "language": "zh",
+      "abstract": "国内图书馆学经典教材，系统介绍图书馆的定义、职能、分类、信息组织与知识服务体系。",
+      "availability": "available",
+      "difficulty": "intro",
+      "qualityScore": 0.82,
+      "conceptIds": [
+        "c_library_science",
+        "c_pkm",
+        "c_information_retrieval"
+      ],
+      "location": "五层南区 G250 架",
+      "callNumber": "G250/W963"
     },
     {
       "id": "r_pkm_zh",
       "type": "book",
-      "title": "卡片笔记写作法：如何实现从阅读到写作",
-      "authors": ["申克·阿伦斯"],
-      "year": 2021,
+      "title": "第二大脑：打造个人知识管理系统",
+      "authors": [
+        "蒂亚戈·福特"
+      ],
+      "year": 2022,
       "language": "zh",
-      "abstract": "个人知识管理与知识组织的中文入门书。",
-      "location": "Main Library 1F G Area",
-      "callNumber": "G254/A45",
+      "abstract": "个人知识管理畅销书，介绍如何用数字工具构建外脑，组织笔记、想法和项目资料。",
       "availability": "available",
       "difficulty": "intro",
+      "qualityScore": 0.78,
+      "conceptIds": [
+        "c_pkm",
+        "c_library_science"
+      ],
+      "location": "五层南区 G250 架",
+      "callNumber": "G250/F743"
+    },
+    {
+      "id": "r_rl_intro",
+      "type": "book",
+      "title": "Reinforcement Learning: An Introduction",
+      "authors": [
+        "Richard S. Sutton",
+        "Andrew G. Barto"
+      ],
+      "year": 2018,
+      "language": "en",
+      "abstract": "强化学习领域的圣经级教材，从 MDP 到深度 RL，覆盖核心理论与算法，可免费下载。",
+      "availability": "online",
+      "difficulty": "graduate",
+      "qualityScore": 0.96,
+      "conceptIds": [
+        "c_planning",
+        "c_ai_agent"
+      ],
+      "location": "三层东区 TP18 架",
+      "callNumber": "TP18/S967"
+    },
+    {
+      "id": "r_transformer_paper",
+      "type": "paper",
+      "title": "Attention Is All You Need",
+      "authors": [
+        "Ashish Vaswani",
+        "Noam Shazeer",
+        "Niki Parmar"
+      ],
+      "year": 2017,
+      "language": "en",
+      "abstract": "提出 Transformer 架构的原创论文，开创了现代大语言模型的基础，引用量超过十万次。",
+      "availability": "online",
+      "difficulty": "research",
+      "qualityScore": 0.99,
+      "conceptIds": [
+        "c_transformer",
+        "c_information_theory"
+      ]
+    },
+    {
+      "id": "r_rag_paper",
+      "type": "paper",
+      "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+      "authors": [
+        "Patrick Lewis",
+        "Ethan Perez",
+        "Aleksandra Piktus"
+      ],
+      "year": 2020,
+      "language": "en",
+      "abstract": "提出 RAG 框架，将检索与生成结合，让语言模型能利用外部知识库回答问题，开创检索增强范式。",
+      "availability": "online",
+      "difficulty": "research",
+      "qualityScore": 0.92,
+      "conceptIds": [
+        "c_rag",
+        "c_information_retrieval",
+        "c_transformer",
+        "c_pkm"
+      ]
+    },
+    {
+      "id": "r_react_paper",
+      "type": "paper",
+      "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+      "authors": [
+        "Shunyu Yao",
+        "Jeffrey Zhao",
+        "Dian Yu"
+      ],
+      "year": 2022,
+      "language": "en",
+      "abstract": "提出 ReAct 范式，让语言模型交替进行推理和行动，是现代 Agent 工具调用的核心理论基础。",
+      "availability": "online",
+      "difficulty": "research",
+      "qualityScore": 0.89,
+      "conceptIds": [
+        "c_ai_agent",
+        "c_tool_use",
+        "c_planning"
+      ]
+    },
+    {
+      "id": "r_memory_survey",
+      "type": "paper",
+      "title": "A Survey on Memory-Augmented Neural Networks",
+      "authors": [
+        "Pengfei Liu",
+        "Weizhe Yuan",
+        "Jinlan Fu"
+      ],
+      "year": 2023,
+      "language": "en",
+      "abstract": "系统综述记忆增强神经网络的发展，涵盖外部存储、记忆读写机制与长短期记忆设计模式。",
+      "availability": "online",
+      "difficulty": "graduate",
+      "qualityScore": 0.84,
+      "conceptIds": [
+        "c_agent_memory",
+        "c_transformer",
+        "c_human_memory"
+      ]
+    },
+    {
+      "id": "r_agent_survey_zh",
+      "type": "paper",
+      "title": "大语言模型驱动的智能体综述",
+      "authors": [
+        "Lei Wang",
+        "Chen Ma",
+        "Xueyang Feng"
+      ],
+      "year": 2024,
+      "language": "zh",
+      "abstract": "中文综述，系统梳理 LLM-based Agent 的规划、记忆、工具使用和多 Agent 协作四个维度。",
+      "availability": "online",
+      "difficulty": "graduate",
+      "qualityScore": 0.87,
+      "conceptIds": [
+        "c_ai_agent",
+        "c_agent_memory",
+        "c_planning",
+        "c_multi_agent_coordination",
+        "c_tool_use"
+      ]
+    },
+    {
+      "id": "r_phase_transition_paper",
+      "type": "paper",
+      "title": "Phase Transitions in Deep Neural Networks",
+      "authors": [
+        "Henry W. Lin",
+        "Max Tegmark"
+      ],
+      "year": 2023,
+      "language": "en",
+      "abstract": "探讨深度神经网络中的相变现象，将统计物理的相变概念引入机器学习，揭示泛化能力的涌现机制。",
+      "availability": "online",
+      "difficulty": "research",
+      "qualityScore": 0.81,
+      "conceptIds": [
+        "c_phase_transition",
+        "c_statistical_physics",
+        "c_transformer"
+      ]
+    },
+    {
+      "id": "r_info_theory_book",
+      "type": "book",
+      "title": "Elements of Information Theory",
+      "authors": [
+        "Thomas M. Cover",
+        "Joy A. Thomas"
+      ],
+      "year": 2006,
+      "language": "en",
+      "abstract": "信息论权威教材，涵盖熵、互信息、信道容量，是理解 Transformer 和深度学习信息论基础的必读书。",
+      "availability": "available",
+      "difficulty": "graduate",
+      "qualityScore": 0.94,
+      "conceptIds": [
+        "c_information_theory",
+        "c_transformer",
+        "c_statistical_physics"
+      ],
+      "location": "三层东区 TN911 架",
+      "callNumber": "TN911/C873"
+    },
+    {
+      "id": "r_mechanism_design_book",
+      "type": "book",
+      "title": "Putting Auction Theory to Work",
+      "authors": [
+        "Paul Milgrom"
+      ],
+      "year": 2002,
+      "language": "en",
+      "abstract": "将拍卖理论与机制设计实践相结合，讲解如何在多个策略性主体间设计激励相容的规则。",
+      "availability": "checked_out",
+      "difficulty": "graduate",
+      "qualityScore": 0.88,
+      "conceptIds": [
+        "c_mechanism_design",
+        "c_game_theory",
+        "c_multi_agent_coordination"
+      ],
+      "location": "四层西区 F0 架",
+      "callNumber": "F0/M657"
+    },
+    {
+      "id": "r_cs_agent_course",
+      "type": "course",
+      "title": "CS 224N: Natural Language Processing with Deep Learning",
+      "authors": [
+        "Christopher Manning"
+      ],
+      "year": 2023,
+      "language": "en",
+      "abstract": "斯坦福 NLP 旗舰课程，涵盖词向量、Transformer、预训练语言模型与 Agent 应用，配套公开课件。",
+      "availability": "online",
+      "difficulty": "graduate",
+      "qualityScore": 0.91,
+      "conceptIds": [
+        "c_transformer",
+        "c_ai_agent"
+      ]
+    },
+    {
+      "id": "r_berkely_rl_course",
+      "type": "course",
+      "title": "CS 285: Deep Reinforcement Learning",
+      "authors": [
+        "Sergey Levine"
+      ],
+      "year": 2022,
+      "language": "en",
+      "abstract": "伯克利深度强化学习课程，从策略梯度到模型预测控制，是研究 Agent 决策的核心课程资源。",
+      "availability": "online",
+      "difficulty": "graduate",
+      "qualityScore": 0.9,
+      "conceptIds": [
+        "c_planning",
+        "c_ai_agent"
+      ]
+    },
+    {
+      "id": "r_multiagent_course_zh",
+      "type": "course",
+      "title": "多智能体系统导论（北京大学公开课）",
+      "authors": [
+        "陈小平"
+      ],
+      "year": 2021,
+      "language": "zh",
+      "abstract": "北京大学多智能体系统课程，中文讲授，覆盖基础概念、协作机制与博弈论应用，适合入门。",
+      "availability": "online",
+      "difficulty": "undergrad",
+      "qualityScore": 0.8,
+      "conceptIds": [
+        "c_multi_agent_coordination",
+        "c_ai_agent",
+        "c_game_theory"
+      ]
+    },
+    {
+      "id": "r_cognitive_load_theory",
+      "type": "paper",
+      "title": "Cognitive Load Theory and the Format of Instruction",
+      "authors": [
+        "John Sweller"
+      ],
+      "year": 1994,
+      "language": "en",
+      "abstract": "认知负荷理论奠基论文，探讨工作记忆限制如何影响学习效果，对教学设计和知识管理有深远影响。",
+      "availability": "online",
+      "difficulty": "graduate",
+      "qualityScore": 0.83,
+      "conceptIds": [
+        "c_cognitive_psychology",
+        "c_human_memory",
+        "c_forgetting_curve"
+      ]
+    },
+    {
+      "id": "r_forgetting_curve_paper",
+      "type": "paper",
+      "title": "Spacing Effects in Learning: A Temporal Riddle",
+      "authors": [
+        "Nicholas J. Cepeda",
+        "Harold Pashler",
+        "Edward Vul"
+      ],
+      "year": 2006,
+      "language": "en",
+      "abstract": "系统研究间隔效应与遗忘曲线，为间隔重复学习算法提供实验基础，与记忆增强 Agent 设计高度相关。",
+      "availability": "online",
+      "difficulty": "research",
+      "qualityScore": 0.85,
+      "conceptIds": [
+        "c_forgetting_curve",
+        "c_human_memory",
+        "c_agent_memory",
+        "c_cognitive_psychology"
+      ]
+    },
+    {
+      "id": "r_langchain_practical",
+      "type": "book",
+      "title": "Building LLM-Powered Applications with LangChain",
+      "authors": [
+        "Valentina Alto"
+      ],
+      "year": 2023,
+      "language": "en",
+      "abstract": "实践导向教程，使用 LangChain 构建 LLM 应用，涵盖链式调用、工具使用和 Agent 编排。",
+      "availability": "online",
+      "difficulty": "undergrad",
       "qualityScore": 0.75,
-      "conceptIds": ["c_pkm", "c_library_science"]
+      "conceptIds": [
+        "c_ai_agent",
+        "c_tool_use",
+        "c_rag",
+        "c_agent_memory"
+      ],
+      "location": "三层东区 TP18 架",
+      "callNumber": "TP18/A469"
+    },
+    {
+      "id": "r_statistical_physics_book",
+      "type": "book",
+      "title": "Statistical Mechanics: Entropy, Order Parameters, and Complexity",
+      "authors": [
+        "James P. Sethna"
+      ],
+      "year": 2011,
+      "language": "en",
+      "abstract": "统计力学现代教材，着重熵与序参数的物理直觉，与信息论和深度学习复杂性研究高度相关。",
+      "availability": "available",
+      "difficulty": "graduate",
+      "qualityScore": 0.89,
+      "conceptIds": [
+        "c_statistical_physics",
+        "c_information_theory",
+        "c_phase_transition"
+      ],
+      "location": "三层东区 O414 架",
+      "callNumber": "O414/S495"
+    },
+    {
+      "id": "r_knowledge_graph_zh",
+      "type": "book",
+      "title": "知识图谱：方法、实践与应用",
+      "authors": [
+        "刘峤",
+        "李杨",
+        "段宏"
+      ],
+      "year": 2019,
+      "language": "zh",
+      "abstract": "国内知识图谱主流教材，涵盖实体识别、关系抽取、图谱构建与知识推理，配套实践案例。",
+      "availability": "available",
+      "difficulty": "undergrad",
+      "qualityScore": 0.8,
+      "conceptIds": [
+        "c_library_science",
+        "c_information_retrieval",
+        "c_pkm"
+      ],
+      "location": "三层东区 TP391 架",
+      "callNumber": "TP391/L781"
+    },
+    {
+      "id": "r_attention_mechanism_survey",
+      "type": "paper",
+      "title": "An Attentive Survey of Attention Models",
+      "authors": [
+        "Sneha Chaudhari",
+        "Varun Mithal",
+        "Gungor Polatkan"
+      ],
+      "year": 2018,
+      "language": "en",
+      "abstract": "综述注意力机制在 NLP、CV、推荐系统中的应用，帮助理解 Transformer 注意力的设计动机。",
+      "availability": "online",
+      "difficulty": "graduate",
+      "qualityScore": 0.82,
+      "conceptIds": [
+        "c_transformer",
+        "c_information_theory"
+      ]
+    },
+    {
+      "id": "r_decision_making_book",
+      "type": "book",
+      "title": "Judgment Under Uncertainty: Heuristics and Biases",
+      "authors": [
+        "Daniel Kahneman",
+        "Paul Slovic",
+        "Amos Tversky"
+      ],
+      "year": 1982,
+      "language": "en",
+      "abstract": "行为经济学与认知偏差的奠基文集，探讨人类在不确定性下如何决策，是理解理性假设局限的经典。",
+      "availability": "available",
+      "difficulty": "undergrad",
+      "qualityScore": 0.92,
+      "conceptIds": [
+        "c_planning",
+        "c_cognitive_psychology",
+        "c_game_theory"
+      ],
+      "location": "四层西区 B849 架",
+      "callNumber": "B849/K12"
+    },
+    {
+      "id": "r_thesis_agent_memory",
+      "type": "thesis",
+      "title": "基于长期记忆的智能体个性化推荐研究",
+      "authors": [
+        "李晨曦"
+      ],
+      "year": 2024,
+      "language": "zh",
+      "abstract": "硕士学位论文，研究如何利用用户长期交互记忆改进智能体的个性化推荐，包含实验验证。",
+      "availability": "available",
+      "difficulty": "graduate",
+      "qualityScore": 0.74,
+      "conceptIds": [
+        "c_agent_memory",
+        "c_ai_agent",
+        "c_human_memory",
+        "c_pkm"
+      ],
+      "location": "五层学位论文室",
+      "callNumber": "TD/L496"
+    },
+    {
+      "id": "r_thesis_library_ai",
+      "type": "thesis",
+      "title": "人工智能在图书馆知识服务中的应用研究",
+      "authors": [
+        "张雨桐"
+      ],
+      "year": 2024,
+      "language": "zh",
+      "abstract": "本科学位论文，系统梳理 AI 技术在图书馆知识发现、智能参考和资源推荐中的应用现状与趋势。",
+      "availability": "available",
+      "difficulty": "undergrad",
+      "qualityScore": 0.71,
+      "conceptIds": [
+        "c_library_science",
+        "c_pkm",
+        "c_information_retrieval",
+        "c_ai_agent"
+      ],
+      "location": "五层学位论文室",
+      "callNumber": "TD/Z636"
+    },
+    {
+      "id": "r_serendipity_ir_paper",
+      "type": "paper",
+      "title": "Serendipity and Information Seeking: An Empirical Study",
+      "authors": [
+        "Lori McCay-Peet",
+        "Elaine Toms"
+      ],
+      "year": 2009,
+      "language": "en",
+      "abstract": "实证研究偶遇信息发现（serendipity）在信息检索中的机制，为 Wormhole 意外度设计提供理论依据。",
+      "availability": "online",
+      "difficulty": "graduate",
+      "qualityScore": 0.79,
+      "conceptIds": [
+        "c_information_retrieval",
+        "c_library_science",
+        "c_pkm"
+      ]
+    },
+    {
+      "id": "r_nash_eq_paper",
+      "type": "paper",
+      "title": "Non-Cooperative Games",
+      "authors": [
+        "John F. Nash"
+      ],
+      "year": 1950,
+      "language": "en",
+      "abstract": "纳什均衡原始论文（1950），确立非合作博弈均衡概念，是博弈论和机制设计的理论起点。",
+      "availability": "online",
+      "difficulty": "research",
+      "qualityScore": 0.98,
+      "conceptIds": [
+        "c_game_theory",
+        "c_mechanism_design"
+      ]
+    },
+    {
+      "id": "r_reading_path_zh",
+      "type": "book",
+      "title": "如何阅读一本书",
+      "authors": [
+        "莫提默·艾德勒",
+        "查尔斯·范多伦"
+      ],
+      "year": 2020,
+      "language": "zh",
+      "abstract": "阅读方法经典，区分主动阅读与被动阅读，从基础阅读到主题阅读，帮助读者构建个人知识体系。",
+      "availability": "available",
+      "difficulty": "intro",
+      "qualityScore": 0.85,
+      "conceptIds": [
+        "c_pkm",
+        "c_library_science"
+      ],
+      "location": "五层南区 G792 架",
+      "callNumber": "G792/A238"
     }
   ]
 }

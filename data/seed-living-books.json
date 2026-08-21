@@ -1,41 +1,136 @@
 {
-  "_comment": "PLACEHOLDER seed by 队友01 — 队友02 负责扩充到 6+ 人物（全部虚构、consent 字段齐全）。结构冻结，对齐 LivingBookCard + consentState",
+  "_comment": "队友02 扩充：7 个虚构 Living Library 人物，覆盖四种 consentState，全部字段对齐冻结结构。",
   "livingBooks": [
     {
-      "id": "lb_econ_student",
-      "displayMode": "anonymous",
-      "displayName": null,
-      "headline": "经济学研究生，做机制设计，愿意解释博弈论如何用于多智能体系统",
-      "bio": "Fictional demo profile.",
+      "id": "lb_001",
+      "displayMode": "named",
+      "displayName": "方舟（机制设计方向）",
+      "headline": "研究多主体规则设计，擅长用经济学视角分析 Agent 系统的激励问题",
+      "bio": "虚构的演示人物档案，仅用于系统演示。",
       "expertiseLevel": "senior",
-      "consentState": "discoverable_anonymous",
-      "willingTypes": ["coffee_chat", "async_answer"],
-      "availabilityNote": "工作日晚上",
-      "conceptIds": ["c_mechanism_design", "c_game_theory"]
+      "consentState": "discoverable_named",
+      "willingTypes": [
+        "coffee_chat",
+        "async_answer"
+      ],
+      "availabilityNote": "工作日晚上、周末上午",
+      "conceptIds": [
+        "c_mechanism_design",
+        "c_game_theory"
+      ]
     },
     {
-      "id": "lb_cogsci_student",
-      "displayMode": "named",
-      "displayName": "学生B（演示数据）",
-      "headline": "认知科学方向，熟悉人类记忆模型，能帮 CS 同学理解记忆研究",
-      "bio": "Fictional demo profile.",
+      "id": "lb_002",
+      "displayMode": "anonymous",
+      "displayName": null,
+      "headline": "认知心理学背景，研究人类记忆与遗忘规律，对 Agent Memory 设计有跨学科见解",
+      "bio": "虚构的演示人物档案，仅用于系统演示。",
       "expertiseLevel": "peer",
-      "consentState": "discoverable_named",
-      "willingTypes": ["reading_guide", "async_answer"],
-      "availabilityNote": "周末",
-      "conceptIds": ["c_cognitive_psychology", "c_human_memory", "c_forgetting_curve"]
+      "consentState": "discoverable_anonymous",
+      "willingTypes": [
+        "reading_guide",
+        "async_answer"
+      ],
+      "availabilityNote": "周末下午",
+      "conceptIds": [
+        "c_cognitive_psychology",
+        "c_human_memory",
+        "c_forgetting_curve"
+      ]
     },
     {
       "id": "lb_private_example",
       "displayMode": "anonymous",
       "displayName": null,
-      "headline": "（此人物 consentState=private，任何接口都不应返回它 — 用于隐私测试）",
-      "bio": "Fictional demo profile for consent tests.",
-      "expertiseLevel": "peer",
+      "headline": "研究 Transformer 与信息论的交叉，对相变现象有深入理解",
+      "bio": "虚构的演示人物档案，仅用于系统演示。",
+      "expertiseLevel": "mentor",
       "consentState": "private",
-      "willingTypes": [],
+      "willingTypes": [
+        "project_review"
+      ],
       "availabilityNote": null,
-      "conceptIds": ["c_transformer"]
+      "conceptIds": [
+        "c_transformer",
+        "c_information_theory",
+        "c_statistical_physics"
+      ]
+    },
+    {
+      "id": "lb_004",
+      "displayMode": "anonymous",
+      "displayName": null,
+      "headline": "图书馆学与信息检索背景，擅长帮助构建个人知识管理体系和文献检索策略",
+      "bio": "虚构的演示人物档案，仅用于系统演示。",
+      "expertiseLevel": "peer",
+      "consentState": "discoverable_anonymous",
+      "willingTypes": [
+        "reading_guide",
+        "coffee_chat",
+        "async_answer"
+      ],
+      "availabilityNote": "工作日下午、周末上午",
+      "conceptIds": [
+        "c_library_science",
+        "c_information_retrieval",
+        "c_pkm"
+      ]
+    },
+    {
+      "id": "lb_005",
+      "displayMode": "named",
+      "displayName": "吴宇轩",
+      "headline": "多智能体系统方向研究生，正在做基于强化学习的多 Agent 协作项目，可以分享项目经验",
+      "bio": "虚构的演示人物档案，仅用于系统演示。",
+      "expertiseLevel": "senior",
+      "consentState": "discoverable_named",
+      "willingTypes": [
+        "project_review",
+        "coffee_chat"
+      ],
+      "availabilityNote": "工作日晚上",
+      "conceptIds": [
+        "c_multi_agent_coordination",
+        "c_ai_agent",
+        "c_planning"
+      ]
+    },
+    {
+      "id": "lb_006",
+      "displayMode": "anonymous",
+      "displayName": null,
+      "headline": "专注 RAG 与知识管理方向，目前暂停接受新连接",
+      "bio": "虚构的演示人物档案，仅用于系统演示。",
+      "expertiseLevel": "senior",
+      "consentState": "paused",
+      "willingTypes": [
+        "async_answer"
+      ],
+      "availabilityNote": null,
+      "conceptIds": [
+        "c_rag",
+        "c_pkm",
+        "c_agent_memory"
+      ]
+    },
+    {
+      "id": "lb_007",
+      "displayMode": "named",
+      "displayName": "林思远",
+      "headline": "NLP 与深度学习方向，熟悉 Transformer 原理及预训练模型应用，乐于推荐入门路径",
+      "bio": "虚构的演示人物档案，仅用于系统演示。",
+      "expertiseLevel": "senior",
+      "consentState": "discoverable_named",
+      "willingTypes": [
+        "reading_guide",
+        "async_answer",
+        "coffee_chat"
+      ],
+      "availabilityNote": "工作日上午、周末下午",
+      "conceptIds": [
+        "c_transformer",
+        "c_ai_agent"
+      ]
     }
   ]
 }
