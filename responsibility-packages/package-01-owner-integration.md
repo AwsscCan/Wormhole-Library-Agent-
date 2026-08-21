@@ -128,6 +128,7 @@ Day 2 验收：
 5. 统一 UI 文案。
 6. 准备答辩讲稿。
 7. 冻结最终 seed。
+8. 将已批准的公共扩展（当前为文献综述 API 与工作台）接入 orchestrator、contract test 和导航；不得借此提前整合未通过验收的队友责任包。
 
 Day 3 验收：
 
@@ -148,6 +149,16 @@ Demo 3 分钟内可讲完
 4. API 错误格式。
 5. Demo reset 如何实现。
 6. 如果队友模块未完成，如何降级但不撒谎。
+
+已做出的决策记录：
+
+| 决策 | 结论 |
+|---|---|
+| shared types | `lib/types.ts` 单文件冻结契约 |
+| API 错误格式 | `{ error: { code, message } }`，code 枚举见 types.ts |
+| 页面数据拉取 | 客户端拉取（骨架期 in-memory store，避免 SSR 与热重载状态问题） |
+| Demo reset | `DELETE /api/memory?userId=` + memory 页一键按钮 |
+| 交付形态 | 桌面应用（Electron 壳 `npm run desktop`）+ 网页模式（`npm run dev`）双轨；壳对 Next 应用零侵入，网页模式作为 demo 保底 |
 
 推荐降级策略：
 

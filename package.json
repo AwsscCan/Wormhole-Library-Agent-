@@ -2,8 +2,10 @@
   "name": "wormhole-library-agent",
   "version": "0.1.0",
   "private": true,
+  "productName": "Wormhole Library Agent",
   "scripts": {
     "dev": "next dev",
+    "desktop": "node desktop/launch.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -15,20 +17,32 @@
   },
   "dependencies": {
     "@prisma/client": "^6.2.0",
+    "@xyflow/react": "^12.4.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.469.0",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "tailwind-merge": "^2.6.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "electron": "^33.3.0",
     "eslint": "^9.18.0",
     "eslint-config-next": "^15.1.6",
+    "postcss": "^8.4.49",
     "prisma": "^6.2.0",
+    "tailwindcss": "^3.4.17",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.8"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
   }
 }

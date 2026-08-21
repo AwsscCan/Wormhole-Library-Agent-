@@ -9,6 +9,7 @@ import { POST as feedbackPOST } from "@/app/api/feedback/route";
 import { GET as memoryGET } from "@/app/api/memory/route";
 import { POST as matchesPOST } from "@/app/api/matches/route";
 import { POST as contactPOST } from "@/app/api/contact-requests/route";
+import { POST as reviewPOST } from "@/app/api/review/route";
 
 function jsonRequest(url: string, body: unknown): Request {
   return new Request(url, {
@@ -129,5 +130,22 @@ describe("API contracts", () => {
     const data = await res.json();
     expect(data).toHaveProperty("requestId");
     expect(data.status).toBe("pending");
+  });
+
+  it("POST /api/review synthesizes three selected resources with a labeled fallback source", async () => {
+    const paperIds = ["r_aima", "r_multiagent_systems", "r_game_theory_intro"];
+    const res = await reviewPOST(
+      jsonRequest("http://test/api/review", {
+        userId: "contract-user",
+        paperIds,
+        focus: "methods",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.papersUsed).toEqual(paperIds);
+    expect(data.reviewText).toContain("Multiagent Systems");
+    expect(data.source).toBe("concat");
   });
 });

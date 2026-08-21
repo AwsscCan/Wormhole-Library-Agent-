@@ -39,3 +39,9 @@ export const contactRequestSchema = z.object({
   personMatchId: z.string().min(1),
   message: z.string().min(1),
 });
+
+export const reviewRequestSchema = z.object({
+  userId: z.string().min(1),
+  paperIds: z.array(z.string().min(1)).min(3).max(5),
+  focus: z.enum(["methods", "findings", "timeline"]).optional(),
+});

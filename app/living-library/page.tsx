@@ -1,15 +1,19 @@
 "use client";
+/**
+ * Living Library 页 = 活馆藏档案库：
+ * 匿名、克制、有神秘感——不是社交软件好友推荐。
+ */
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Archive, ShieldCheck, BookUser } from "lucide-react";
 import type { LivingBookCard as LivingBookCardData } from "@/lib/types";
+import { Panel, PanelHeader, PanelBody } from "@/components/ui/panel";
+import { Button } from "@/components/ui/button";
 import { LivingBookCard } from "@/components/LivingBookCard";
 import livingBooksSeed from "@/data/seed-living-books.json";
 
 const DEMO_USER = "demo-user";
 
-/**
- * Living Library 页（骨架版 — 队友02 的 consent 流程接入后增强）
- * 目前：展示可发现的 living books + opt-in 开关（本地状态演示）。
- */
 export default function LivingLibraryPage() {
   const [optIn, setOptIn] = useState(false);
   const [books, setBooks] = useState<LivingBookCardData[]>([]);
@@ -26,7 +30,10 @@ export default function LivingLibraryPage() {
             ? lb.displayName
             : undefined,
         headline: lb.headline,
-        expertiseConcepts: lb.conceptIds.map((id) => ({ id, name: id.replace(/^c_/, "").replace(/_/g, " ") })),
+        expertiseConcepts: lb.conceptIds.map((id) => ({
+          id,
+          name: id.replace(/^c_/, "").replace(/_/g, " "),
+        })),
         willingTypes: lb.willingTypes as LivingBookCardData["willingTypes"],
         expertiseLevel: lb.expertiseLevel as LivingBookCardData["expertiseLevel"],
         availabilityNote: lb.availabilityNote ?? undefined,
@@ -36,27 +43,63 @@ export default function LivingLibraryPage() {
   }, []);
 
   return (
-    <div>
-      <h1>📖 Living Library</h1>
-      <p className="subtitle">
-        图书馆不只有书——愿意分享经验的人也是馆藏。所有人物都需要明确同意才能被发现，联系方式在双方同意前不会展示。
-      </p>
+    <div className="space-y-4">
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="flex items-center gap-2 font-display text-xl text-ivory">
+          <Archive className="h-5 w-5 text-copper" />
+          活馆藏档案库
+        </h1>
+        <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-steel">
+          图书馆不只有书——愿意分享经验的人也是馆藏。每一册「活书」都经过明确同意才可被发现，
+          双方同意之前，身份与联系方式都封存在档案里。
+        </p>
+      </motion.div>
 
-      <div className="card">
-        <h3>把我自己变成一本 Living Book</h3>
-        <p className="why muted">开启后，其他同学可以按主题匿名找到你（演示功能）。</p>
-        <button
-          className={`ghost${optIn ? " active" : ""}`}
-          onClick={() => setOptIn((v) => !v)}
-        >
-          {optIn ? "✓ 已开启可发现（匿名模式）" : "开启可发现"}
-        </button>
+      <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+        <Panel className="self-start">
+          <PanelHeader icon={BookUser} title="my volume · 我的档案" accent="copper" />
+          <PanelBody className="space-y-3 pt-3">
+            <p className="text-xs leading-relaxed text-steel">
+              把自己登记为一册可发现的活书：其他同学可以按主题匿名找到你（演示功能）。
+            </p>
+            <Button
+              variant={optIn ? "copper" : "ghost"}
+              className="w-full"
+              onClick={() => setOptIn((v) => !v)}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {optIn ? "✓ 已登记（匿名模式）" : "登记为活书"}
+            </Button>
+            <p className="flex items-start gap-1.5 text-[10.5px] leading-relaxed text-steel-dim">
+              <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-pulse-dim" />
+              可随时暂停或注销。匿名模式下不展示姓名，只展示专长领域与可提供的帮助类型。
+            </p>
+          </PanelBody>
+        </Panel>
+
+        <Panel>
+          <PanelHeader
+            icon={Archive}
+            title="discoverable volumes · 可发现的活书"
+            accent="copper"
+            right={
+              <span className="font-mono text-[10px] text-steel-dim">{books.length} vols</span>
+            }
+          />
+          <PanelBody className="grid gap-3 pt-3 md:grid-cols-2">
+            {books.map((lb, i) => (
+              <motion.div
+                key={lb.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+              >
+                <LivingBookCard livingBook={lb} userId={DEMO_USER} />
+              </motion.div>
+            ))}
+          </PanelBody>
+        </Panel>
       </div>
-
-      <h2>可发现的 Living Books</h2>
-      {books.map((lb) => (
-        <LivingBookCard key={lb.id} livingBook={lb} userId={DEMO_USER} />
-      ))}
     </div>
   );
 }

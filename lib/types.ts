@@ -200,6 +200,7 @@ export interface MemoryUpdateEvent {
   DELETE /api/memory?userId=   (demo reset ext)     -> MemoryResponse
   POST /api/matches            MatchesRequest       -> MatchesResponse
   POST /api/contact-requests   ContactRequestCreate -> ContactRequestResponse
+  POST /api/review             ReviewRequest        -> ReviewResponse
 */
 
 export interface SearchRequest {
@@ -280,6 +281,23 @@ export interface ContactRequestCreate {
 export interface ContactRequestResponse {
   requestId: string;
   status: "pending" | "accepted" | "declined";
+}
+
+/** 文献综述是扩展接口；不改变既有冻结 API 的请求/响应结构。 */
+export type ReviewFocus = "methods" | "findings" | "timeline";
+
+export interface ReviewRequest {
+  userId: string;
+  /** Demo catalog resource IDs; production may map these to OpenAlex paper IDs. */
+  paperIds: string[];
+  focus?: ReviewFocus;
+}
+
+export interface ReviewResponse {
+  reviewText: string;
+  papersUsed: string[];
+  /** `concat` 表示没有可用 LLM，内容来自标明的馆藏摘要拼接。 */
+  source: "ollama" | "concat";
 }
 
 /* ---------------------------------------------------------- */

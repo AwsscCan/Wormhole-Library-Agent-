@@ -1,4 +1,4 @@
-# PaperWorm — Paper Agent Engineering Design Document
+# Wormhole Library Agent — Paper-Wormhole Feature Engineering Design Document
 
 Version: 2.0 (restructured from v1.3, aligned to Qiniu Cloud main track + paper research direction)
 Purpose: Feed directly to Claude Code / teammates for MVP implementation
@@ -104,9 +104,9 @@ The knowledge wormhole feature directly hits "don't keep guessing what the user 
 
 ## 3. Product Definition
 
-PaperWorm is a **paper agent that remembers you**.
+PaperWorm is Wormhole's paper-wormhole feature module — a **paper agent that remembers you**.
 
-Google Scholar helps you search papers and then leaves you alone. PaperWorm remembers your taste — whether you prefer empirical or theoretical work, whether you like APA or GB-T, whether you think certain fields are too math-heavy — and next time you search, it automatically filters and ranks for you.
+Google Scholar helps you search papers and then leaves you alone. Wormhole's paper-wormhole feature remembers your taste — whether you prefer empirical or theoretical work, whether you like APA or GB-T, whether you think certain fields are too math-heavy — and next time you search, it automatically filters and ranks for you.
 
 Specifically, it does these things:
 
@@ -879,7 +879,7 @@ POST /api/review
 Request:
 {
   "userId": "demo-user",
-  "paperIds": ["W1234", "W5678", "W9012"],   // 3-5 OpenAlex IDs
+  "paperIds": ["r_aima", "r_multiagent_systems", "r_game_theory_intro"], // Demo uses 3-5 catalog resource IDs; map them to OpenAlex paper IDs in production
   "focus": "methods"                           // Optional: methods | findings | timeline
 }
 
@@ -890,6 +890,8 @@ Response:
   "source": "ollama"                           // ollama | concat (falls back to abstract concatenation if Ollama down)
 }
 ```
+
+Implementation status (2026-08-21): `/api/review` and the `/review` workbench are wired. When the default provider is unavailable, the API returns `source: "concat"`; the UI must show the fallback label rather than present the result as LLM-generated.
 
 ### Unified Error Format
 
@@ -1130,7 +1132,7 @@ KnowledgeMapProps = {
 ## 19. Repo Structure
 
 ```text
-paperworm/
+wormhole-library-agent/
   app/
     page.tsx                        # Homepage: search box + paper list
     paper/[id]/page.tsx             # Paper detail: abstract + citation + wormhole entry
@@ -1255,7 +1257,7 @@ Specific task list:
 5. Populate `data/seed-papers.json` (50+ papers, offline cache)
 6. Write search-api.test.ts and citation.test.ts
 7. Output ranking comparison table: project vs. research vs. coursework users see different results
-8. Prepare 150-word defense explanation: how PaperWorm helps you judge if a paper is worth reading in 30 seconds
+8. Prepare a 150-word defense explanation: how the paper-wormhole feature helps users judge whether a paper is worth reading in 30 seconds
 
 ### 20.3 Member 2: Wormhole Algorithm / Feedback Memory / Concept Graph
 
@@ -1278,7 +1280,7 @@ Specific task list:
 6. Populate `data/seed-concepts.json` (50+ concepts) and `data/seed-edges.json` (80+ edges)
 7. Write slider comparison experiment table: what 20/50/70/90 each return and why they differ
 8. Write pre/post-feedback comparison table: how ranking changes after "too hard" feedback
-9. Prepare 150-word defense explanation: how PaperWorm achieves "not random, but controlled serendipity"
+9. Prepare a 150-word defense explanation: how the paper-wormhole feature achieves "not random, but controlled serendipity"
 
 ### 20.4 Interface Contract (Frozen — No Changes After Freeze)
 
@@ -1433,7 +1435,7 @@ Open homepage
 
 ### Opening (15 seconds)
 
-Google Scholar helps you search papers and then leaves you alone. PaperWorm remembers your taste — you say "too theoretical," and next time it prioritizes empirical work. Occasionally it even takes you to a field you've never searched before.
+Google Scholar helps you search papers and then leaves you alone. Wormhole's paper-wormhole feature remembers your taste — you say "too theoretical," and next time it prioritizes empirical work. Occasionally it even takes you to a field you've never searched before.
 
 ### Step 1: Search + Feedback (45 seconds)
 
@@ -1471,7 +1473,7 @@ Open /memory page → see: math tolerance decreased, Economics added to liked do
 
 ### Closing
 
-PaperWorm turns paper search from "search and leave you alone" into "an agent that remembers you." Search, citation, and summary all use free APIs at zero token cost. Feedback memory runs on local SQLite with millisecond response. And occasionally it takes you to a field you've never searched — that's "manufacturing surprise."
+Wormhole's paper-wormhole feature turns paper search from "search and leave you alone" into "an agent that remembers you." Search, citation, and summary all use free APIs at zero token cost. Feedback memory runs on local SQLite with millisecond response. And occasionally it takes you to a field you've never searched — that's "manufacturing surprise."
 
 ---
 

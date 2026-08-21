@@ -22,6 +22,7 @@ import {
   resetMemory,
 } from "@/lib/mock/store";
 import { compileFeedbackFallback, applyPatches } from "@/lib/memory/compileFeedback";
+import { generateLiteratureReview } from "@/lib/review";
 import type {
   FeedbackRequest,
   FeedbackResponse,
@@ -35,6 +36,8 @@ import type {
   WormholesResponse,
   ContactRequestCreate,
   ContactRequestResponse,
+  ReviewRequest,
+  ReviewResponse,
 } from "@/lib/types";
 
 export class LibraryAgentOrchestrator {
@@ -154,6 +157,11 @@ export class LibraryAgentOrchestrator {
       memory: resetMemory(userId),
       recentUpdates: [],
     };
+  }
+
+  /* -------------------------- review ------------------------ */
+  async review(req: ReviewRequest): Promise<ReviewResponse> {
+    return generateLiteratureReview(req);
   }
 
   /* -------------------------- matches ----------------------- */

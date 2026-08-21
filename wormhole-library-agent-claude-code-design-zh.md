@@ -1,4 +1,4 @@
-# PaperWorm — 论文 Agent 工程设计文档
+# Wormhole Library Agent — 论文虫洞功能工程设计文档
 
 版本：2.0（基于 v1.3 重构，对齐七牛云主赛道 + 论文方向）
 用途：直接喂给 Claude Code / 队友做 MVP 实现
@@ -104,9 +104,9 @@ npm run dev
 
 ## 3. 产品定义
 
-PaperWorm 是一个**会记住你的论文 Agent**。
+PaperWorm 是 Wormhole 的论文虫洞功能模块——一个**会记住你的论文 Agent**。
 
-Google Scholar 帮你搜论文，搜完就不管你了。PaperWorm 会记住你的口味——你偏好实证还是理论、你喜欢 APA 还是国标、你觉得哪些方向太数学了——下次搜的时候自动帮你筛选排序。
+Google Scholar 帮你搜论文，搜完就不管你了。这个模块会记住你的口味——你偏好实证还是理论、你喜欢 APA 还是国标、你觉得哪些方向太数学了——下次搜的时候自动帮你筛选排序。
 
 具体来说它干这些事：
 
@@ -879,7 +879,7 @@ POST /api/review
 请求：
 {
   "userId": "demo-user",
-  "paperIds": ["W1234", "W5678", "W9012"],   // 3-5 篇 OpenAlex ID
+  "paperIds": ["r_aima", "r_multiagent_systems", "r_game_theory_intro"], // Demo 为 3-5 条馆藏 ID；接 OpenAlex 后映射为论文 ID
   "focus": "methods"                           // 可选：methods | findings | timeline
 }
 
@@ -890,6 +890,8 @@ POST /api/review
   "source": "ollama"                           // ollama | concat（Ollama 挂了走摘要拼接）
 }
 ```
+
+实现状态（2026-08-21）：`/api/review` 与 `/review` 工作台已接入。当前默认 provider 不可用时返回 `source: "concat"`，页面必须显示「摘要拼接模式」，不得标作 LLM 生成。
 
 ### 统一错误格式
 
@@ -1130,7 +1132,7 @@ KnowledgeMapProps = {
 ## 19. Repo 结构
 
 ```text
-paperworm/
+wormhole-library-agent/
   app/
     page.tsx                        # 首页：搜索框 + 论文列表
     paper/[id]/page.tsx             # 论文详情：摘要 + 引用 + 虫洞入口
@@ -1255,7 +1257,7 @@ paperworm/
 5. 填充 `data/seed-papers.json`（50+ 篇，离线缓存用）
 6. 写 search-api.test.ts 和 citation.test.ts
 7. 输出排序对照表：project vs research vs coursework 用户看到的不同结果
-8. 给答辩准备 150 字说明：PaperWorm 怎么帮你 30 秒判断一篇论文值不值得读
+8. 给答辩准备 150 字说明：论文虫洞功能怎么帮你 30 秒判断一篇论文值不值得读
 
 ### 20.3 队友二：虫洞算法 / 反馈记忆 / 概念图谱
 
@@ -1278,7 +1280,7 @@ paperworm/
 6. 填充 `data/seed-concepts.json`（50+ 概念）和 `data/seed-edges.json`（80+ 边）
 7. 写 slider 对照实验表：20/50/70/90 各返回什么，为什么不同
 8. 写反馈前后对照表：反馈"太难"前后排名如何变化
-9. 给答辩准备 150 字说明：PaperWorm 如何做到"不是随机，而是可控偶然"
+9. 给答辩准备 150 字说明：论文虫洞功能如何做到"不是随机，而是可控偶然"
 
 ### 20.4 接口约定（冻结后不许改）
 
@@ -1433,7 +1435,7 @@ type MemoryPatch = {
 
 ### 开场（15 秒）
 
-Google Scholar 帮你搜论文，搜完就不管你了。PaperWorm 会记住你的口味——你说"太理论了"，下次它就优先推实证的。偶尔还会带你拐到一个你从没搜过的领域。
+Google Scholar 帮你搜论文，搜完就不管你了。Wormhole 的论文虫洞功能会记住你的口味——你说"太理论了"，下次它就优先推实证的。偶尔还会带你拐到一个你从没搜过的领域。
 
 ### 第一步：搜索 + 反馈（45 秒）
 
@@ -1471,7 +1473,7 @@ Google Scholar 帮你搜论文，搜完就不管你了。PaperWorm 会记住你�
 
 ### 收尾
 
-PaperWorm 把论文搜索从"搜完就不管你了"变成"一个会记住你的 Agent"。搜索、引用、摘要都走免费 API 零 token 成本，反馈记忆走本地 SQLite 毫秒级响应。偶尔带你拐到一个你从没搜过的领域——这是"制造意外"。
+Wormhole 的论文虫洞功能把论文搜索从"搜完就不管你了"变成"一个会记住你的 Agent"。搜索、引用、摘要都走免费 API 零 token 成本，反馈记忆走本地 SQLite 毫秒级响应。偶尔带你拐到一个你从没搜过的领域——这是"制造意外"。
 
 ---
 
