@@ -3,6 +3,13 @@
 > 接手前先读此文件，再读 `lib/types.ts`（冻结契约）和 `lib/agent/orchestrator.ts`（集成核心）。
 > 验证命令永远是：`npm run lint && npm run test && npm run build`，三者全绿才算数。
 
+## 责任包 02 整合状态（2026-08-22）
+
+- 已验收并快进合入 `main`：`f4bc438`、`1fd42a0`、`06c743e`。
+- `LibraryAgentOrchestrator.search()` 已接入 `catalogAdapter.searchCatalog()`；会传递概念、语言偏好、任务类型、用户水平和记忆摘要。
+- 搜索 API 的请求/响应契约未改变；`taskType` 和 `level` 会影响实际馆藏排序。虫洞、记忆和联系人流程仍使用既有 fallback，等待责任包 03 达标后再接入。
+- 责任包 02 的实验脚本为 `node node_modules/tsx/dist/cli.mjs scripts/experiment-ranking.ts`；交付材料位于 `outputs/package-02-*.md`。
+
 ## 0. 命名规范（强制，用户明确要求）
 
 - 产品名唯一：**Wormhole Library Agent**（UI 内叫「Wormhole Library」）。

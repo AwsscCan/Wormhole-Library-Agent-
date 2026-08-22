@@ -33,6 +33,25 @@ describe("LibraryAgentOrchestrator full loop", () => {
     expect(r).toHaveProperty("difficulty");
   });
 
+  it("search applies taskType and level to the integrated catalog ranking", async () => {
+    const courseBeginner = await orchestrator.search({
+      userId: USER,
+      query: "AI Agent",
+      taskType: "course",
+      level: "beginner",
+    });
+    const researchExpert = await orchestrator.search({
+      userId: USER,
+      query: "AI Agent",
+      taskType: "research",
+      level: "research",
+    });
+
+    expect(courseBeginner.resources.map((resource) => resource.id)).not.toEqual(
+      researchExpert.resources.map((resource) => resource.id),
+    );
+  });
+
   it("wormholes land on resources or living books, slider changes ranking", async () => {
     const search = await orchestrator.search({ userId: USER, query: "AI Agent" });
 

@@ -11,8 +11,8 @@ import {
   extractConceptsFallback,
   findLivingBooksByConceptFallback,
   generateWormholesFallback,
-  searchCatalogFallback,
 } from "@/lib/mock/fallbackEngine";
+import { catalogAdapter } from "@/lib/catalog/adapter";
 import {
   getMemory,
   getMemoryEvents,
@@ -49,8 +49,21 @@ export class LibraryAgentOrchestrator {
     const concepts = extractConceptsFallback(req.query);
     const conceptIds = concepts.map((c) => c.id);
 
-    // INTEGRATION POINT [队友02]: catalogAdapter.searchCatalog(...)
-    const resources = searchCatalogFallback(conceptIds, memory, memory.reading.maxResults);
+    const language =
+      memory.reading.language === "zh_first"
+        ? "zh"
+        : memory.reading.language === "en_first"
+          ? "en"
+          : "any";
+    const resources = await catalogAdapter.searchCatalog({
+      query: req.query,
+      conceptIds,
+      language,
+      limit: memory.reading.maxResults,
+      taskType: req.taskType,
+      level: req.level,
+      memory,
+    });
 
     const readingPath = buildReadingPathFallback(conceptIds);
 
