@@ -14,8 +14,11 @@ import type {
   CatalogAdapter,
   ConceptRef,
   LanguagePref,
+  Level,
+  MemorySummary,
   ResourceCard,
   ResourceType,
+  TaskType,
 } from "@/lib/types";
 import { rankResources } from "./ranking";
 
@@ -47,8 +50,13 @@ function toResourceCard(r: SeedResource, why: string): ResourceCard {
   };
 }
 
-/** 生成"为什么推荐"的人话文案 */
-function buildWhy(r: SeedResource, matchedConceptIds: string[]): string {
+/** 生成"为什么推荐"的人话文案（结合 taskType / level 更具体） */
+function buildWhy(
+  r: SeedResource,
+  matchedConceptIds: string[],
+  taskType?: TaskType,
+  level?: Level,
+): string {
   const names = matchedConceptIds.map((id) => toConceptRef(id).name);
   const topic = names.length > 0 ? names.slice(0, 3).join("、") : r.title;
   const kind =
@@ -65,12 +73,29 @@ function buildWhy(r: SeedResource, matchedConceptIds: string[]): string {
     graduate: "研究生",
     research: "研究级",
   };
-  return `与主题「${topic}」直接相关的${kind}，难度为${difficultyLabel[r.difficulty] ?? r.difficulty}，${r.language === "zh" ? "中文内容，便于快速阅读" : "英文原典，适合深入学习"}。`;
+  const taskHint: Partial<Record<TaskType, string>> = {
+    course: "适合课程学习使用",
+    project: "适合项目实践参考",
+    research: "适合研究文献阅读",
+    exam: "适合备考系统梳理",
+    curiosity: "适合兴趣探索阅读",
+  };
+  const levelHint: Partial<Record<Level, string>> = {
+    beginner: "适合零基础入门",
+    undergraduate: "适合本科阶段学习",
+    graduate: "适合研究生深入研读",
+    research: "适合研究者深度参考",
+  };
+  const taskPart = taskType ? taskHint[taskType] ?? "" : "";
+  const levelPart = level ? levelHint[level] ?? "" : "";
+  const contextPart = [taskPart, levelPart].filter(Boolean).join("、");
+  const baseLine = `与主题「${topic}」直接相关的${kind}，难度为${difficultyLabel[r.difficulty] ?? r.difficulty}，${r.language === "zh" ? "中文内容" : "英文原典"}。`;
+  return contextPart ? `${baseLine}${contextPart}。` : baseLine;
 }
 
 export const seedCatalogAdapter: CatalogAdapter = {
   async searchCatalog(input) {
-    const { query, conceptIds, resourceTypes, language, limit } = input;
+    const { query, conceptIds, resourceTypes, language, limit, taskType, level, memory } = input;
     const wanted = conceptIds ? new Set(conceptIds) : null;
 
     // 1. 按查询词/概念过滤：无 conceptIds 时用 query 关键词匹配标题/摘要
@@ -94,17 +119,20 @@ export const seedCatalogAdapter: CatalogAdapter = {
       candidates = candidates.filter((r) => ts.has(r.type as ResourceType));
     }
 
-    // 3. 转卡片 + 排序
+    // 3. 转卡片 + 排序（传入完整 RankContext，包含 taskType / level / memory）
     const cards = candidates.map((r) => {
       const matched = wanted
         ? r.conceptIds.filter((id) => wanted.has(id))
         : [];
-      return toResourceCard(r, buildWhy(r, matched));
+      return toResourceCard(r, buildWhy(r, matched, taskType as TaskType | undefined, level as Level | undefined));
     });
 
     const ranked = rankResources(cards, {
       conceptIds: conceptIds ?? [],
       language: language as LanguagePref | undefined,
+      taskType: taskType as TaskType | undefined,
+      level: level as Level | undefined,
+      memory: memory as MemorySummary | undefined,
     });
 
     return ranked.slice(0, limit ?? 10);

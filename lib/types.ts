@@ -327,6 +327,12 @@ export interface CatalogAdapter {
     resourceTypes?: ResourceType[];
     language?: LanguagePref;
     limit?: number;
+    /** 可选：任务类型，供排序层使用（队友02 §10 权重体系） */
+    taskType?: TaskType;
+    /** 可选：用户水平，供排序层使用 */
+    level?: Level;
+    /** 可选：用户记忆摘要，供排序层 memory bonus 使用 */
+    memory?: MemorySummary;
   }): Promise<ResourceCard[]>;
   getResourceDetails(resourceId: string): Promise<ResourceCard | null>;
   findResourcesByConcept(conceptId: string, limit?: number): Promise<ResourceCard[]>;

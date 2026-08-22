@@ -5,7 +5,13 @@
  *   - private → 完全不可见
  *   - paused  → 完全不可见
  *   - discoverable_anonymous → 可见，但绝不暴露 displayName
- *   - discoverable_named     → 可见，可显示 displayName
+ *   - discoverable_named     → 可见，可显示 displayName（仅档案展示页）
+ *
+ * 两套卡片的展示差异：
+ *   - LivingBookCard（档案展示页）：discoverable_named 可以带 displayName
+ *   - PersonMatchCard（匹配推荐卡）：联系人接受前必须匿名，不暴露身份
+ *     理由：推荐卡是系统主动触达，不是用户主动访问档案，所以要求更严格的保护
+ *     只有当 contactState 变为 "accepted" 后，前端才可展示具名信息（后端不负责那层）
  *
  * 原则：宁可少展示，不可泄露身份。
  */
@@ -80,7 +86,12 @@ export function toLivingBookCard(profile: LivingBookProfile): LivingBookCard {
 /* ---------------- 转换：profile → person match card ---------------- */
 
 /**
- * 生成人物碰撞匹配卡（匿名优先，不暴露身份）。
+ * 生成人物碰撞匹配卡（推荐卡联系前强制匿名）。
+ *
+ * 设计决策：PersonMatchCard 是系统主动推送的匹配结果，和用户主动浏览档案不同。
+ * 在联系人接受（contactState = "accepted"）之前，displayMode 必须为 "anonymous"，
+ * 不得暴露 headline 以外的任何可识别信息。
+ * 这与 orchestrator.ts INTEGRATION POINT 注释「推荐卡永远匿名」保持一致。
  *
  * @param profile         活馆藏档案
  * @param bridge          桥接概念名列表（解释为什么匹配）
@@ -93,18 +104,12 @@ export function toPersonMatchCard(
   collisionReason: string,
   score: number,
 ): PersonMatchCard {
-  const isNamed =
-    profile.consentState === "discoverable_named" &&
-    profile.displayMode === "named";
-
-  const headline = isNamed && profile.displayName
-    ? `${profile.displayName}：${profile.headline}`
-    : profile.headline;
-
+  // 推荐卡在联系人接受前统一匿名，不依赖 consentState 是否为 named
+  // 档案页（toLivingBookCard）才区分 named/anonymous
   return {
     id: `pm_${profile.id}`,
-    displayMode: isNamed ? "named" : "anonymous",
-    headline,
+    displayMode: "anonymous",
+    headline: profile.headline, // 不拼接 displayName，避免身份泄露
     bridge,
     collisionReason,
     score,
