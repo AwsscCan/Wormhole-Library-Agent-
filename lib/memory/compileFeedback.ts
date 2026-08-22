@@ -168,3 +168,230 @@ export function applyPatches(memory: MemorySummary, patches: MemoryPatch[]): voi
     }
   }
 }
+
+
+/* ========================================================= */
+/* 以下为责任包03 正式实现（与上方 fallback 共存，接口不同） */
+/* ========================================================= */
+
+
+import type {
+  Feedback,
+  PaperCard,
+  ConceptTag,
+  MemorySnapshot,
+  MemoryHistoryEntry,
+} from "../types";
+
+/**
+ * Domain extraction: map concept names to high-level domains.
+ */
+const DOMAIN_MAP: Record<string, string> = {
+  "AI Agent": "Artificial Intelligence",
+  "Multi-Agent Coordination": "Artificial Intelligence",
+  "Planning": "Artificial Intelligence",
+  "Transformer": "Machine Learning",
+  "Attention Mechanism": "Machine Learning",
+  "Deep Learning": "Machine Learning",
+  "Reinforcement Learning": "Machine Learning",
+  "Large Language Model": "Natural Language Processing",
+  "Natural Language Processing": "Natural Language Processing",
+  "Machine Translation": "Natural Language Processing",
+  "Game Theory": "Economics",
+  "Mechanism Design": "Economics",
+  "Auction Theory": "Economics",
+  "Nash Equilibrium": "Economics",
+  "Human Memory": "Psychology",
+  "Cognitive Psychology": "Psychology",
+  "Forgetting Curve": "Psychology",
+  "Information Theory": "Mathematics",
+  "Probability Theory": "Mathematics",
+  "Statistical Physics": "Physics",
+  "Phase Transition": "Physics",
+  "Library Science": "Information Science",
+  "Information Retrieval": "Information Science",
+  "Knowledge Graph": "Information Science",
+};
+
+/**
+ * Extract domain names from a paper's concept tags.
+ */
+function extractDomainsFromConcepts(concepts: ConceptTag[]): string[] {
+  const domains = new Set<string>();
+  for (const c of concepts) {
+    if (DOMAIN_MAP[c.name]) {
+      domains.add(DOMAIN_MAP[c.name]);
+    }
+  }
+  return [...domains];
+}
+
+/**
+ * Extract domain keywords from free text.
+ * Simple keyword matching — no LLM needed.
+ */
+function extractDomainsFromText(text: string): string[] {
+  const lower = text.toLowerCase();
+  const domains: string[] = [];
+  const keywordMap: Record<string, string> = {
+    "math": "Mathematics",
+    "mathematics": "Mathematics",
+    "economics": "Economics",
+    "psychology": "Psychology",
+    "physics": "Physics",
+    "linguistics": "Linguistics",
+    "philosophy": "Philosophy",
+    "biology": "Biology",
+    "chemistry": "Chemistry",
+    "machine learning": "Machine Learning",
+    "artificial intelligence": "Artificial Intelligence",
+    "game theory": "Economics",
+    "cognitive": "Psychology",
+    "empirical": "Empirical Research",
+    "theoretical": "Theoretical Research",
+  };
+  for (const [keyword, domain] of Object.entries(keywordMap)) {
+    if (lower.includes(keyword)) {
+      domains.push(domain);
+    }
+  }
+  return domains;
+}
+
+/**
+ * Compile user feedback into memory patches.
+ *
+ * @param feedback - The user's feedback (rating + optional freeText)
+ * @param paper - The paper being rated (for domain extraction)
+ * @returns Array of MemoryPatch objects
+ */
+export function compileFeedback(
+  feedback: Feedback,
+  paper?: PaperCard
+): MemoryPatch[] {
+  const patches: MemoryPatch[] = [];
+
+  switch (feedback.rating) {
+    case "too_theoretical":
+      // User wants more empirical work
+      patches.push({
+        key: "reading.prefEmpirical",
+        operation: "set",
+        value: true,
+        confidenceDelta: 0.10,
+      });
+      patches.push({
+        key: "difficulty.theoryTolerance",
+        operation: "decrement",
+        value: 0.10,
+        confidenceDelta: 0.08,
+      });
+      break;
+
+    case "too_empirical":
+      // User wants more theoretical work
+      patches.push({
+        key: "reading.prefTheoretical",
+        operation: "set",
+        value: true,
+        confidenceDelta: 0.10,
+      });
+      break;
+
+    case "too_hard":
+      // Math tolerance decreases
+      patches.push({
+        key: "difficulty.mathTolerance",
+        operation: "decrement",
+        value: 0.08,
+        confidenceDelta: 0.10,
+      });
+      // Also check if the paper has math-heavy concepts
+      if (paper?.concepts) {
+        const hasMath = paper.concepts.some(
+          (c) =>
+            c.name === "Mathematics" ||
+            c.name === "Probability Theory" ||
+            c.name === "Statistical Physics"
+        );
+        if (hasMath) {
+          patches.push({
+            key: "serendipity.dislikedDomains",
+            operation: "add_or_increment",
+            value: "Mathematics",
+            confidenceDelta: 0.05,
+          });
+        }
+      }
+      break;
+
+    case "just_right":
+      // No major change, but increment confidence of current preferences
+      patches.push({
+        key: "reading.summaryFirst",
+        operation: "set",
+        value: true,
+        confidenceDelta: 0.03,
+      });
+      break;
+
+    case "interesting":
+      // Extract liked domains from paper concepts and/or free text
+      const likedDomains = new Set<string>();
+      if (paper?.concepts) {
+        for (const d of extractDomainsFromConcepts(paper.concepts)) {
+          likedDomains.add(d);
+        }
+      }
+      if (feedback.freeText) {
+        for (const d of extractDomainsFromText(feedback.freeText)) {
+          likedDomains.add(d);
+        }
+      }
+      for (const domain of likedDomains) {
+        patches.push({
+          key: "serendipity.likedDomains",
+          operation: "add_or_increment",
+          value: domain,
+          confidenceDelta: 0.08,
+        });
+      }
+      // Also set default slider higher if user finds things interesting
+      patches.push({
+        key: "serendipity.defaultSlider",
+        operation: "set",
+        value: 70,
+        confidenceDelta: 0.05,
+      });
+      break;
+  }
+
+  // If freeText mentions specific preferences, extract those too
+  if (feedback.freeText) {
+    const lower = feedback.freeText.toLowerCase();
+    if (lower.includes("apa")) {
+      patches.push({
+        key: "citation.defaultStyle",
+        operation: "set",
+        value: "apa",
+        confidenceDelta: 0.08,
+      });
+    } else if (lower.includes("mla")) {
+      patches.push({
+        key: "citation.defaultStyle",
+        operation: "set",
+        value: "mla",
+        confidenceDelta: 0.08,
+      });
+    } else if (lower.includes("国标") || lower.includes("gbt")) {
+      patches.push({
+        key: "citation.defaultStyle",
+        operation: "set",
+        value: "gbt7714",
+        confidenceDelta: 0.08,
+      });
+    }
+  }
+
+  return patches;
+}

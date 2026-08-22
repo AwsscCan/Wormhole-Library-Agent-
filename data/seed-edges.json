@@ -1,20 +1,1485 @@
 {
-  "_comment": "PLACEHOLDER seed by 队友01 — 队友03 负责扩充到 80+ 边。字段结构冻结：fromConceptId/toConceptId/relation/weight/explanation",
+  "_comment": "责任包03 交付：145+ 条概念边。同时携带 source/target/type 与 fromConceptId/toConceptId/relation 两套字段名，兼容 fallbackEngine 与 pkg03 模块。",
   "edges": [
-    { "fromConceptId": "c_ai_agent", "toConceptId": "c_planning", "relation": "requires", "weight": 0.8, "explanation": "Agents plan action sequences." },
-    { "fromConceptId": "c_ai_agent", "toConceptId": "c_tool_use", "relation": "requires", "weight": 0.8, "explanation": "Agents act through tools." },
-    { "fromConceptId": "c_ai_agent", "toConceptId": "c_agent_memory", "relation": "has_component", "weight": 0.75, "explanation": "Agents need memory to persist context." },
-    { "fromConceptId": "c_ai_agent", "toConceptId": "c_multi_agent_coordination", "relation": "extends_to", "weight": 0.7, "explanation": "Multiple agents must coordinate." },
-    { "fromConceptId": "c_multi_agent_coordination", "toConceptId": "c_game_theory", "relation": "modeled_by", "weight": 0.75, "explanation": "Coordination is strategic interaction." },
-    { "fromConceptId": "c_game_theory", "toConceptId": "c_mechanism_design", "relation": "inverse_of", "weight": 0.8, "explanation": "Mechanism design is reverse game theory." },
-    { "fromConceptId": "c_agent_memory", "toConceptId": "c_human_memory", "relation": "inspired_by", "weight": 0.7, "explanation": "Agent memory borrows from human memory models." },
-    { "fromConceptId": "c_human_memory", "toConceptId": "c_cognitive_psychology", "relation": "studied_by", "weight": 0.8, "explanation": "Cognitive psychology studies memory." },
-    { "fromConceptId": "c_cognitive_psychology", "toConceptId": "c_forgetting_curve", "relation": "contains", "weight": 0.7, "explanation": "The forgetting curve is a classic memory finding." },
-    { "fromConceptId": "c_transformer", "toConceptId": "c_information_theory", "relation": "grounded_in", "weight": 0.6, "explanation": "Attention relates to information compression." },
-    { "fromConceptId": "c_information_theory", "toConceptId": "c_statistical_physics", "relation": "shares_math_with", "weight": 0.65, "explanation": "Entropy connects both fields." },
-    { "fromConceptId": "c_statistical_physics", "toConceptId": "c_phase_transition", "relation": "contains", "weight": 0.75, "explanation": "Phase transitions are core statistical physics." },
-    { "fromConceptId": "c_rag", "toConceptId": "c_information_retrieval", "relation": "built_on", "weight": 0.85, "explanation": "RAG retrieval is classic IR." },
-    { "fromConceptId": "c_information_retrieval", "toConceptId": "c_library_science", "relation": "descends_from", "weight": 0.7, "explanation": "IR grew out of library indexing." },
-    { "fromConceptId": "c_library_science", "toConceptId": "c_pkm", "relation": "applies_to", "weight": 0.65, "explanation": "Library methods apply to personal knowledge." }
+    {
+      "source": "c_ai_agent",
+      "target": "c_multi_agent",
+      "weight": 0.92,
+      "type": "subclass_of",
+      "fromConceptId": "c_ai_agent",
+      "toConceptId": "c_multi_agent",
+      "relation": "subclass_of",
+      "explanation": "subclass of relation (weight 0.92)"
+    },
+    {
+      "source": "c_ai_agent",
+      "target": "c_agent_memory",
+      "weight": 0.88,
+      "type": "studies",
+      "fromConceptId": "c_ai_agent",
+      "toConceptId": "c_agent_memory",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.88)"
+    },
+    {
+      "source": "c_ai_agent",
+      "target": "c_planning",
+      "weight": 0.85,
+      "type": "studies",
+      "fromConceptId": "c_ai_agent",
+      "toConceptId": "c_planning",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.85)"
+    },
+    {
+      "source": "c_ai_agent",
+      "target": "c_tool_use",
+      "weight": 0.8,
+      "type": "studies",
+      "fromConceptId": "c_ai_agent",
+      "toConceptId": "c_tool_use",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.8)"
+    },
+    {
+      "source": "c_ai_agent",
+      "target": "c_prompt_engineering",
+      "weight": 0.65,
+      "type": "uses",
+      "fromConceptId": "c_ai_agent",
+      "toConceptId": "c_prompt_engineering",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.65)"
+    },
+    {
+      "source": "c_ai_agent",
+      "target": "c_rlhf",
+      "weight": 0.55,
+      "type": "uses",
+      "fromConceptId": "c_ai_agent",
+      "toConceptId": "c_rlhf",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.55)"
+    },
+    {
+      "source": "c_ai_agent",
+      "target": "c_nlp",
+      "weight": 0.7,
+      "type": "related_to",
+      "fromConceptId": "c_ai_agent",
+      "toConceptId": "c_nlp",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.7)"
+    },
+    {
+      "source": "c_ai_agent",
+      "target": "c_deep_learning",
+      "weight": 0.6,
+      "type": "uses",
+      "fromConceptId": "c_ai_agent",
+      "toConceptId": "c_deep_learning",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.6)"
+    },
+    {
+      "source": "c_multi_agent",
+      "target": "c_game_theory",
+      "weight": 0.9,
+      "type": "related_to",
+      "fromConceptId": "c_multi_agent",
+      "toConceptId": "c_game_theory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.9)"
+    },
+    {
+      "source": "c_multi_agent",
+      "target": "c_cooperative_game",
+      "weight": 0.85,
+      "type": "related_to",
+      "fromConceptId": "c_multi_agent",
+      "toConceptId": "c_cooperative_game",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.85)"
+    },
+    {
+      "source": "c_multi_agent",
+      "target": "c_mechanism_design",
+      "weight": 0.75,
+      "type": "related_to",
+      "fromConceptId": "c_multi_agent",
+      "toConceptId": "c_mechanism_design",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.75)"
+    },
+    {
+      "source": "c_multi_agent",
+      "target": "c_planning",
+      "weight": 0.7,
+      "type": "related_to",
+      "fromConceptId": "c_multi_agent",
+      "toConceptId": "c_planning",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.7)"
+    },
+    {
+      "source": "c_multi_agent",
+      "target": "c_rational_choice",
+      "weight": 0.65,
+      "type": "related_to",
+      "fromConceptId": "c_multi_agent",
+      "toConceptId": "c_rational_choice",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.65)"
+    },
+    {
+      "source": "c_multi_agent",
+      "target": "c_reinforcement_learning",
+      "weight": 0.68,
+      "type": "uses",
+      "fromConceptId": "c_multi_agent",
+      "toConceptId": "c_reinforcement_learning",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.68)"
+    },
+    {
+      "source": "c_game_theory",
+      "target": "c_mechanism_design",
+      "weight": 0.92,
+      "type": "related_to",
+      "fromConceptId": "c_game_theory",
+      "toConceptId": "c_mechanism_design",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.92)"
+    },
+    {
+      "source": "c_game_theory",
+      "target": "c_nash_equilibrium",
+      "weight": 0.9,
+      "type": "studies",
+      "fromConceptId": "c_game_theory",
+      "toConceptId": "c_nash_equilibrium",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.9)"
+    },
+    {
+      "source": "c_game_theory",
+      "target": "c_auction_theory",
+      "weight": 0.82,
+      "type": "related_to",
+      "fromConceptId": "c_game_theory",
+      "toConceptId": "c_auction_theory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.82)"
+    },
+    {
+      "source": "c_game_theory",
+      "target": "c_cooperative_game",
+      "weight": 0.85,
+      "type": "subclass_of",
+      "fromConceptId": "c_game_theory",
+      "toConceptId": "c_cooperative_game",
+      "relation": "subclass_of",
+      "explanation": "subclass of relation (weight 0.85)"
+    },
+    {
+      "source": "c_game_theory",
+      "target": "c_social_choice",
+      "weight": 0.7,
+      "type": "related_to",
+      "fromConceptId": "c_game_theory",
+      "toConceptId": "c_social_choice",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.7)"
+    },
+    {
+      "source": "c_game_theory",
+      "target": "c_rational_choice",
+      "weight": 0.78,
+      "type": "related_to",
+      "fromConceptId": "c_game_theory",
+      "toConceptId": "c_rational_choice",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.78)"
+    },
+    {
+      "source": "c_game_theory",
+      "target": "c_probability_theory",
+      "weight": 0.65,
+      "type": "uses",
+      "fromConceptId": "c_game_theory",
+      "toConceptId": "c_probability_theory",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.65)"
+    },
+    {
+      "source": "c_mechanism_design",
+      "target": "c_auction_theory",
+      "weight": 0.82,
+      "type": "related_to",
+      "fromConceptId": "c_mechanism_design",
+      "toConceptId": "c_auction_theory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.82)"
+    },
+    {
+      "source": "c_mechanism_design",
+      "target": "c_social_choice",
+      "weight": 0.8,
+      "type": "related_to",
+      "fromConceptId": "c_mechanism_design",
+      "toConceptId": "c_social_choice",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.8)"
+    },
+    {
+      "source": "c_mechanism_design",
+      "target": "c_nash_equilibrium",
+      "weight": 0.72,
+      "type": "uses",
+      "fromConceptId": "c_mechanism_design",
+      "toConceptId": "c_nash_equilibrium",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.72)"
+    },
+    {
+      "source": "c_mechanism_design",
+      "target": "c_rational_choice",
+      "weight": 0.68,
+      "type": "related_to",
+      "fromConceptId": "c_mechanism_design",
+      "toConceptId": "c_rational_choice",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.68)"
+    },
+    {
+      "source": "c_nash_equilibrium",
+      "target": "c_rational_choice",
+      "weight": 0.75,
+      "type": "related_to",
+      "fromConceptId": "c_nash_equilibrium",
+      "toConceptId": "c_rational_choice",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.75)"
+    },
+    {
+      "source": "c_nash_equilibrium",
+      "target": "c_probability_theory",
+      "weight": 0.6,
+      "type": "uses",
+      "fromConceptId": "c_nash_equilibrium",
+      "toConceptId": "c_probability_theory",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.6)"
+    },
+    {
+      "source": "c_auction_theory",
+      "target": "c_probability_theory",
+      "weight": 0.65,
+      "type": "uses",
+      "fromConceptId": "c_auction_theory",
+      "toConceptId": "c_probability_theory",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.65)"
+    },
+    {
+      "source": "c_auction_theory",
+      "target": "c_rational_choice",
+      "weight": 0.7,
+      "type": "related_to",
+      "fromConceptId": "c_auction_theory",
+      "toConceptId": "c_rational_choice",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.7)"
+    },
+    {
+      "source": "c_cooperative_game",
+      "target": "c_social_choice",
+      "weight": 0.78,
+      "type": "related_to",
+      "fromConceptId": "c_cooperative_game",
+      "toConceptId": "c_social_choice",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.78)"
+    },
+    {
+      "source": "c_agent_memory",
+      "target": "c_human_memory",
+      "weight": 0.85,
+      "type": "related_to",
+      "fromConceptId": "c_agent_memory",
+      "toConceptId": "c_human_memory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.85)"
+    },
+    {
+      "source": "c_agent_memory",
+      "target": "c_long_term_memory",
+      "weight": 0.72,
+      "type": "related_to",
+      "fromConceptId": "c_agent_memory",
+      "toConceptId": "c_long_term_memory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.72)"
+    },
+    {
+      "source": "c_agent_memory",
+      "target": "c_working_memory",
+      "weight": 0.68,
+      "type": "related_to",
+      "fromConceptId": "c_agent_memory",
+      "toConceptId": "c_working_memory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.68)"
+    },
+    {
+      "source": "c_agent_memory",
+      "target": "c_knowledge_graph",
+      "weight": 0.6,
+      "type": "related_to",
+      "fromConceptId": "c_agent_memory",
+      "toConceptId": "c_knowledge_graph",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.6)"
+    },
+    {
+      "source": "c_agent_memory",
+      "target": "c_memory_consolidation",
+      "weight": 0.55,
+      "type": "related_to",
+      "fromConceptId": "c_agent_memory",
+      "toConceptId": "c_memory_consolidation",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.55)"
+    },
+    {
+      "source": "c_human_memory",
+      "target": "c_cognitive_psychology",
+      "weight": 0.92,
+      "type": "related_to",
+      "fromConceptId": "c_human_memory",
+      "toConceptId": "c_cognitive_psychology",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.92)"
+    },
+    {
+      "source": "c_human_memory",
+      "target": "c_forgetting_curve",
+      "weight": 0.88,
+      "type": "studies",
+      "fromConceptId": "c_human_memory",
+      "toConceptId": "c_forgetting_curve",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.88)"
+    },
+    {
+      "source": "c_human_memory",
+      "target": "c_memory_consolidation",
+      "weight": 0.85,
+      "type": "studies",
+      "fromConceptId": "c_human_memory",
+      "toConceptId": "c_memory_consolidation",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.85)"
+    },
+    {
+      "source": "c_human_memory",
+      "target": "c_working_memory",
+      "weight": 0.88,
+      "type": "studies",
+      "fromConceptId": "c_human_memory",
+      "toConceptId": "c_working_memory",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.88)"
+    },
+    {
+      "source": "c_human_memory",
+      "target": "c_long_term_memory",
+      "weight": 0.92,
+      "type": "studies",
+      "fromConceptId": "c_human_memory",
+      "toConceptId": "c_long_term_memory",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.92)"
+    },
+    {
+      "source": "c_human_memory",
+      "target": "c_spaced_repetition",
+      "weight": 0.8,
+      "type": "related_to",
+      "fromConceptId": "c_human_memory",
+      "toConceptId": "c_spaced_repetition",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.8)"
+    },
+    {
+      "source": "c_human_memory",
+      "target": "c_neuroscience",
+      "weight": 0.75,
+      "type": "related_to",
+      "fromConceptId": "c_human_memory",
+      "toConceptId": "c_neuroscience",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.75)"
+    },
+    {
+      "source": "c_cognitive_psychology",
+      "target": "c_forgetting_curve",
+      "weight": 0.85,
+      "type": "studies",
+      "fromConceptId": "c_cognitive_psychology",
+      "toConceptId": "c_forgetting_curve",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.85)"
+    },
+    {
+      "source": "c_cognitive_psychology",
+      "target": "c_attention_cognitive",
+      "weight": 0.9,
+      "type": "studies",
+      "fromConceptId": "c_cognitive_psychology",
+      "toConceptId": "c_attention_cognitive",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.9)"
+    },
+    {
+      "source": "c_cognitive_psychology",
+      "target": "c_working_memory",
+      "weight": 0.88,
+      "type": "studies",
+      "fromConceptId": "c_cognitive_psychology",
+      "toConceptId": "c_working_memory",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.88)"
+    },
+    {
+      "source": "c_cognitive_psychology",
+      "target": "c_long_term_memory",
+      "weight": 0.85,
+      "type": "studies",
+      "fromConceptId": "c_cognitive_psychology",
+      "toConceptId": "c_long_term_memory",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.85)"
+    },
+    {
+      "source": "c_cognitive_psychology",
+      "target": "c_cognitive_science",
+      "weight": 0.82,
+      "type": "subclass_of",
+      "fromConceptId": "c_cognitive_psychology",
+      "toConceptId": "c_cognitive_science",
+      "relation": "subclass_of",
+      "explanation": "subclass of relation (weight 0.82)"
+    },
+    {
+      "source": "c_cognitive_psychology",
+      "target": "c_spaced_repetition",
+      "weight": 0.72,
+      "type": "related_to",
+      "fromConceptId": "c_cognitive_psychology",
+      "toConceptId": "c_spaced_repetition",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.72)"
+    },
+    {
+      "source": "c_cognitive_psychology",
+      "target": "c_philosophy_mind",
+      "weight": 0.65,
+      "type": "related_to",
+      "fromConceptId": "c_cognitive_psychology",
+      "toConceptId": "c_philosophy_mind",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.65)"
+    },
+    {
+      "source": "c_forgetting_curve",
+      "target": "c_spaced_repetition",
+      "weight": 0.9,
+      "type": "related_to",
+      "fromConceptId": "c_forgetting_curve",
+      "toConceptId": "c_spaced_repetition",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.9)"
+    },
+    {
+      "source": "c_forgetting_curve",
+      "target": "c_memory_consolidation",
+      "weight": 0.75,
+      "type": "related_to",
+      "fromConceptId": "c_forgetting_curve",
+      "toConceptId": "c_memory_consolidation",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.75)"
+    },
+    {
+      "source": "c_memory_consolidation",
+      "target": "c_neuroscience",
+      "weight": 0.85,
+      "type": "subclass_of",
+      "fromConceptId": "c_memory_consolidation",
+      "toConceptId": "c_neuroscience",
+      "relation": "subclass_of",
+      "explanation": "subclass of relation (weight 0.85)"
+    },
+    {
+      "source": "c_memory_consolidation",
+      "target": "c_long_term_memory",
+      "weight": 0.8,
+      "type": "related_to",
+      "fromConceptId": "c_memory_consolidation",
+      "toConceptId": "c_long_term_memory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.8)"
+    },
+    {
+      "source": "c_working_memory",
+      "target": "c_long_term_memory",
+      "weight": 0.82,
+      "type": "related_to",
+      "fromConceptId": "c_working_memory",
+      "toConceptId": "c_long_term_memory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.82)"
+    },
+    {
+      "source": "c_working_memory",
+      "target": "c_attention_cognitive",
+      "weight": 0.78,
+      "type": "related_to",
+      "fromConceptId": "c_working_memory",
+      "toConceptId": "c_attention_cognitive",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.78)"
+    },
+    {
+      "source": "c_long_term_memory",
+      "target": "c_spaced_repetition",
+      "weight": 0.75,
+      "type": "related_to",
+      "fromConceptId": "c_long_term_memory",
+      "toConceptId": "c_spaced_repetition",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.75)"
+    },
+    {
+      "source": "c_cognitive_science",
+      "target": "c_neuroscience",
+      "weight": 0.82,
+      "type": "related_to",
+      "fromConceptId": "c_cognitive_science",
+      "toConceptId": "c_neuroscience",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.82)"
+    },
+    {
+      "source": "c_cognitive_science",
+      "target": "c_philosophy_mind",
+      "weight": 0.7,
+      "type": "related_to",
+      "fromConceptId": "c_cognitive_science",
+      "toConceptId": "c_philosophy_mind",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.7)"
+    },
+    {
+      "source": "c_cognitive_science",
+      "target": "c_nlp",
+      "weight": 0.65,
+      "type": "related_to",
+      "fromConceptId": "c_cognitive_science",
+      "toConceptId": "c_nlp",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.65)"
+    },
+    {
+      "source": "c_attention_cognitive",
+      "target": "c_attention_mechanism",
+      "weight": 0.72,
+      "type": "related_to",
+      "fromConceptId": "c_attention_cognitive",
+      "toConceptId": "c_attention_mechanism",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.72)"
+    },
+    {
+      "source": "c_transformer",
+      "target": "c_attention_mechanism",
+      "weight": 0.95,
+      "type": "uses",
+      "fromConceptId": "c_transformer",
+      "toConceptId": "c_attention_mechanism",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.95)"
+    },
+    {
+      "source": "c_transformer",
+      "target": "c_deep_learning",
+      "weight": 0.88,
+      "type": "subclass_of",
+      "fromConceptId": "c_transformer",
+      "toConceptId": "c_deep_learning",
+      "relation": "subclass_of",
+      "explanation": "subclass of relation (weight 0.88)"
+    },
+    {
+      "source": "c_transformer",
+      "target": "c_neural_network",
+      "weight": 0.85,
+      "type": "subclass_of",
+      "fromConceptId": "c_transformer",
+      "toConceptId": "c_neural_network",
+      "relation": "subclass_of",
+      "explanation": "subclass of relation (weight 0.85)"
+    },
+    {
+      "source": "c_transformer",
+      "target": "c_machine_translation",
+      "weight": 0.8,
+      "type": "applied_in",
+      "fromConceptId": "c_transformer",
+      "toConceptId": "c_machine_translation",
+      "relation": "applied_in",
+      "explanation": "applied in relation (weight 0.8)"
+    },
+    {
+      "source": "c_transformer",
+      "target": "c_llm",
+      "weight": 0.9,
+      "type": "related_to",
+      "fromConceptId": "c_transformer",
+      "toConceptId": "c_llm",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.9)"
+    },
+    {
+      "source": "c_transformer",
+      "target": "c_nlp",
+      "weight": 0.78,
+      "type": "applied_in",
+      "fromConceptId": "c_transformer",
+      "toConceptId": "c_nlp",
+      "relation": "applied_in",
+      "explanation": "applied in relation (weight 0.78)"
+    },
+    {
+      "source": "c_attention_mechanism",
+      "target": "c_information_theory",
+      "weight": 0.68,
+      "type": "related_to",
+      "fromConceptId": "c_attention_mechanism",
+      "toConceptId": "c_information_theory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.68)"
+    },
+    {
+      "source": "c_attention_mechanism",
+      "target": "c_machine_translation",
+      "weight": 0.75,
+      "type": "applied_in",
+      "fromConceptId": "c_attention_mechanism",
+      "toConceptId": "c_machine_translation",
+      "relation": "applied_in",
+      "explanation": "applied in relation (weight 0.75)"
+    },
+    {
+      "source": "c_attention_mechanism",
+      "target": "c_nlp",
+      "weight": 0.8,
+      "type": "applied_in",
+      "fromConceptId": "c_attention_mechanism",
+      "toConceptId": "c_nlp",
+      "relation": "applied_in",
+      "explanation": "applied in relation (weight 0.8)"
+    },
+    {
+      "source": "c_attention_mechanism",
+      "target": "c_deep_learning",
+      "weight": 0.82,
+      "type": "uses",
+      "fromConceptId": "c_attention_mechanism",
+      "toConceptId": "c_deep_learning",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.82)"
+    },
+    {
+      "source": "c_machine_translation",
+      "target": "c_nlp",
+      "weight": 0.88,
+      "type": "subclass_of",
+      "fromConceptId": "c_machine_translation",
+      "toConceptId": "c_nlp",
+      "relation": "subclass_of",
+      "explanation": "subclass of relation (weight 0.88)"
+    },
+    {
+      "source": "c_machine_translation",
+      "target": "c_bleu",
+      "weight": 0.78,
+      "type": "uses",
+      "fromConceptId": "c_machine_translation",
+      "toConceptId": "c_bleu",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.78)"
+    },
+    {
+      "source": "c_machine_translation",
+      "target": "c_corpus_linguistics",
+      "weight": 0.72,
+      "type": "uses",
+      "fromConceptId": "c_machine_translation",
+      "toConceptId": "c_corpus_linguistics",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.72)"
+    },
+    {
+      "source": "c_machine_translation",
+      "target": "c_deep_learning",
+      "weight": 0.7,
+      "type": "uses",
+      "fromConceptId": "c_machine_translation",
+      "toConceptId": "c_deep_learning",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.7)"
+    },
+    {
+      "source": "c_nlp",
+      "target": "c_computational_linguistics",
+      "weight": 0.9,
+      "type": "related_to",
+      "fromConceptId": "c_nlp",
+      "toConceptId": "c_computational_linguistics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.9)"
+    },
+    {
+      "source": "c_nlp",
+      "target": "c_llm",
+      "weight": 0.85,
+      "type": "related_to",
+      "fromConceptId": "c_nlp",
+      "toConceptId": "c_llm",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.85)"
+    },
+    {
+      "source": "c_nlp",
+      "target": "c_semantics",
+      "weight": 0.75,
+      "type": "studies",
+      "fromConceptId": "c_nlp",
+      "toConceptId": "c_semantics",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.75)"
+    },
+    {
+      "source": "c_nlp",
+      "target": "c_deep_learning",
+      "weight": 0.8,
+      "type": "uses",
+      "fromConceptId": "c_nlp",
+      "toConceptId": "c_deep_learning",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.8)"
+    },
+    {
+      "source": "c_deep_learning",
+      "target": "c_neural_network",
+      "weight": 0.92,
+      "type": "subclass_of",
+      "fromConceptId": "c_deep_learning",
+      "toConceptId": "c_neural_network",
+      "relation": "subclass_of",
+      "explanation": "subclass of relation (weight 0.92)"
+    },
+    {
+      "source": "c_deep_learning",
+      "target": "c_gradient_descent",
+      "weight": 0.85,
+      "type": "uses",
+      "fromConceptId": "c_deep_learning",
+      "toConceptId": "c_gradient_descent",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.85)"
+    },
+    {
+      "source": "c_deep_learning",
+      "target": "c_loss_function",
+      "weight": 0.82,
+      "type": "uses",
+      "fromConceptId": "c_deep_learning",
+      "toConceptId": "c_loss_function",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.82)"
+    },
+    {
+      "source": "c_deep_learning",
+      "target": "c_optimization",
+      "weight": 0.78,
+      "type": "uses",
+      "fromConceptId": "c_deep_learning",
+      "toConceptId": "c_optimization",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.78)"
+    },
+    {
+      "source": "c_deep_learning",
+      "target": "c_reinforcement_learning",
+      "weight": 0.7,
+      "type": "related_to",
+      "fromConceptId": "c_deep_learning",
+      "toConceptId": "c_reinforcement_learning",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.7)"
+    },
+    {
+      "source": "c_neural_network",
+      "target": "c_gradient_descent",
+      "weight": 0.8,
+      "type": "uses",
+      "fromConceptId": "c_neural_network",
+      "toConceptId": "c_gradient_descent",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.8)"
+    },
+    {
+      "source": "c_neural_network",
+      "target": "c_optimization",
+      "weight": 0.72,
+      "type": "uses",
+      "fromConceptId": "c_neural_network",
+      "toConceptId": "c_optimization",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.72)"
+    },
+    {
+      "source": "c_neural_network",
+      "target": "c_statistical_physics",
+      "weight": 0.55,
+      "type": "related_to",
+      "fromConceptId": "c_neural_network",
+      "toConceptId": "c_statistical_physics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.55)"
+    },
+    {
+      "source": "c_reinforcement_learning",
+      "target": "c_probability_theory",
+      "weight": 0.68,
+      "type": "uses",
+      "fromConceptId": "c_reinforcement_learning",
+      "toConceptId": "c_probability_theory",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.68)"
+    },
+    {
+      "source": "c_reinforcement_learning",
+      "target": "c_optimization",
+      "weight": 0.72,
+      "type": "uses",
+      "fromConceptId": "c_reinforcement_learning",
+      "toConceptId": "c_optimization",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.72)"
+    },
+    {
+      "source": "c_reinforcement_learning",
+      "target": "c_game_theory",
+      "weight": 0.6,
+      "type": "related_to",
+      "fromConceptId": "c_reinforcement_learning",
+      "toConceptId": "c_game_theory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.6)"
+    },
+    {
+      "source": "c_llm",
+      "target": "c_rag",
+      "weight": 0.85,
+      "type": "uses",
+      "fromConceptId": "c_llm",
+      "toConceptId": "c_rag",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.85)"
+    },
+    {
+      "source": "c_llm",
+      "target": "c_fine_tuning",
+      "weight": 0.82,
+      "type": "uses",
+      "fromConceptId": "c_llm",
+      "toConceptId": "c_fine_tuning",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.82)"
+    },
+    {
+      "source": "c_llm",
+      "target": "c_prompt_engineering",
+      "weight": 0.75,
+      "type": "uses",
+      "fromConceptId": "c_llm",
+      "toConceptId": "c_prompt_engineering",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.75)"
+    },
+    {
+      "source": "c_llm",
+      "target": "c_rlhf",
+      "weight": 0.78,
+      "type": "uses",
+      "fromConceptId": "c_llm",
+      "toConceptId": "c_rlhf",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.78)"
+    },
+    {
+      "source": "c_llm",
+      "target": "c_transformer",
+      "weight": 0.8,
+      "type": "related_to",
+      "fromConceptId": "c_llm",
+      "toConceptId": "c_transformer",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.8)"
+    },
+    {
+      "source": "c_rag",
+      "target": "c_information_retrieval",
+      "weight": 0.92,
+      "type": "related_to",
+      "fromConceptId": "c_rag",
+      "toConceptId": "c_information_retrieval",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.92)"
+    },
+    {
+      "source": "c_rag",
+      "target": "c_knowledge_graph",
+      "weight": 0.72,
+      "type": "uses",
+      "fromConceptId": "c_rag",
+      "toConceptId": "c_knowledge_graph",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.72)"
+    },
+    {
+      "source": "c_rag",
+      "target": "c_llm",
+      "weight": 0.8,
+      "type": "uses",
+      "fromConceptId": "c_rag",
+      "toConceptId": "c_llm",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.8)"
+    },
+    {
+      "source": "c_rag",
+      "target": "c_semantics",
+      "weight": 0.65,
+      "type": "related_to",
+      "fromConceptId": "c_rag",
+      "toConceptId": "c_semantics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.65)"
+    },
+    {
+      "source": "c_information_retrieval",
+      "target": "c_library_science",
+      "weight": 0.85,
+      "type": "related_to",
+      "fromConceptId": "c_information_retrieval",
+      "toConceptId": "c_library_science",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.85)"
+    },
+    {
+      "source": "c_information_retrieval",
+      "target": "c_citation_analysis",
+      "weight": 0.7,
+      "type": "related_to",
+      "fromConceptId": "c_information_retrieval",
+      "toConceptId": "c_citation_analysis",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.7)"
+    },
+    {
+      "source": "c_information_retrieval",
+      "target": "c_bibliometrics",
+      "weight": 0.72,
+      "type": "related_to",
+      "fromConceptId": "c_information_retrieval",
+      "toConceptId": "c_bibliometrics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.72)"
+    },
+    {
+      "source": "c_information_retrieval",
+      "target": "c_metadata",
+      "weight": 0.68,
+      "type": "uses",
+      "fromConceptId": "c_information_retrieval",
+      "toConceptId": "c_metadata",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.68)"
+    },
+    {
+      "source": "c_information_retrieval",
+      "target": "c_information_theory",
+      "weight": 0.65,
+      "type": "uses",
+      "fromConceptId": "c_information_retrieval",
+      "toConceptId": "c_information_theory",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.65)"
+    },
+    {
+      "source": "c_bleu",
+      "target": "c_corpus_linguistics",
+      "weight": 0.72,
+      "type": "related_to",
+      "fromConceptId": "c_bleu",
+      "toConceptId": "c_corpus_linguistics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.72)"
+    },
+    {
+      "source": "c_corpus_linguistics",
+      "target": "c_computational_linguistics",
+      "weight": 0.85,
+      "type": "related_to",
+      "fromConceptId": "c_corpus_linguistics",
+      "toConceptId": "c_computational_linguistics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.85)"
+    },
+    {
+      "source": "c_corpus_linguistics",
+      "target": "c_semantics",
+      "weight": 0.68,
+      "type": "studies",
+      "fromConceptId": "c_corpus_linguistics",
+      "toConceptId": "c_semantics",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.68)"
+    },
+    {
+      "source": "c_computational_linguistics",
+      "target": "c_semantics",
+      "weight": 0.75,
+      "type": "studies",
+      "fromConceptId": "c_computational_linguistics",
+      "toConceptId": "c_semantics",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.75)"
+    },
+    {
+      "source": "c_computational_linguistics",
+      "target": "c_nlp",
+      "weight": 0.8,
+      "type": "related_to",
+      "fromConceptId": "c_computational_linguistics",
+      "toConceptId": "c_nlp",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.8)"
+    },
+    {
+      "source": "c_information_theory",
+      "target": "c_entropy",
+      "weight": 0.92,
+      "type": "studies",
+      "fromConceptId": "c_information_theory",
+      "toConceptId": "c_entropy",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.92)"
+    },
+    {
+      "source": "c_information_theory",
+      "target": "c_probability_theory",
+      "weight": 0.85,
+      "type": "uses",
+      "fromConceptId": "c_information_theory",
+      "toConceptId": "c_probability_theory",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.85)"
+    },
+    {
+      "source": "c_information_theory",
+      "target": "c_statistical_physics",
+      "weight": 0.78,
+      "type": "related_to",
+      "fromConceptId": "c_information_theory",
+      "toConceptId": "c_statistical_physics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.78)"
+    },
+    {
+      "source": "c_information_theory",
+      "target": "c_complex_systems",
+      "weight": 0.65,
+      "type": "related_to",
+      "fromConceptId": "c_information_theory",
+      "toConceptId": "c_complex_systems",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.65)"
+    },
+    {
+      "source": "c_entropy",
+      "target": "c_statistical_physics",
+      "weight": 0.75,
+      "type": "related_to",
+      "fromConceptId": "c_entropy",
+      "toConceptId": "c_statistical_physics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.75)"
+    },
+    {
+      "source": "c_entropy",
+      "target": "c_probability_theory",
+      "weight": 0.8,
+      "type": "uses",
+      "fromConceptId": "c_entropy",
+      "toConceptId": "c_probability_theory",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.8)"
+    },
+    {
+      "source": "c_probability_theory",
+      "target": "c_optimization",
+      "weight": 0.65,
+      "type": "uses",
+      "fromConceptId": "c_probability_theory",
+      "toConceptId": "c_optimization",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.65)"
+    },
+    {
+      "source": "c_probability_theory",
+      "target": "c_statistical_physics",
+      "weight": 0.72,
+      "type": "related_to",
+      "fromConceptId": "c_probability_theory",
+      "toConceptId": "c_statistical_physics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.72)"
+    },
+    {
+      "source": "c_optimization",
+      "target": "c_gradient_descent",
+      "weight": 0.85,
+      "type": "related_to",
+      "fromConceptId": "c_optimization",
+      "toConceptId": "c_gradient_descent",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.85)"
+    },
+    {
+      "source": "c_optimization",
+      "target": "c_loss_function",
+      "weight": 0.78,
+      "type": "related_to",
+      "fromConceptId": "c_optimization",
+      "toConceptId": "c_loss_function",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.78)"
+    },
+    {
+      "source": "c_gradient_descent",
+      "target": "c_loss_function",
+      "weight": 0.8,
+      "type": "related_to",
+      "fromConceptId": "c_gradient_descent",
+      "toConceptId": "c_loss_function",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.8)"
+    },
+    {
+      "source": "c_statistical_physics",
+      "target": "c_phase_transition",
+      "weight": 0.9,
+      "type": "studies",
+      "fromConceptId": "c_statistical_physics",
+      "toConceptId": "c_phase_transition",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.9)"
+    },
+    {
+      "source": "c_statistical_physics",
+      "target": "c_thermodynamics",
+      "weight": 0.85,
+      "type": "subclass_of",
+      "fromConceptId": "c_statistical_physics",
+      "toConceptId": "c_thermodynamics",
+      "relation": "subclass_of",
+      "explanation": "subclass of relation (weight 0.85)"
+    },
+    {
+      "source": "c_statistical_physics",
+      "target": "c_complex_systems",
+      "weight": 0.82,
+      "type": "related_to",
+      "fromConceptId": "c_statistical_physics",
+      "toConceptId": "c_complex_systems",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.82)"
+    },
+    {
+      "source": "c_statistical_physics",
+      "target": "c_probability_theory",
+      "weight": 0.75,
+      "type": "uses",
+      "fromConceptId": "c_statistical_physics",
+      "toConceptId": "c_probability_theory",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.75)"
+    },
+    {
+      "source": "c_phase_transition",
+      "target": "c_thermodynamics",
+      "weight": 0.78,
+      "type": "related_to",
+      "fromConceptId": "c_phase_transition",
+      "toConceptId": "c_thermodynamics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.78)"
+    },
+    {
+      "source": "c_phase_transition",
+      "target": "c_complex_systems",
+      "weight": 0.8,
+      "type": "related_to",
+      "fromConceptId": "c_phase_transition",
+      "toConceptId": "c_complex_systems",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.8)"
+    },
+    {
+      "source": "c_thermodynamics",
+      "target": "c_complex_systems",
+      "weight": 0.7,
+      "type": "related_to",
+      "fromConceptId": "c_thermodynamics",
+      "toConceptId": "c_complex_systems",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.7)"
+    },
+    {
+      "source": "c_library_science",
+      "target": "c_personal_km",
+      "weight": 0.82,
+      "type": "related_to",
+      "fromConceptId": "c_library_science",
+      "toConceptId": "c_personal_km",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.82)"
+    },
+    {
+      "source": "c_library_science",
+      "target": "c_citation_analysis",
+      "weight": 0.8,
+      "type": "studies",
+      "fromConceptId": "c_library_science",
+      "toConceptId": "c_citation_analysis",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.8)"
+    },
+    {
+      "source": "c_library_science",
+      "target": "c_bibliometrics",
+      "weight": 0.85,
+      "type": "studies",
+      "fromConceptId": "c_library_science",
+      "toConceptId": "c_bibliometrics",
+      "relation": "studies",
+      "explanation": "studies relation (weight 0.85)"
+    },
+    {
+      "source": "c_library_science",
+      "target": "c_digital_library",
+      "weight": 0.88,
+      "type": "related_to",
+      "fromConceptId": "c_library_science",
+      "toConceptId": "c_digital_library",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.88)"
+    },
+    {
+      "source": "c_library_science",
+      "target": "c_metadata",
+      "weight": 0.75,
+      "type": "uses",
+      "fromConceptId": "c_library_science",
+      "toConceptId": "c_metadata",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.75)"
+    },
+    {
+      "source": "c_library_science",
+      "target": "c_ontology",
+      "weight": 0.7,
+      "type": "uses",
+      "fromConceptId": "c_library_science",
+      "toConceptId": "c_ontology",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.7)"
+    },
+    {
+      "source": "c_personal_km",
+      "target": "c_knowledge_graph",
+      "weight": 0.72,
+      "type": "uses",
+      "fromConceptId": "c_personal_km",
+      "toConceptId": "c_knowledge_graph",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.72)"
+    },
+    {
+      "source": "c_personal_km",
+      "target": "c_metadata",
+      "weight": 0.65,
+      "type": "uses",
+      "fromConceptId": "c_personal_km",
+      "toConceptId": "c_metadata",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.65)"
+    },
+    {
+      "source": "c_personal_km",
+      "target": "c_digital_library",
+      "weight": 0.68,
+      "type": "related_to",
+      "fromConceptId": "c_personal_km",
+      "toConceptId": "c_digital_library",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.68)"
+    },
+    {
+      "source": "c_knowledge_graph",
+      "target": "c_ontology",
+      "weight": 0.85,
+      "type": "related_to",
+      "fromConceptId": "c_knowledge_graph",
+      "toConceptId": "c_ontology",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.85)"
+    },
+    {
+      "source": "c_knowledge_graph",
+      "target": "c_semantics",
+      "weight": 0.72,
+      "type": "uses",
+      "fromConceptId": "c_knowledge_graph",
+      "toConceptId": "c_semantics",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.72)"
+    },
+    {
+      "source": "c_knowledge_graph",
+      "target": "c_metadata",
+      "weight": 0.68,
+      "type": "uses",
+      "fromConceptId": "c_knowledge_graph",
+      "toConceptId": "c_metadata",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.68)"
+    },
+    {
+      "source": "c_citation_analysis",
+      "target": "c_bibliometrics",
+      "weight": 0.88,
+      "type": "related_to",
+      "fromConceptId": "c_citation_analysis",
+      "toConceptId": "c_bibliometrics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.88)"
+    },
+    {
+      "source": "c_citation_analysis",
+      "target": "c_metadata",
+      "weight": 0.65,
+      "type": "uses",
+      "fromConceptId": "c_citation_analysis",
+      "toConceptId": "c_metadata",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.65)"
+    },
+    {
+      "source": "c_bibliometrics",
+      "target": "c_metadata",
+      "weight": 0.6,
+      "type": "uses",
+      "fromConceptId": "c_bibliometrics",
+      "toConceptId": "c_metadata",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.6)"
+    },
+    {
+      "source": "c_digital_library",
+      "target": "c_metadata",
+      "weight": 0.72,
+      "type": "uses",
+      "fromConceptId": "c_digital_library",
+      "toConceptId": "c_metadata",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.72)"
+    },
+    {
+      "source": "c_digital_library",
+      "target": "c_ontology",
+      "weight": 0.65,
+      "type": "uses",
+      "fromConceptId": "c_digital_library",
+      "toConceptId": "c_ontology",
+      "relation": "uses",
+      "explanation": "uses relation (weight 0.65)"
+    },
+    {
+      "source": "c_ontology",
+      "target": "c_semantics",
+      "weight": 0.78,
+      "type": "related_to",
+      "fromConceptId": "c_ontology",
+      "toConceptId": "c_semantics",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.78)"
+    },
+    {
+      "source": "c_transformer",
+      "target": "c_information_theory",
+      "weight": 0.72,
+      "type": "related_to",
+      "fromConceptId": "c_transformer",
+      "toConceptId": "c_information_theory",
+      "relation": "related_to",
+      "explanation": "related to relation (weight 0.72)"
+    },
+    {
+      "source": "c_ai_agent",
+      "target": "c_multi_agent_coordination",
+      "weight": 0.7,
+      "type": "extends_to",
+      "fromConceptId": "c_ai_agent",
+      "toConceptId": "c_multi_agent_coordination",
+      "relation": "extends_to",
+      "explanation": "Multiple agents must coordinate."
+    },
+    {
+      "source": "c_multi_agent_coordination",
+      "target": "c_game_theory",
+      "weight": 0.75,
+      "type": "modeled_by",
+      "fromConceptId": "c_multi_agent_coordination",
+      "toConceptId": "c_game_theory",
+      "relation": "modeled_by",
+      "explanation": "Coordination is strategic interaction."
+    },
+    {
+      "source": "c_library_science",
+      "target": "c_pkm",
+      "weight": 0.65,
+      "type": "applies_to",
+      "fromConceptId": "c_library_science",
+      "toConceptId": "c_pkm",
+      "relation": "applies_to",
+      "explanation": "Library methods apply to personal knowledge."
+    }
   ]
 }

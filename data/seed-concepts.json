@@ -1,23 +1,796 @@
 {
-  "_comment": "PLACEHOLDER seed by 队友01 — 队友03 负责扩充到 50+ 概念。字段结构冻结：id/name/aliases/domain/description/popularity",
+  "_comment": "责任包03 交付：58 核心概念 + 仓库原有占位概念合并。字段兼容冻结结构(id/name/aliases/domain/description/popularity)与 pkg03(level/score)。",
   "concepts": [
-    { "id": "c_ai_agent", "name": "AI Agent", "aliases": ["Agent", "智能体", "LLM Agent"], "domain": "Computer Science", "description": "Software entities that perceive, plan, and act to achieve goals.", "popularity": 0.9 },
-    { "id": "c_tool_use", "name": "Tool Use", "aliases": ["function calling", "工具调用"], "domain": "Computer Science", "description": "Agents invoking external tools and APIs to act.", "popularity": 0.7 },
-    { "id": "c_planning", "name": "Planning", "aliases": ["规划"], "domain": "Computer Science", "description": "Deciding action sequences to reach goals.", "popularity": 0.7 },
-    { "id": "c_agent_memory", "name": "Agent Memory", "aliases": ["记忆机制"], "domain": "Computer Science", "description": "How agents store and reuse past information.", "popularity": 0.65 },
-    { "id": "c_multi_agent_coordination", "name": "Multi-Agent Coordination", "aliases": ["多智能体协作", "MAS"], "domain": "Computer Science", "description": "How multiple agents cooperate or compete.", "popularity": 0.6 },
-    { "id": "c_game_theory", "name": "Game Theory", "aliases": ["博弈论"], "domain": "Economics", "description": "Mathematical study of strategic interaction.", "popularity": 0.6 },
-    { "id": "c_mechanism_design", "name": "Mechanism Design", "aliases": ["机制设计"], "domain": "Economics", "description": "Designing rules so strategic agents produce desired outcomes.", "popularity": 0.4 },
-    { "id": "c_human_memory", "name": "Human Memory", "aliases": ["人类记忆"], "domain": "Cognitive Science", "description": "How humans encode, store, and retrieve information.", "popularity": 0.5 },
-    { "id": "c_cognitive_psychology", "name": "Cognitive Psychology", "aliases": ["认知心理学"], "domain": "Cognitive Science", "description": "Scientific study of mental processes.", "popularity": 0.5 },
-    { "id": "c_forgetting_curve", "name": "Forgetting Curve", "aliases": ["遗忘曲线"], "domain": "Cognitive Science", "description": "How memory retention declines over time.", "popularity": 0.4 },
-    { "id": "c_transformer", "name": "Transformer", "aliases": ["注意力模型"], "domain": "Computer Science", "description": "Attention-based neural architecture.", "popularity": 0.8 },
-    { "id": "c_information_theory", "name": "Information Theory", "aliases": ["信息论"], "domain": "Mathematics", "description": "Quantifying information, entropy, and communication.", "popularity": 0.5 },
-    { "id": "c_statistical_physics", "name": "Statistical Physics", "aliases": ["统计物理"], "domain": "Physics", "description": "Physics of many-particle systems via statistics.", "popularity": 0.35 },
-    { "id": "c_phase_transition", "name": "Phase Transition", "aliases": ["相变"], "domain": "Physics", "description": "Abrupt changes of system state at critical points.", "popularity": 0.3 },
-    { "id": "c_rag", "name": "RAG", "aliases": ["Retrieval-Augmented Generation", "检索增强生成"], "domain": "Computer Science", "description": "LLM generation grounded in retrieved documents.", "popularity": 0.75 },
-    { "id": "c_information_retrieval", "name": "Information Retrieval", "aliases": ["信息检索", "IR"], "domain": "Computer Science", "description": "Finding relevant information in large collections.", "popularity": 0.6 },
-    { "id": "c_library_science", "name": "Library Science", "aliases": ["图书馆学"], "domain": "Library Science", "description": "Organization and curation of knowledge collections.", "popularity": 0.4 },
-    { "id": "c_pkm", "name": "Personal Knowledge Management", "aliases": ["PKM", "个人知识管理"], "domain": "Library Science", "description": "Methods for individuals to capture and organize knowledge.", "popularity": 0.45 }
+    {
+      "id": "c_ai_agent",
+      "name": "AI Agent",
+      "aliases": [
+        "autonomous agent",
+        "intelligent agent",
+        "software agent"
+      ],
+      "domain": "Artificial Intelligence",
+      "description": "Software entities that perceive, plan, and act to achieve goals.",
+      "popularity": 0.9,
+      "level": 1,
+      "score": 0.95
+    },
+    {
+      "id": "c_multi_agent",
+      "name": "Multi-Agent Coordination",
+      "aliases": [
+        "multi-agent systems",
+        "MAS",
+        "agent coordination"
+      ],
+      "domain": "Artificial Intelligence",
+      "description": "Multi-Agent Coordination concept in Artificial Intelligence.",
+      "popularity": 0.88,
+      "level": 2,
+      "score": 0.88
+    },
+    {
+      "id": "c_game_theory",
+      "name": "Game Theory",
+      "aliases": [
+        "game-theoretic",
+        "strategic interaction"
+      ],
+      "domain": "Economics",
+      "description": "Mathematical study of strategic interaction.",
+      "popularity": 0.6,
+      "level": 1,
+      "score": 0.9
+    },
+    {
+      "id": "c_mechanism_design",
+      "name": "Mechanism Design",
+      "aliases": [
+        "implementation theory",
+        "reverse game theory"
+      ],
+      "domain": "Economics",
+      "description": "Designing rules so strategic agents produce desired outcomes.",
+      "popularity": 0.4,
+      "level": 2,
+      "score": 0.85
+    },
+    {
+      "id": "c_nash_equilibrium",
+      "name": "Nash Equilibrium",
+      "aliases": [
+        "Nash eq",
+        "strategic equilibrium"
+      ],
+      "domain": "Economics",
+      "description": "Nash Equilibrium concept in Economics.",
+      "popularity": 0.8,
+      "level": 3,
+      "score": 0.8
+    },
+    {
+      "id": "c_auction_theory",
+      "name": "Auction Theory",
+      "aliases": [
+        "auction design",
+        "bidding theory"
+      ],
+      "domain": "Economics",
+      "description": "Auction Theory concept in Economics.",
+      "popularity": 0.75,
+      "level": 3,
+      "score": 0.75
+    },
+    {
+      "id": "c_cooperative_game",
+      "name": "Cooperative Game Theory",
+      "aliases": [
+        "coalitional game",
+        "cooperative games"
+      ],
+      "domain": "Economics",
+      "description": "Cooperative Game Theory concept in Economics.",
+      "popularity": 0.72,
+      "level": 3,
+      "score": 0.72
+    },
+    {
+      "id": "c_social_choice",
+      "name": "Social Choice Theory",
+      "aliases": [
+        "voting theory",
+        "collective choice"
+      ],
+      "domain": "Economics",
+      "description": "Social Choice Theory concept in Economics.",
+      "popularity": 0.7,
+      "level": 3,
+      "score": 0.7
+    },
+    {
+      "id": "c_rational_choice",
+      "name": "Rational Choice Theory",
+      "aliases": [
+        "rational actor model"
+      ],
+      "domain": "Economics",
+      "description": "Rational Choice Theory concept in Economics.",
+      "popularity": 0.68,
+      "level": 2,
+      "score": 0.68
+    },
+    {
+      "id": "c_agent_memory",
+      "name": "Agent Memory",
+      "aliases": [
+        "agent memory systems",
+        "memory architecture"
+      ],
+      "domain": "Artificial Intelligence",
+      "description": "How agents store and reuse past information.",
+      "popularity": 0.65,
+      "level": 2,
+      "score": 0.85
+    },
+    {
+      "id": "c_planning",
+      "name": "Planning",
+      "aliases": [
+        "automated planning",
+        "task planning"
+      ],
+      "domain": "Artificial Intelligence",
+      "description": "Deciding action sequences to reach goals.",
+      "popularity": 0.7,
+      "level": 2,
+      "score": 0.82
+    },
+    {
+      "id": "c_tool_use",
+      "name": "Tool Use",
+      "aliases": [
+        "tool augmented LLM",
+        "function calling"
+      ],
+      "domain": "Artificial Intelligence",
+      "description": "Agents invoking external tools and APIs to act.",
+      "popularity": 0.7,
+      "level": 2,
+      "score": 0.8
+    },
+    {
+      "id": "c_prompt_engineering",
+      "name": "Prompt Engineering",
+      "aliases": [
+        "prompt design",
+        "instruction tuning"
+      ],
+      "domain": "Artificial Intelligence",
+      "description": "Prompt Engineering concept in Artificial Intelligence.",
+      "popularity": 0.75,
+      "level": 3,
+      "score": 0.75
+    },
+    {
+      "id": "c_fine_tuning",
+      "name": "Fine-tuning",
+      "aliases": [
+        "transfer learning",
+        "domain adaptation"
+      ],
+      "domain": "Machine Learning",
+      "description": "Fine-tuning concept in Machine Learning.",
+      "popularity": 0.78,
+      "level": 3,
+      "score": 0.78
+    },
+    {
+      "id": "c_rlhf",
+      "name": "Reinforcement Learning from Human Feedback",
+      "aliases": [
+        "RLHF",
+        "preference learning"
+      ],
+      "domain": "Machine Learning",
+      "description": "Reinforcement Learning from Human Feedback concept in Machine Learning.",
+      "popularity": 0.74,
+      "level": 3,
+      "score": 0.74
+    },
+    {
+      "id": "c_human_memory",
+      "name": "Human Memory",
+      "aliases": [
+        "memory system",
+        "memory processes"
+      ],
+      "domain": "Psychology",
+      "description": "How humans encode, store, and retrieve information.",
+      "popularity": 0.5,
+      "level": 1,
+      "score": 0.88
+    },
+    {
+      "id": "c_cognitive_psychology",
+      "name": "Cognitive Psychology",
+      "aliases": [
+        "cognition",
+        "cognitive science"
+      ],
+      "domain": "Psychology",
+      "description": "Scientific study of mental processes.",
+      "popularity": 0.5,
+      "level": 1,
+      "score": 0.9
+    },
+    {
+      "id": "c_forgetting_curve",
+      "name": "Forgetting Curve",
+      "aliases": [
+        "Ebbinghaus forgetting",
+        "memory decay"
+      ],
+      "domain": "Psychology",
+      "description": "How memory retention declines over time.",
+      "popularity": 0.4,
+      "level": 3,
+      "score": 0.72
+    },
+    {
+      "id": "c_memory_consolidation",
+      "name": "Memory Consolidation",
+      "aliases": [
+        "consolidation",
+        "systems consolidation"
+      ],
+      "domain": "Neuroscience",
+      "description": "Memory Consolidation concept in Neuroscience.",
+      "popularity": 0.7,
+      "level": 3,
+      "score": 0.7
+    },
+    {
+      "id": "c_working_memory",
+      "name": "Working Memory",
+      "aliases": [
+        "short-term memory",
+        "working memory capacity"
+      ],
+      "domain": "Psychology",
+      "description": "Working Memory concept in Psychology.",
+      "popularity": 0.75,
+      "level": 3,
+      "score": 0.75
+    },
+    {
+      "id": "c_long_term_memory",
+      "name": "Long-term Memory",
+      "aliases": [
+        "LTM",
+        "episodic memory"
+      ],
+      "domain": "Psychology",
+      "description": "Long-term Memory concept in Psychology.",
+      "popularity": 0.73,
+      "level": 3,
+      "score": 0.73
+    },
+    {
+      "id": "c_spaced_repetition",
+      "name": "Spaced Repetition",
+      "aliases": [
+        "distributed practice",
+        "spacing effect"
+      ],
+      "domain": "Psychology",
+      "description": "Spaced Repetition concept in Psychology.",
+      "popularity": 0.68,
+      "level": 3,
+      "score": 0.68
+    },
+    {
+      "id": "c_attention_cognitive",
+      "name": "Attention (Cognitive)",
+      "aliases": [
+        "selective attention",
+        "cognitive attention"
+      ],
+      "domain": "Psychology",
+      "description": "Attention (Cognitive) concept in Psychology.",
+      "popularity": 0.8,
+      "level": 2,
+      "score": 0.8
+    },
+    {
+      "id": "c_neuroscience",
+      "name": "Neuroscience",
+      "aliases": [
+        "neurobiology",
+        "brain science"
+      ],
+      "domain": "Neuroscience",
+      "description": "Neuroscience concept in Neuroscience.",
+      "popularity": 0.85,
+      "level": 0,
+      "score": 0.85
+    },
+    {
+      "id": "c_cognitive_science",
+      "name": "Cognitive Science",
+      "aliases": [
+        "cognitive systems",
+        "mind science"
+      ],
+      "domain": "Cognitive Science",
+      "description": "Cognitive Science concept in Cognitive Science.",
+      "popularity": 0.88,
+      "level": 0,
+      "score": 0.88
+    },
+    {
+      "id": "c_philosophy_mind",
+      "name": "Philosophy of Mind",
+      "aliases": [
+        "philosophy of consciousness",
+        "mental philosophy"
+      ],
+      "domain": "Philosophy",
+      "description": "Philosophy of Mind concept in Philosophy.",
+      "popularity": 0.7,
+      "level": 1,
+      "score": 0.7
+    },
+    {
+      "id": "c_transformer",
+      "name": "Transformer",
+      "aliases": [
+        "transformer architecture",
+        "self-attention network"
+      ],
+      "domain": "Machine Learning",
+      "description": "Attention-based neural architecture.",
+      "popularity": 0.8,
+      "level": 2,
+      "score": 0.92
+    },
+    {
+      "id": "c_attention_mechanism",
+      "name": "Attention Mechanism",
+      "aliases": [
+        "attention",
+        "self-attention",
+        "cross-attention"
+      ],
+      "domain": "Machine Learning",
+      "description": "Attention Mechanism concept in Machine Learning.",
+      "popularity": 0.9,
+      "level": 3,
+      "score": 0.9
+    },
+    {
+      "id": "c_machine_translation",
+      "name": "Machine Translation",
+      "aliases": [
+        "MT",
+        "neural machine translation",
+        "NMT"
+      ],
+      "domain": "Natural Language Processing",
+      "description": "Machine Translation concept in Natural Language Processing.",
+      "popularity": 0.85,
+      "level": 2,
+      "score": 0.85
+    },
+    {
+      "id": "c_nlp",
+      "name": "Natural Language Processing",
+      "aliases": [
+        "NLP",
+        "computational linguistics",
+        "language technology"
+      ],
+      "domain": "Natural Language Processing",
+      "description": "Natural Language Processing concept in Natural Language Processing.",
+      "popularity": 0.9,
+      "level": 0,
+      "score": 0.9
+    },
+    {
+      "id": "c_deep_learning",
+      "name": "Deep Learning",
+      "aliases": [
+        "deep neural networks",
+        "representation learning"
+      ],
+      "domain": "Machine Learning",
+      "description": "Deep Learning concept in Machine Learning.",
+      "popularity": 0.92,
+      "level": 1,
+      "score": 0.92
+    },
+    {
+      "id": "c_neural_network",
+      "name": "Neural Network",
+      "aliases": [
+        "artificial neural network",
+        "ANN",
+        "DNN"
+      ],
+      "domain": "Machine Learning",
+      "description": "Neural Network concept in Machine Learning.",
+      "popularity": 0.88,
+      "level": 1,
+      "score": 0.88
+    },
+    {
+      "id": "c_reinforcement_learning",
+      "name": "Reinforcement Learning",
+      "aliases": [
+        "RL",
+        "reward-based learning"
+      ],
+      "domain": "Machine Learning",
+      "description": "Reinforcement Learning concept in Machine Learning.",
+      "popularity": 0.85,
+      "level": 1,
+      "score": 0.85
+    },
+    {
+      "id": "c_llm",
+      "name": "Large Language Model",
+      "aliases": [
+        "LLM",
+        "foundation model",
+        "pretrained language model"
+      ],
+      "domain": "Natural Language Processing",
+      "description": "Large Language Model concept in Natural Language Processing.",
+      "popularity": 0.9,
+      "level": 2,
+      "score": 0.9
+    },
+    {
+      "id": "c_rag",
+      "name": "Retrieval-Augmented Generation",
+      "aliases": [
+        "RAG",
+        "retrieval-augmented generation",
+        "retrieval-augmented LLM"
+      ],
+      "domain": "Natural Language Processing",
+      "description": "LLM generation grounded in retrieved documents.",
+      "popularity": 0.75,
+      "level": 2,
+      "score": 0.88
+    },
+    {
+      "id": "c_information_retrieval",
+      "name": "Information Retrieval",
+      "aliases": [
+        "IR",
+        "search",
+        "document retrieval"
+      ],
+      "domain": "Information Science",
+      "description": "Finding relevant information in large collections.",
+      "popularity": 0.6,
+      "level": 1,
+      "score": 0.88
+    },
+    {
+      "id": "c_bleu",
+      "name": "BLEU Score",
+      "aliases": [
+        "BLEU",
+        "bilingual evaluation understudy"
+      ],
+      "domain": "Natural Language Processing",
+      "description": "BLEU Score concept in Natural Language Processing.",
+      "popularity": 0.65,
+      "level": 4,
+      "score": 0.65
+    },
+    {
+      "id": "c_corpus_linguistics",
+      "name": "Corpus Linguistics",
+      "aliases": [
+        "corpus studies",
+        "computational corpus"
+      ],
+      "domain": "Linguistics",
+      "description": "Corpus Linguistics concept in Linguistics.",
+      "popularity": 0.72,
+      "level": 2,
+      "score": 0.72
+    },
+    {
+      "id": "c_computational_linguistics",
+      "name": "Computational Linguistics",
+      "aliases": [
+        "computational language studies"
+      ],
+      "domain": "Linguistics",
+      "description": "Computational Linguistics concept in Linguistics.",
+      "popularity": 0.78,
+      "level": 1,
+      "score": 0.78
+    },
+    {
+      "id": "c_semantics",
+      "name": "Semantics",
+      "aliases": [
+        "semantic meaning",
+        "lexical semantics"
+      ],
+      "domain": "Linguistics",
+      "description": "Semantics concept in Linguistics.",
+      "popularity": 0.72,
+      "level": 2,
+      "score": 0.72
+    },
+    {
+      "id": "c_information_theory",
+      "name": "Information Theory",
+      "aliases": [
+        "Shannon theory",
+        "information entropy"
+      ],
+      "domain": "Mathematics",
+      "description": "Quantifying information, entropy, and communication.",
+      "popularity": 0.5,
+      "level": 1,
+      "score": 0.88
+    },
+    {
+      "id": "c_entropy",
+      "name": "Entropy",
+      "aliases": [
+        "Shannon entropy",
+        "information entropy"
+      ],
+      "domain": "Mathematics",
+      "description": "Entropy concept in Mathematics.",
+      "popularity": 0.75,
+      "level": 3,
+      "score": 0.75
+    },
+    {
+      "id": "c_probability_theory",
+      "name": "Probability Theory",
+      "aliases": [
+        "probability",
+        "probabilistic methods"
+      ],
+      "domain": "Mathematics",
+      "description": "Probability Theory concept in Mathematics.",
+      "popularity": 0.82,
+      "level": 0,
+      "score": 0.82
+    },
+    {
+      "id": "c_optimization",
+      "name": "Optimization",
+      "aliases": [
+        "mathematical optimization",
+        "convex optimization"
+      ],
+      "domain": "Mathematics",
+      "description": "Optimization concept in Mathematics.",
+      "popularity": 0.8,
+      "level": 1,
+      "score": 0.8
+    },
+    {
+      "id": "c_gradient_descent",
+      "name": "Gradient Descent",
+      "aliases": [
+        "stochastic gradient descent",
+        "SGD",
+        "backpropagation"
+      ],
+      "domain": "Machine Learning",
+      "description": "Gradient Descent concept in Machine Learning.",
+      "popularity": 0.78,
+      "level": 4,
+      "score": 0.78
+    },
+    {
+      "id": "c_loss_function",
+      "name": "Loss Function",
+      "aliases": [
+        "objective function",
+        "cost function",
+        "loss"
+      ],
+      "domain": "Machine Learning",
+      "description": "Loss Function concept in Machine Learning.",
+      "popularity": 0.75,
+      "level": 4,
+      "score": 0.75
+    },
+    {
+      "id": "c_statistical_physics",
+      "name": "Statistical Physics",
+      "aliases": [
+        "statistical mechanics",
+        "statistical thermodynamics"
+      ],
+      "domain": "Physics",
+      "description": "Physics of many-particle systems via statistics.",
+      "popularity": 0.35,
+      "level": 1,
+      "score": 0.85
+    },
+    {
+      "id": "c_phase_transition",
+      "name": "Phase Transition",
+      "aliases": [
+        "critical phenomena",
+        "phase change"
+      ],
+      "domain": "Physics",
+      "description": "Abrupt changes of system state at critical points.",
+      "popularity": 0.3,
+      "level": 2,
+      "score": 0.78
+    },
+    {
+      "id": "c_thermodynamics",
+      "name": "Thermodynamics",
+      "aliases": [
+        "thermal physics",
+        "heat theory"
+      ],
+      "domain": "Physics",
+      "description": "Thermodynamics concept in Physics.",
+      "popularity": 0.72,
+      "level": 0,
+      "score": 0.72
+    },
+    {
+      "id": "c_complex_systems",
+      "name": "Complex Systems",
+      "aliases": [
+        "complexity science",
+        "complex adaptive systems"
+      ],
+      "domain": "Physics",
+      "description": "Complex Systems concept in Physics.",
+      "popularity": 0.75,
+      "level": 1,
+      "score": 0.75
+    },
+    {
+      "id": "c_library_science",
+      "name": "Library Science",
+      "aliases": [
+        "librarianship",
+        "library studies"
+      ],
+      "domain": "Information Science",
+      "description": "Organization and curation of knowledge collections.",
+      "popularity": 0.4,
+      "level": 1,
+      "score": 0.82
+    },
+    {
+      "id": "c_personal_km",
+      "name": "Personal Knowledge Management",
+      "aliases": [
+        "PKM",
+        "personal information management",
+        "note-taking systems"
+      ],
+      "domain": "Information Science",
+      "description": "Personal Knowledge Management concept in Information Science.",
+      "popularity": 0.75,
+      "level": 2,
+      "score": 0.75
+    },
+    {
+      "id": "c_knowledge_graph",
+      "name": "Knowledge Graph",
+      "aliases": [
+        "knowledge base",
+        "semantic network",
+        "ontological graph"
+      ],
+      "domain": "Information Science",
+      "description": "Knowledge Graph concept in Information Science.",
+      "popularity": 0.8,
+      "level": 2,
+      "score": 0.8
+    },
+    {
+      "id": "c_citation_analysis",
+      "name": "Citation Analysis",
+      "aliases": [
+        "bibliometric analysis",
+        "citation network"
+      ],
+      "domain": "Information Science",
+      "description": "Citation Analysis concept in Information Science.",
+      "popularity": 0.7,
+      "level": 3,
+      "score": 0.7
+    },
+    {
+      "id": "c_bibliometrics",
+      "name": "Bibliometrics",
+      "aliases": [
+        "scientometrics",
+        "bibliometric indicators"
+      ],
+      "domain": "Information Science",
+      "description": "Bibliometrics concept in Information Science.",
+      "popularity": 0.72,
+      "level": 2,
+      "score": 0.72
+    },
+    {
+      "id": "c_digital_library",
+      "name": "Digital Library",
+      "aliases": [
+        "electronic library",
+        "digital collections"
+      ],
+      "domain": "Information Science",
+      "description": "Digital Library concept in Information Science.",
+      "popularity": 0.7,
+      "level": 2,
+      "score": 0.7
+    },
+    {
+      "id": "c_metadata",
+      "name": "Metadata",
+      "aliases": [
+        "data about data",
+        "descriptive metadata"
+      ],
+      "domain": "Information Science",
+      "description": "Metadata concept in Information Science.",
+      "popularity": 0.68,
+      "level": 3,
+      "score": 0.68
+    },
+    {
+      "id": "c_ontology",
+      "name": "Ontology",
+      "aliases": [
+        "formal ontology",
+        "domain ontology"
+      ],
+      "domain": "Information Science",
+      "description": "Ontology concept in Information Science.",
+      "popularity": 0.72,
+      "level": 2,
+      "score": 0.72
+    },
+    {
+      "id": "c_multi_agent_coordination",
+      "name": "Multi-Agent Coordination",
+      "aliases": [
+        "多智能体协作",
+        "MAS"
+      ],
+      "domain": "Computer Science",
+      "description": "How multiple agents cooperate or compete.",
+      "popularity": 0.6,
+      "level": 1,
+      "score": 0.6
+    },
+    {
+      "id": "c_pkm",
+      "name": "Personal Knowledge Management",
+      "aliases": [
+        "PKM",
+        "个人知识管理"
+      ],
+      "domain": "Library Science",
+      "description": "Methods for individuals to capture and organize knowledge.",
+      "popularity": 0.45,
+      "level": 1,
+      "score": 0.45
+    }
   ]
 }
