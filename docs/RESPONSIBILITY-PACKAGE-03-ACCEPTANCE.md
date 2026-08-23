@@ -1,48 +1,38 @@
-# 责任包 03 验收结论（未通过）
+# 责任包 03 验收结论：功能已合入，责任包暂不通过
 
-核验日期：2026-08-21  
-核验人：责任包 01（架构整合）
+核验日期：2026-08-23
+核验对象：`73635a4`（算法、数据、实验）与 `79e1d34`（编排接入），均已位于 `main`。
 
 ## 结论
 
-责任包 03 **当前不通过验收**。现有主应用能以责任包 01 的确定性 fallback 演示部分虫洞与记忆闭环，但这不能替代责任包 03 的独立实现、数据、实验和测试交付。
+责任包 03 的数据、论文级虫洞算法、实验材料和大部分运行验证已经补齐；但它没有按冻结的项目模块契约交付，且一半 API 反馈仍落回责任包 01 的旧记忆编译器。因此不能标记为“责任包 03 通过”。
 
-## 已验证可运行的部分
+现有 `main` 已包含这些提交；在补齐前，应标记为“条件集成、未验收”，不得把 fallback 的行为记为 03 的正式能力。
 
-这些能力存在于 `lib/mock/fallbackEngine.ts` 与 `lib/memory/compileFeedback.ts`，并由 `tests/unit/orchestrator-smoke.test.ts` 的 6 项测试覆盖：
+## 已核验通过的证据
 
-- 四条指定概念链中的 16 个概念 ID 均已存在。
-- 虫洞结果有落点、路径和桥接分数；低/高滑块调用会出现排序差异。
-- `too_hard` 反馈会降低 `mathTolerance`，`too_close` 会提高默认探索距离。
-- `npm run test -- --run tests/unit/orchestrator-smoke.test.ts` 已通过（6/6）。
+| 验收项 | 证据 | 结果 |
+| --- | --- | --- |
+| 概念数据规模 | Node `JSON.parse`：`seed-concepts.json` 60 条、`seed-edges.json` 148 条 | 通过（要求至少 50 / 80） |
+| 四条指定概念链 | `loadConceptGraph()` + `validateRequiredChains()` 输出 `requiredChainsValid: true` | 通过 |
+| 算法与实验测试 | 03 专属测试 61/61 通过；全量测试 154/154 通过 | 通过 |
+| 无 LLM 与性能 | `tests/performance/wormhole-performance.test.ts` 10 项通过，核心阶段均低于阈值 | 通过 |
+| 构建 | `npm run build` 成功，14 条路由完成构建 | 通过 |
+| 实验交付 | slider、反馈、淘汰三份实验记录均已提交到 `docs/experiments/` | 通过 |
 
-注意：这些只是现有 fallback 的运行证据，不能标记为责任包 03 已交付。
+## 未达标证据
 
-## 不达标项
+| 编号 | 责任书/冻结契约 | 证据 | 影响 |
+| --- | --- | --- | --- |
+| 03-01 | 必须实现并导出冻结的 `ConceptExtractor.extractConcepts`、`WormholeEngine.generateWormholes`、`MemoryCompiler.compileFeedback` | `lib/concepts/index.ts`、`lib/wormhole/index.ts`、`lib/memory/index.ts` 仅导出论文级 `PaperConceptExtractor`、`PaperWormholeEngine`、`PaperMemoryCompiler` 及不同命名的方法；未提供责任书指定的公开函数或冻结接口实现。 | 交付接口不符合团队契约，编排层只能直接依赖内部类/适配器。 |
+| 03-02 | 反馈必须进入正式 Memory Compiler 并影响后续排序 | `lib/wormhole/adapter.ts#toPaperFeedback` 仅映射 `too_hard`、`just_right`、`useful`。实测：`too_close`、`too_far`、`not_relevant` 均返回 `null`；`lib/agent/orchestrator.ts` 随后调用 `compileFeedbackFallback`。 | 3/6 个 API rating 仍由责任包 01 fallback 处理，03 的反馈记忆闭环不完整。 |
+| 03-03 | 记忆读取与应用工具应成为正式链路 | 编排层继续从 `lib/mock/store` 读取记忆，并调用旧 `applyPatches`；03 新增的 `getMemory.ts`、`applyPatch.ts` 只服务论文级快照，未接管主存储与写入。 | 用户的正式记忆状态没有完整迁移到 03 实现。 |
+| 03-04 | 验收命令应无新增质量问题 | `npm run lint` 退出码为 0，但 03 新增文件至少产生 8 条未使用变量/类型警告，涉及概念抽取、记忆编译、记忆渲染与虫洞生成。 | 不满足交接文档“lint 无警告”的质量门槛。 |
 
-| 验收项 | 责任包要求 | 当前核验结果 | 结论 |
-|---|---|---|---|
-| 概念 seed | 至少 50 个概念 | `data/seed-concepts.json` 仅 18 个 | 未达标 |
-| 概念边 seed | 至少 80 条边 | `data/seed-edges.json` 仅 15 条 | 未达标 |
-| 概念模块 | `conceptExtraction.ts`、`graph.ts`、`vectors.ts` | 三个文件均不存在；`lib/concepts/index.ts` 仅导出类型 | 未交付 |
-| 虫洞模块 | `generate.ts`、`score.ts`、`paths.ts` | 三个文件均不存在；`lib/wormhole/index.ts` 仅导出类型 | 未交付 |
-| 记忆模块 | `getMemory.ts`、`compileFeedback.ts`、`applyPatch.ts`、`renderMemoryContext.ts` | 仅 `compileFeedback.ts` 存在，且注释标注为责任包 01 fallback | 未交付 |
-| 编排接入 | orchestrator 调用冻结的 `ConceptExtractor`、`WormholeEngine`、`MemoryCompiler` | `lib/agent/orchestrator.ts` 仍直接调用 `extractConceptsFallback`、`generateWormholesFallback`、`compileFeedbackFallback` | 未接入 |
-| 算法测试 | `wormhole-score.test.ts`、`memory-compiler.test.ts` | 两个测试文件均不存在 | 未交付 |
-| Slider 实验 | 20 / 50 / 70 / 90 的对照表和解释 | 未找到实验记录 | 未交付 |
-| 反馈前后实验 | "有趣但数学太难"后的排名和记忆对照 | 未找到实验记录 | 未交付 |
-| 淘汰实验 | 无 bridge、无落点、高 novelty 随机候选的淘汰证明 | 未找到实验记录 | 未交付 |
-| 提交物 | 可合并 patch / 分支、数据、算法、测试、实验说明 | Git 历史中未发现责任包 03 的算法实现提交 | 未交付 |
+## 最小补交清单
 
-## 需要队友 03 补交的最小集合
-
-1. 将概念和边扩充到至少 50 / 80，并保留四条 Demo 概念链。
-2. 按责任包文件路径提交概念、虫洞和记忆模块；不得只修改 `fallbackEngine.ts`。
-3. 实现冻结接口：`ConceptExtractor`、`WormholeEngine`、`MemoryCompiler`；整合前由责任包 01 复核签名。
-4. 提交两个算法单测，覆盖 novelty-fit、bridge 阈值、无落点淘汰、`too_hard`、`too_close`、liked/disliked domain 与无 LLM 降级。
-5. 提交三份实验记录：slider 20/50/70/90、反馈前后、淘汰实验。
-6. 提交可直接合并的 commit/patch，并附运行命令和测试输出。
-
-## 整合前置条件
-
-在上述最小集合补齐且独立测试通过前，责任包 01 不会将责任包 03 标记为完成，也不会把现有 fallback 迁移或重命名为队友 03 的正式实现。
+1. 在不修改冻结字段含义的前提下，为三个现有论文级实现增加适配器，实际实现 `ConceptExtractor`、`WormholeEngine`、`MemoryCompiler` 的冻结签名；在模块入口导出责任书要求的函数。
+2. 扩展正式 Memory Compiler 的 API rating 映射，覆盖 `too_close`、`too_far`、`not_relevant`；删除这些路径对 `compileFeedbackFallback` 的依赖，并新增逐项回归测试，断言它们不再回退。
+3. 让正式 `getMemory` / `applyPatch` 接管编排层的读写，或提供与现有 `MemorySummary` 的单一、可验证转换层；反馈后必须直接影响下一次正式排序。
+4. 清除 03 引入的全部 lint 警告，并提供 `npm run lint && npm run test && npm run build` 的无警告输出。
+5. 补交后提交新的 commit；由责任包 01 复验冻结契约测试、6 种 rating 的实际路径和完整构建。
