@@ -130,6 +130,11 @@ export function applyPatches(memory: MemorySummary, patches: MemoryPatch[]): voi
         break;
       }
       case "serendipity.defaultSlider": {
+        if (p.operation === "set") {
+          const v = typeof p.value === "number" ? p.value : 50;
+          memory.serendipity.defaultSlider = Math.max(0, Math.min(100, v));
+          break;
+        }
         const delta = typeof p.value === "number" ? p.value : 10;
         const next =
           p.operation === "increment"
@@ -160,6 +165,42 @@ export function applyPatches(memory: MemorySummary, patches: MemoryPatch[]): voi
       }
       case "reading.language": {
         memory.reading.language = p.value as MemorySummary["reading"]["language"];
+        break;
+      }
+      /* ---- 责任包03 正式 Memory Compiler 的 key ---- */
+      case "reading.prefEmpirical": {
+        memory.reading.prefEmpirical = p.value === true;
+        break;
+      }
+      case "reading.prefTheoretical": {
+        memory.reading.prefTheoretical = p.value === true;
+        break;
+      }
+      case "reading.summaryFirst": {
+        memory.reading.summaryFirst = p.value === true;
+        break;
+      }
+      case "difficulty.theoryTolerance": {
+        const cur = memory.difficulty.theoryTolerance ?? 0.5;
+        const tDelta = typeof p.value === "number" ? p.value : 0.1;
+        memory.difficulty.theoryTolerance = clamp01(
+          p.operation === "increment"
+            ? cur + tDelta
+            : p.operation === "set"
+              ? (p.value as number)
+              : cur - tDelta,
+        );
+        break;
+      }
+      case "citation.defaultStyle": {
+        const style = String(p.value) as NonNullable<
+          NonNullable<MemorySummary["citation"]>["defaultStyle"]
+        >;
+        if (memory.citation) {
+          memory.citation.defaultStyle = style;
+        } else {
+          memory.citation = { defaultStyle: style };
+        }
         break;
       }
       default:
@@ -279,12 +320,14 @@ export function compileFeedback(
         operation: "set",
         value: true,
         confidenceDelta: 0.10,
+        reason: "用户反馈过于理论，转为偏好实证研究。",
       });
       patches.push({
         key: "difficulty.theoryTolerance",
         operation: "decrement",
         value: 0.10,
         confidenceDelta: 0.08,
+        reason: "降低理论密度容忍度。",
       });
       break;
 
@@ -295,6 +338,7 @@ export function compileFeedback(
         operation: "set",
         value: true,
         confidenceDelta: 0.10,
+        reason: "用户反馈过于实证，转为偏好理论工作。",
       });
       break;
 
@@ -305,6 +349,7 @@ export function compileFeedback(
         operation: "decrement",
         value: 0.08,
         confidenceDelta: 0.10,
+        reason: "用户反馈内容太难，降低数学容忍度。",
       });
       // Also check if the paper has math-heavy concepts
       if (paper?.concepts) {
@@ -320,6 +365,7 @@ export function compileFeedback(
             operation: "add_or_increment",
             value: "Mathematics",
             confidenceDelta: 0.05,
+            reason: "数学向论文对用户太难，降低数学领域权重。",
           });
         }
       }
@@ -332,6 +378,7 @@ export function compileFeedback(
         operation: "set",
         value: true,
         confidenceDelta: 0.03,
+        reason: "反馈正好，保持摘要优先展示。",
       });
       break;
 
@@ -354,6 +401,7 @@ export function compileFeedback(
           operation: "add_or_increment",
           value: domain,
           confidenceDelta: 0.08,
+          reason: `用户对「${domain}」方向表示兴趣。`,
         });
       }
       // Also set default slider higher if user finds things interesting
@@ -362,6 +410,7 @@ export function compileFeedback(
         operation: "set",
         value: 70,
         confidenceDelta: 0.05,
+        reason: "用户觉得推荐有趣，抬高默认意外度。",
       });
       break;
   }
@@ -375,6 +424,7 @@ export function compileFeedback(
         operation: "set",
         value: "apa",
         confidenceDelta: 0.08,
+        reason: "自由文本指定 APA 引用格式。",
       });
     } else if (lower.includes("mla")) {
       patches.push({
@@ -382,6 +432,7 @@ export function compileFeedback(
         operation: "set",
         value: "mla",
         confidenceDelta: 0.08,
+        reason: "自由文本指定 MLA 引用格式。",
       });
     } else if (lower.includes("国标") || lower.includes("gbt")) {
       patches.push({
@@ -389,6 +440,7 @@ export function compileFeedback(
         operation: "set",
         value: "gbt7714",
         confidenceDelta: 0.08,
+        reason: "自由文本指定国标 GB/T 7714 引用格式。",
       });
     }
   }

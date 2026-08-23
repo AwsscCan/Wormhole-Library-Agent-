@@ -21,17 +21,30 @@ import {
   pushMemoryEvent,
   resetMemory,
 } from "@/lib/mock/store";
-import { compileFeedbackFallback, applyPatches } from "@/lib/memory/compileFeedback";
+import { compileFeedbackFallback, applyPatches, compileFeedback } from "@/lib/memory/compileFeedback";
+import { ConceptExtractorImpl } from "@/lib/concepts/conceptExtraction";
+import { loadConceptGraph } from "@/lib/concepts/graph";
+import { WormholeEngineImpl } from "@/lib/wormhole/generate";
+import { loadPaperLibrary, pickStartPaperId } from "@/lib/paperLibrary";
+import {
+  lookupPaperByTargetId,
+  toMemorySnapshot,
+  toPaperFeedback,
+  toUiWormholeCards,
+} from "@/lib/wormhole/adapter";
 import { generateLiteratureReview } from "@/lib/review";
 import type {
+  ConceptRef,
   FeedbackRequest,
   FeedbackResponse,
   MatchesRequest,
   MatchesResponse,
+  MemoryPatch,
   MemoryResponse,
   PersonMatchCard,
   SearchRequest,
   SearchResponse,
+  WormholeCard,
   WormholesRequest,
   WormholesResponse,
   ContactRequestCreate,
@@ -40,13 +53,37 @@ import type {
   ReviewResponse,
 } from "@/lib/types";
 
+/** 正式虫洞引擎单例（构造时加载概念图，进程内复用） */
+let _wormholeEngine: WormholeEngineImpl | null = null;
+function getWormholeEngine(): WormholeEngineImpl {
+  if (!_wormholeEngine) _wormholeEngine = new WormholeEngineImpl();
+  return _wormholeEngine;
+}
+
+/** 正式概念抽取器单例 */
+let _conceptExtractor: ConceptExtractorImpl | null = null;
+function getConceptExtractor(): ConceptExtractorImpl {
+  if (!_conceptExtractor) _conceptExtractor = new ConceptExtractorImpl();
+  return _conceptExtractor;
+}
+
 export class LibraryAgentOrchestrator {
   /* ------------------------- search ------------------------- */
   async search(req: SearchRequest): Promise<SearchResponse> {
     const memory = getMemory(req.userId);
 
-    // INTEGRATION POINT [队友03]: conceptExtraction.extractConcepts(req.query)
-    const concepts = extractConceptsFallback(req.query);
+    // INTEGRATION POINT [队友03] → 正式概念抽取（概念图关键词匹配，level/score 过滤）
+    const tagHits = getConceptExtractor().extractFromText(req.query).slice(0, 8);
+    const graph = loadConceptGraph();
+    const concepts: ConceptRef[] = tagHits.map((t) => ({
+      id: t.id,
+      name: t.name,
+      domain: graph.nodes.get(t.id)?.domain,
+    }));
+    if (concepts.length === 0) {
+      // 回退：keyword fallback（自带 AI Agent 兜底，保证 demo 不空屏）
+      concepts.push(...extractConceptsFallback(req.query));
+    }
     const conceptIds = concepts.map((c) => c.id);
 
     const language =
@@ -105,13 +142,31 @@ export class LibraryAgentOrchestrator {
   async wormholes(req: WormholesRequest): Promise<WormholesResponse> {
     const memory = getMemory(req.userId);
 
-    // INTEGRATION POINT [队友03]: wormholeEngine.generateWormholes(...)
-    const wormholes = generateWormholesFallback({
-      startConceptIds: req.startConceptIds,
-      sliderValue: req.sliderValue,
-      maxPaths: req.maxPaths ?? 3,
-      memory,
-    });
+    // INTEGRATION POINT [队友03] → 正式虫洞引擎（论文级引用图 + 概念差异度打分）。
+    // 起点概念在论文库中无匹配论文、或引擎无有效路径时，回退概念级 fallback 保证 demo 不空屏。
+    const paperLib = loadPaperLibrary();
+    const startPaperId = pickStartPaperId(req.startConceptIds);
+    let wormholes: WormholeCard[] = [];
+    if (startPaperId) {
+      const engineCards = getWormholeEngine().generate({
+        startPaperId,
+        sliderValue: req.sliderValue,
+        maxPaths: req.maxPaths ?? 3,
+        papers: paperLib.papers,
+        references: paperLib.references,
+        concepts: paperLib.concepts,
+        memory: toMemorySnapshot(memory),
+      });
+      wormholes = toUiWormholeCards(engineCards);
+    }
+    if (wormholes.length === 0) {
+      wormholes = generateWormholesFallback({
+        startConceptIds: req.startConceptIds,
+        sliderValue: req.sliderValue,
+        maxPaths: req.maxPaths ?? 3,
+        memory,
+      });
+    }
 
     const interaction = getStore().interactions.get(req.interactionId);
     if (interaction) {
@@ -139,9 +194,15 @@ export class LibraryAgentOrchestrator {
     const memory = getMemory(req.userId);
     const interaction = getStore().interactions.get(req.interactionId);
 
-    // INTEGRATION POINT [队友03]: memoryCompiler.compileFeedback(...)
+    // INTEGRATION POINT [队友03] → 正式 Memory Compiler（论文级，带目标论文上下文）。
+    // 论文级编译器不覆盖的 rating（too_close / too_far / not_relevant）
+    // 回退概念级编译器，其本身即按这些语义设计。
     const targetWormhole = interaction?.wormholes?.find((w) => w.id === req.targetId);
-    const patches = compileFeedbackFallback(req, memory, targetWormhole);
+    const paperFeedback = toPaperFeedback(req);
+    const paper = lookupPaperByTargetId(req.targetId);
+    const patches: MemoryPatch[] = paperFeedback
+      ? compileFeedback(paperFeedback, paper)
+      : compileFeedbackFallback(req, memory, targetWormhole);
 
     applyPatches(memory, patches);
 

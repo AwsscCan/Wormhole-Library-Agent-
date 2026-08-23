@@ -7,10 +7,10 @@
  * Design doc 10.2: filter concepts by level >= 1 and score > 0.3
  */
 
-import type { ConceptTag, PaperCard, ConceptExtractor, ConceptGraph } from "../types";
+import type { ConceptTag, PaperCard, PaperConceptExtractor, ConceptGraph } from "../types";
 import { ConceptGraphImpl, loadConceptGraph } from "./graph";
 
-export class ConceptExtractorImpl implements ConceptExtractor {
+export class ConceptExtractorImpl implements PaperConceptExtractor {
   private graph: ConceptGraph | null = null;
 
   constructor(graph?: ConceptGraph) {

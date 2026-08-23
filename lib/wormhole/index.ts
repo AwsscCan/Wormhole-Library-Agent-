@@ -24,4 +24,4 @@ export {
 } from "./score";
 
 // Re-export frozen types for convenience
-export type { WormholeEngine, WormholeCard } from "../types";
+export type { PaperWormholeEngine, PaperWormholeCard } from "../types";

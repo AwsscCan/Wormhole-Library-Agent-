@@ -162,11 +162,16 @@ export interface MemorySummary {
     resourceTypeOrder: ResourceType[] | string[];
     summaryFirst: boolean;
     maxResults: number;
+    /** 责任包03 扩展：偏好实证/理论（可选，向后兼容） */
+    prefEmpirical?: boolean;
+    prefTheoretical?: boolean;
   };
   difficulty: {
     preferredLevel: Difficulty;
     mathTolerance: number; // 0..1
     paperDensity: number;  // 0..1
+    /** 责任包03 扩展：理论容忍度（可选，向后兼容） */
+    theoryTolerance?: number; // 0..1
   };
   serendipity: {
     defaultSlider: number; // 0..100
@@ -179,6 +184,10 @@ export interface MemorySummary {
     matchingMode: "ask_first" | "auto" | "off";
     anonymousFirst: boolean;
     livingBookOptIn: boolean;
+  };
+  /** 责任包03 扩展：默认引用格式（可选，向后兼容） */
+  citation?: {
+    defaultStyle?: "apa" | "mla" | "gbt7714" | "chicago";
   };
 }
 
@@ -370,4 +379,209 @@ export interface ConceptExtractor {
 /** 队友03：Memory Compiler 接口（lib/memory/compileFeedback.ts 实现） */
 export interface MemoryCompiler {
   compileFeedback(input: FeedbackRequest, current: MemorySummary): Promise<MemoryPatch[]>;
+}
+
+/* ---------------------------------------------------------- */
+/* 论文级（PaperWorm）类型 — 责任包03 引擎内部使用                  */
+/* 与上方概念级契约并存；与冻结契约同名的接口以 Paper* 前缀区分      */
+/* ---------------------------------------------------------- */
+
+export type PaperId = string;
+export type UserId = string;
+export type InteractionId = string;
+
+/** 论文概念标签（OpenAlex concepts 映射） */
+export type ConceptTag = {
+  id: string;
+  name: string;
+  score: number;   // 0-1 relevance
+  level: number;   // 0=broad, 4=narrow
+};
+
+export type Author = {
+  name: string;
+  orcid: string | null;
+  institution: string | null;
+};
+
+export type Paper = {
+  id: PaperId;
+  doi: string | null;
+  title: string;
+  authors: Author[];
+  year: number;
+  venue: string | null;
+  citedByCount: number;
+  abstract: string | null;
+  concepts: ConceptTag[];
+  openAccess: boolean;
+  openAccessPdf: string | null;
+  referencedWorks: PaperId[]; // papers this work cites
+};
+
+/** 轻量论文卡（列表与虫洞落点用） */
+export type PaperCard = {
+  id: PaperId;
+  title: string;
+  doi: string | null;
+  year: number;
+  authors: string[];
+  citedByCount: number;
+  abstract: string | null;
+  concepts: ConceptTag[];
+  openAccess: boolean;
+  openAccessPdf: string | null; // OA 全文直链
+  _rankScore?: number;
+};
+
+export type CitationMetadata = {
+  doi: string;
+  title: string;
+  authors: { family: string; given: string }[];
+  year: number;
+  containerTitle: string;
+  volume: string | null;
+  issue: string | null;
+  page: string | null;
+  publisher: string | null;
+  type: string;
+};
+
+export type CitationResult = {
+  doi: string;
+  style: "apa" | "mla" | "gbt7714" | "chicago";
+  text: string;
+  metadata: CitationMetadata;
+  source: "crossref" | "manual";
+};
+
+/** 论文级反馈（与 API 层 FeedbackRequest 不同物） */
+export type Feedback = {
+  targetType: "paper" | "wormhole" | "citation";
+  targetId: string;
+  rating: "too_theoretical" | "too_empirical" | "too_hard" | "just_right" | "interesting";
+  freeText: string | null;
+};
+
+export type MemoryCategory = "reading" | "difficulty" | "citation" | "serendipity" | "task";
+
+export type UserMemory = {
+  userId: string;
+  category: MemoryCategory;
+  key: string;
+  value: unknown;
+  confidence: number;
+  source: "explicit_feedback" | "implicit_click" | "system_inferred";
+  useCount: number;
+  updatedAt: string;
+};
+
+/** 论文级记忆快照（与 API 层 MemorySummary 字段相近，独立演进） */
+export type MemorySnapshot = {
+  reading: {
+    languagePref?: "zh_first" | "en_first" | "no_pref";
+    summaryFirst?: boolean;
+    resultCount?: number;
+    prefEmpirical?: boolean;
+    prefTheoretical?: boolean;
+  };
+  difficulty: {
+    preferredLevel?: "beginner" | "undergrad" | "graduate" | "research";
+    mathTolerance?: number;
+    theoryTolerance?: number;
+  };
+  citation: {
+    defaultStyle?: "apa" | "mla" | "gbt7714" | "chicago";
+  };
+  serendipity: {
+    defaultSlider?: number;
+    likedDomains: string[];
+    dislikedDomains: string[];
+  };
+};
+
+export type MemoryHistoryEntry = {
+  timestamp: string;
+  action: string;
+  detail: string;
+  patches: MemoryPatch[];
+};
+
+/** 论文级虫洞卡（引擎原始输出；UI 渲染用上方概念级 WormholeCard） */
+export type PaperWormholeCard = {
+  id: string;
+  path: PaperId[];
+  startConcepts: ConceptTag[];
+  targetConcepts: ConceptTag[];
+  targetPaper: PaperCard;
+  explanation: string;
+  scores: {
+    novelty: number;
+    bridge: number;
+    quality: number;
+    final: number;
+  };
+};
+
+export type ConceptNode = {
+  id: string;
+  name: string;
+  aliases: string[];
+  domain: string;
+  level: number;
+  score: number;
+};
+
+export type ConceptEdge = {
+  source: string;   // concept node id
+  target: string;   // concept node id
+  weight: number;   // 0-1
+  type: "subclass_of" | "related_to" | "applied_in" | "studies" | "uses";
+};
+
+/** 概念图运行时接口（lib/concepts/graph.ts 实现） */
+export interface ConceptGraph {
+  nodes: Map<string, ConceptNode>;
+  edges: ConceptEdge[];
+  /** Find a path between two concepts through the graph. */
+  findPath(fromId: string, toId: string): ConceptEdge[];
+  /** Get neighbors of a concept. */
+  getNeighbors(nodeId: string): { node: ConceptNode; edge: ConceptEdge }[];
+  /** Compute concept overlap (Jaccard) between two concept sets. */
+  overlap(a: ConceptTag[], b: ConceptTag[]): number;
+}
+
+/** 论文级虫洞引擎接口（lib/wormhole/generate.ts 实现） */
+export interface PaperWormholeEngine {
+  /** Generate wormhole paths from a start paper, modulated by the serendipity slider. */
+  generate(params: {
+    startPaperId: PaperId;
+    sliderValue: number;
+    maxPaths?: number;
+    papers: Map<PaperId, PaperCard>;
+    references: Map<PaperId, PaperId[]>;
+    concepts: Map<PaperId, ConceptTag[]>;
+    memory?: MemorySnapshot;
+    conceptGraph?: ConceptGraph;
+  }): PaperWormholeCard[];
+}
+
+/** 论文级概念抽取接口（lib/concepts/conceptExtraction.ts 实现） */
+export interface PaperConceptExtractor {
+  /** Extract concepts from a paper's concept tags (filter by level/score). */
+  extract(paper: PaperCard): ConceptTag[];
+  /** Extract concepts from raw text using the concept graph + keyword matching. */
+  extractFromText(text: string, graph?: ConceptGraph): ConceptTag[];
+}
+
+/** 论文级 Memory Compiler 接口（lib/memory/index.ts 实现） */
+export interface PaperMemoryCompiler {
+  /** Compile user feedback into structured memory patches. */
+  compile(feedback: Feedback, paper?: PaperCard): MemoryPatch[];
+  /** Apply patches to a memory snapshot, returning the updated snapshot. */
+  apply(memory: MemorySnapshot, patches: MemoryPatch[]): { memory: MemorySnapshot; history: MemoryHistoryEntry };
+  /** Re-rank search results based on user memory. */
+  rank(papers: PaperCard[], memory: MemorySnapshot): PaperCard[];
+  /** Render a human-readable context string for LLM injection. */
+  getContext(memory: MemorySnapshot, query: string): string;
 }

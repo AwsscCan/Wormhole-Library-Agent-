@@ -272,7 +272,7 @@ describe("Feedback Ranking — Full Loop", () => {
     }
 
     // mathTolerance should have decreased by ~0.24 (3 × 0.08)
-    expect(memory.difficulty.mathTolerance).toBeLessThan(initialTolerance);
+    expect(memory.difficulty.mathTolerance).toBeLessThan(initialTolerance ?? 1);
     expect(memory.difficulty.mathTolerance).toBeLessThan(0.3);
   });
 

@@ -47,8 +47,10 @@ function mulberry32(seed: number): () => number {
 }
 
 // 兼容两种 seed 格式：pkg03 裸数组 / 主仓库 {concepts:[...]} 包装
-const conceptPool = ((seedConcepts as unknown[] & { concepts?: unknown[] }).concepts ??
-  seedConcepts) as ConceptTag[];
+const rawConcepts = seedConcepts as unknown;
+const conceptPool = (
+  (rawConcepts as { concepts?: ConceptTag[] }).concepts ?? rawConcepts
+) as ConceptTag[];
 
 /** 生成 N 篇合成论文 + 引用图 + 概念表（确定性） */
 function buildSyntheticLibrary(n: number, seed = 42) {

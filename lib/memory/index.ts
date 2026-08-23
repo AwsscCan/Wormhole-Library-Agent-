@@ -39,7 +39,7 @@ export {
 export { FileStore, sharedStore } from "./fileStore";
 
 // Re-export frozen types
-export type { MemoryCompiler } from "../types";
+export type { PaperMemoryCompiler } from "../types";
 
 /**
  * MemoryCompilerImpl — the REAL implementation of the MemoryCompiler interface.

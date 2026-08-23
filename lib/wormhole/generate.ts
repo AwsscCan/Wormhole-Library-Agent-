@@ -16,10 +16,10 @@ import type {
   PaperId,
   PaperCard,
   ConceptTag,
-  WormholeCard,
+  PaperWormholeCard,
   MemorySnapshot,
   ConceptGraph,
-  WormholeEngine,
+  PaperWormholeEngine,
 } from "../types";
 import { ConceptExtractorImpl } from "../concepts/conceptExtraction";
 import { loadConceptGraph } from "../concepts/graph";
@@ -39,7 +39,7 @@ import {
   shouldEliminate,
 } from "./score";
 
-export class WormholeEngineImpl implements WormholeEngine {
+export class WormholeEngineImpl implements PaperWormholeEngine {
   private extractor: ConceptExtractorImpl;
 
   constructor(extractor?: ConceptExtractorImpl) {
@@ -55,7 +55,7 @@ export class WormholeEngineImpl implements WormholeEngine {
     concepts: Map<PaperId, ConceptTag[]>;
     memory?: MemorySnapshot;
     conceptGraph?: ConceptGraph;
-  }): WormholeCard[] {
+  }): PaperWormholeCard[] {
     const {
       startPaperId,
       sliderValue,

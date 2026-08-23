@@ -19,7 +19,7 @@ export {
 
 // Re-export frozen types for convenience
 export type {
-  ConceptExtractor,
+  PaperConceptExtractor,
   ConceptGraph,
   ConceptNode,
   ConceptEdge,

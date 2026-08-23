@@ -212,7 +212,7 @@ describe("Memory Compiler — applyPatch", () => {
   it("applies set patch correctly", () => {
     const memory = getDefaultMemory();
     const patches = [
-      { key: "reading.prefEmpirical", operation: "set" as const, value: true, confidenceDelta: 0.1 },
+      { key: "reading.prefEmpirical", operation: "set" as const, value: true, confidenceDelta: 0.1, reason: "test patch" },
     ];
     const { memory: updated } = applyPatch(memory, patches);
     expect(updated.reading.prefEmpirical).toBe(true);
@@ -222,7 +222,7 @@ describe("Memory Compiler — applyPatch", () => {
     const memory = getDefaultMemory();
     const original = memory.difficulty.mathTolerance;
     const patches = [
-      { key: "difficulty.mathTolerance", operation: "decrement" as const, value: 0.08, confidenceDelta: 0.1 },
+      { key: "difficulty.mathTolerance", operation: "decrement" as const, value: 0.08, confidenceDelta: 0.1, reason: "test patch" },
     ];
     const { memory: updated } = applyPatch(memory, patches);
     expect(updated.difficulty.mathTolerance).toBeCloseTo(
@@ -237,7 +237,7 @@ describe("Memory Compiler — applyPatch", () => {
       difficulty: { preferredLevel: "undergrad", mathTolerance: 0.05 },
     };
     const patches = [
-      { key: "difficulty.mathTolerance", operation: "decrement" as const, value: 0.5, confidenceDelta: 0.1 },
+      { key: "difficulty.mathTolerance", operation: "decrement" as const, value: 0.5, confidenceDelta: 0.1, reason: "test patch" },
     ];
     const { memory: updated } = applyPatch(memory, patches);
     expect(updated.difficulty.mathTolerance).toBeGreaterThanOrEqual(0);
@@ -246,7 +246,7 @@ describe("Memory Compiler — applyPatch", () => {
   it("applies add_or_increment to likedDomains", () => {
     const memory = getDefaultMemory();
     const patches = [
-      { key: "serendipity.likedDomains", operation: "add_or_increment" as const, value: "Economics", confidenceDelta: 0.08 },
+      { key: "serendipity.likedDomains", operation: "add_or_increment" as const, value: "Economics", confidenceDelta: 0.08, reason: "test patch" },
     ];
     const { memory: updated } = applyPatch(memory, patches);
     expect(updated.serendipity.likedDomains).toContain("Economics");
@@ -258,7 +258,7 @@ describe("Memory Compiler — applyPatch", () => {
       serendipity: { defaultSlider: 60, likedDomains: ["Economics"], dislikedDomains: [] },
     };
     const patches = [
-      { key: "serendipity.likedDomains", operation: "add_or_increment" as const, value: "Economics", confidenceDelta: 0.08 },
+      { key: "serendipity.likedDomains", operation: "add_or_increment" as const, value: "Economics", confidenceDelta: 0.08, reason: "test patch" },
     ];
     const { memory: updated } = applyPatch(memory, patches);
     expect(updated.serendipity.likedDomains.filter((d) => d === "Economics").length).toBe(1);
@@ -267,7 +267,7 @@ describe("Memory Compiler — applyPatch", () => {
   it("creates a history entry with patches", () => {
     const memory = getDefaultMemory();
     const patches = [
-      { key: "difficulty.mathTolerance", operation: "decrement" as const, value: 0.08, confidenceDelta: 0.1 },
+      { key: "difficulty.mathTolerance", operation: "decrement" as const, value: 0.08, confidenceDelta: 0.1, reason: "test patch" },
     ];
     const { history } = applyPatch(memory, patches);
     expect(history.action).toBe("feedback");
@@ -279,7 +279,7 @@ describe("Memory Compiler — applyPatch", () => {
     const memory = getDefaultMemory();
     const originalTolerance = memory.difficulty.mathTolerance;
     const patches = [
-      { key: "difficulty.mathTolerance", operation: "decrement" as const, value: 0.2, confidenceDelta: 0.1 },
+      { key: "difficulty.mathTolerance", operation: "decrement" as const, value: 0.2, confidenceDelta: 0.1, reason: "test patch" },
     ];
     applyPatch(memory, patches);
     expect(memory.difficulty.mathTolerance).toBe(originalTolerance);
@@ -365,6 +365,6 @@ describe("Memory Compiler — Integration (MemoryCompilerImpl)", () => {
     // Run again — should be deterministic
     const patches2 = compiler.compile(feedback, aiPaper);
     const { memory: memory2 } = compiler.apply(memory, patches2);
-    expect(memory2.difficulty.mathTolerance).toBeLessThan(memory.difficulty.mathTolerance);
+    expect(memory2.difficulty.mathTolerance).toBeLessThan(memory.difficulty.mathTolerance ?? 1);
   });
 });

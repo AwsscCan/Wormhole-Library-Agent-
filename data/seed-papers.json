@@ -1,0 +1,668 @@
+{
+  "_comment": "责任包03 seed 论文库（demo 用）。真实论文 + 近似引用关系，覆盖 ML/NLP/信息论/统计物理/博弈论/认知心理/图书馆学 跨领域引用链，供 WormholeEngine 生成跨域虫洞。",
+  "papers": [
+    {
+      "id": "p_shannon_1948",
+      "title": "A Mathematical Theory of Communication",
+      "doi": null,
+      "year": 1948,
+      "authors": ["Claude E. Shannon"],
+      "citedByCount": 95000,
+      "abstract": "Founding work of information theory; introduces entropy and the noisy-channel coding theorem.",
+      "concepts": [
+        { "id": "c_information_theory", "name": "Information Theory", "score": 0.98, "level": 1 },
+        { "id": "c_entropy", "name": "Entropy", "score": 0.9, "level": 2 },
+        { "id": "c_probability_theory", "name": "Probability Theory", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": []
+    },
+    {
+      "id": "p_jaynes_1957",
+      "title": "Information Theory and Statistical Mechanics",
+      "doi": null,
+      "year": 1957,
+      "authors": ["Edwin T. Jaynes"],
+      "citedByCount": 9500,
+      "abstract": "Connects Shannon entropy to statistical mechanics via the maximum entropy principle.",
+      "concepts": [
+        { "id": "c_information_theory", "name": "Information Theory", "score": 0.9, "level": 1 },
+        { "id": "c_statistical_physics", "name": "Statistical Physics", "score": 0.85, "level": 1 },
+        { "id": "c_thermodynamics", "name": "Thermodynamics", "score": 0.6, "level": 2 },
+        { "id": "c_entropy", "name": "Entropy", "score": 0.7, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_shannon_1948"]
+    },
+    {
+      "id": "p_hopfield_1982",
+      "title": "Neural networks and physical systems with emergent collective computational abilities",
+      "doi": null,
+      "year": 1982,
+      "authors": ["John J. Hopfield"],
+      "citedByCount": 30000,
+      "abstract": "Introduces the Hopfield network, an energy-based associative memory rooted in statistical physics.",
+      "concepts": [
+        { "id": "c_neural_network", "name": "Neural Network", "score": 0.9, "level": 1 },
+        { "id": "c_statistical_physics", "name": "Statistical Physics", "score": 0.8, "level": 1 },
+        { "id": "c_phase_transition", "name": "Phase Transition", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_jaynes_1957"]
+    },
+    {
+      "id": "p_rumelhart_1986",
+      "title": "Learning representations by back-propagating errors",
+      "doi": null,
+      "year": 1986,
+      "authors": ["David E. Rumelhart", "Geoffrey E. Hinton", "Ronald J. Williams"],
+      "citedByCount": 42000,
+      "abstract": "The backpropagation algorithm for training multi-layer neural networks.",
+      "concepts": [
+        { "id": "c_neural_network", "name": "Neural Network", "score": 0.95, "level": 1 },
+        { "id": "c_gradient_descent", "name": "Gradient Descent", "score": 0.85, "level": 2 },
+        { "id": "c_optimization", "name": "Optimization", "score": 0.6, "level": 1 },
+        { "id": "c_loss_function", "name": "Loss Function", "score": 0.7, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_hopfield_1982"]
+    },
+    {
+      "id": "p_lstm_1997",
+      "title": "Long Short-Term Memory",
+      "doi": null,
+      "year": 1997,
+      "authors": ["Sepp Hochreiter", "Jürgen Schmidhuber"],
+      "citedByCount": 92000,
+      "abstract": "LSTM recurrent architecture that learns long-range dependencies in sequences.",
+      "concepts": [
+        { "id": "c_neural_network", "name": "Neural Network", "score": 0.9, "level": 1 },
+        { "id": "c_deep_learning", "name": "Deep Learning", "score": 0.7, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_rumelhart_1986"]
+    },
+    {
+      "id": "p_ptb_1993",
+      "title": "Building a Large Annotated Corpus of English: The Penn Treebank",
+      "doi": null,
+      "year": 1993,
+      "authors": ["Mitchell P. Marcus", "Beatrice Santorini", "Ann Marie Marcinkiewicz"],
+      "citedByCount": 13000,
+      "abstract": "The Penn Treebank corpus, the standard benchmark for syntactic parsing and language modeling.",
+      "concepts": [
+        { "id": "c_corpus_linguistics", "name": "Corpus Linguistics", "score": 0.95, "level": 1 },
+        { "id": "c_computational_linguistics", "name": "Computational Linguistics", "score": 0.8, "level": 1 },
+        { "id": "c_nlp", "name": "Natural Language Processing", "score": 0.6, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": []
+    },
+    {
+      "id": "p_bengio_2003",
+      "title": "A Neural Probabilistic Language Model",
+      "doi": null,
+      "year": 2003,
+      "authors": ["Yoshua Bengio", "Réjean Ducharme", "Pascal Vincent", "Christian Jauvin"],
+      "citedByCount": 21000,
+      "abstract": "First large-scale neural language model; roots of word embeddings, evaluated by entropy-based perplexity.",
+      "concepts": [
+        { "id": "c_nlp", "name": "Natural Language Processing", "score": 0.85, "level": 1 },
+        { "id": "c_neural_network", "name": "Neural Network", "score": 0.8, "level": 1 },
+        { "id": "c_probability_theory", "name": "Probability Theory", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_rumelhart_1986", "p_shannon_1948"]
+    },
+    {
+      "id": "p_word2vec_2013",
+      "title": "Distributed Representations of Words and Phrases and their Compositionality",
+      "doi": null,
+      "year": 2013,
+      "authors": ["Tomas Mikolov", "Ilya Sutskever", "Kai Chen", "Greg Corrado", "Jeffrey Dean"],
+      "citedByCount": 41000,
+      "abstract": "Word2Vec: efficient word embeddings capturing semantic structure in vector space.",
+      "concepts": [
+        { "id": "c_nlp", "name": "Natural Language Processing", "score": 0.8, "level": 1 },
+        { "id": "c_neural_network", "name": "Neural Network", "score": 0.7, "level": 1 },
+        { "id": "c_semantics", "name": "Semantics", "score": 0.75, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_bengio_2003"]
+    },
+    {
+      "id": "p_seq2seq_2014",
+      "title": "Sequence to Sequence Learning with Neural Networks",
+      "doi": null,
+      "year": 2014,
+      "authors": ["Ilya Sutskever", "Oriol Vinyals", "Quoc V. Le"],
+      "citedByCount": 26000,
+      "abstract": "Encoder-decoder framework for sequence-to-sequence learning, foundation of neural machine translation.",
+      "concepts": [
+        { "id": "c_machine_translation", "name": "Machine Translation", "score": 0.85, "level": 1 },
+        { "id": "c_nlp", "name": "Natural Language Processing", "score": 0.7, "level": 1 },
+        { "id": "c_deep_learning", "name": "Deep Learning", "score": 0.7, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_lstm_1997"]
+    },
+    {
+      "id": "p_bleu_2002",
+      "title": "BLEU: a Method for Automatic Evaluation of Machine Translation",
+      "doi": null,
+      "year": 2002,
+      "authors": ["Kishore Papineni", "Salim Roukos", "Todd Ward", "Wei-Jing Zhu"],
+      "citedByCount": 21000,
+      "abstract": "BLEU metric for automatic machine translation evaluation, built on corpus n-gram statistics.",
+      "concepts": [
+        { "id": "c_bleu", "name": "BLEU Score", "score": 0.95, "level": 2 },
+        { "id": "c_machine_translation", "name": "Machine Translation", "score": 0.85, "level": 1 },
+        { "id": "c_corpus_linguistics", "name": "Corpus Linguistics", "score": 0.7, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_ptb_1993"]
+    },
+    {
+      "id": "p_attention_2017",
+      "title": "Attention Is All You Need",
+      "doi": null,
+      "year": 2017,
+      "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit"],
+      "citedByCount": 145000,
+      "abstract": "The Transformer architecture, replacing recurrence with self-attention; language modeling evaluated on Penn Treebank.",
+      "concepts": [
+        { "id": "c_transformer", "name": "Transformer", "score": 0.98, "level": 1 },
+        { "id": "c_attention_mechanism", "name": "Attention Mechanism", "score": 0.95, "level": 2 },
+        { "id": "c_machine_translation", "name": "Machine Translation", "score": 0.8, "level": 1 },
+        { "id": "c_deep_learning", "name": "Deep Learning", "score": 0.7, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_seq2seq_2014", "p_word2vec_2013", "p_ptb_1993", "p_lstm_1997"]
+    },
+    {
+      "id": "p_bert_2018",
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+      "doi": null,
+      "year": 2018,
+      "authors": ["Jacob Devlin", "Ming-Wei Chang", "Kenton Lee", "Kristina Toutanova"],
+      "citedByCount": 105000,
+      "abstract": "Bidirectional pre-trained Transformer for language understanding.",
+      "concepts": [
+        { "id": "c_transformer", "name": "Transformer", "score": 0.9, "level": 1 },
+        { "id": "c_nlp", "name": "Natural Language Processing", "score": 0.85, "level": 1 },
+        { "id": "c_fine_tuning", "name": "Fine-tuning", "score": 0.7, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_attention_2017", "p_word2vec_2013"]
+    },
+    {
+      "id": "p_gpt3_2020",
+      "title": "Language Models are Few-Shot Learners",
+      "doi": null,
+      "year": 2020,
+      "authors": ["Tom Brown", "Benjamin Mann", "Nick Ryder", "Melissa Subramanian"],
+      "citedByCount": 42000,
+      "abstract": "GPT-3: scaling language models enables in-context few-shot learning.",
+      "concepts": [
+        { "id": "c_llm", "name": "Large Language Model", "score": 0.95, "level": 1 },
+        { "id": "c_transformer", "name": "Transformer", "score": 0.8, "level": 1 },
+        { "id": "c_fine_tuning", "name": "Fine-tuning", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_attention_2017", "p_bert_2018"]
+    },
+    {
+      "id": "p_adam_2014",
+      "title": "Adam: A Method for Stochastic Optimization",
+      "doi": null,
+      "year": 2014,
+      "authors": ["Diederik P. Kingma", "Jimmy Ba"],
+      "citedByCount": 135000,
+      "abstract": "Adaptive moment estimation for stochastic gradient-based optimization.",
+      "concepts": [
+        { "id": "c_optimization", "name": "Optimization", "score": 0.9, "level": 1 },
+        { "id": "c_gradient_descent", "name": "Gradient Descent", "score": 0.9, "level": 2 },
+        { "id": "c_loss_function", "name": "Loss Function", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_rumelhart_1986"]
+    },
+    {
+      "id": "p_resnet_2015",
+      "title": "Deep Residual Learning for Image Recognition",
+      "doi": null,
+      "year": 2015,
+      "authors": ["Kaiming He", "Xiangyu Zhang", "Shaoqing Ren", "Jian Sun"],
+      "citedByCount": 125000,
+      "abstract": "ResNet residual connections enable training of very deep networks.",
+      "concepts": [
+        { "id": "c_deep_learning", "name": "Deep Learning", "score": 0.95, "level": 1 },
+        { "id": "c_neural_network", "name": "Neural Network", "score": 0.8, "level": 1 },
+        { "id": "c_optimization", "name": "Optimization", "score": 0.5, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_rumelhart_1986"]
+    },
+    {
+      "id": "p_sutton_1988",
+      "title": "Learning to Predict by the Methods of Temporal Differences",
+      "doi": null,
+      "year": 1988,
+      "authors": ["Richard S. Sutton"],
+      "citedByCount": 16000,
+      "abstract": "Temporal-difference learning, the foundation of modern reinforcement learning.",
+      "concepts": [
+        { "id": "c_reinforcement_learning", "name": "Reinforcement Learning", "score": 0.95, "level": 1 },
+        { "id": "c_probability_theory", "name": "Probability Theory", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": []
+    },
+    {
+      "id": "p_dqn_2015",
+      "title": "Human-level Control through Deep Reinforcement Learning",
+      "doi": null,
+      "year": 2015,
+      "authors": ["Volodymyr Mnih", "Koray Kavukcuoglu", "David Silver"],
+      "citedByCount": 31000,
+      "abstract": "Deep Q-Network combines deep learning with reinforcement learning.",
+      "concepts": [
+        { "id": "c_reinforcement_learning", "name": "Reinforcement Learning", "score": 0.95, "level": 1 },
+        { "id": "c_deep_learning", "name": "Deep Learning", "score": 0.8, "level": 1 },
+        { "id": "c_neural_network", "name": "Neural Network", "score": 0.7, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_sutton_1988", "p_rumelhart_1986"]
+    },
+    {
+      "id": "p_rlhf_2017",
+      "title": "Deep Reinforcement Learning from Human Preferences",
+      "doi": null,
+      "year": 2017,
+      "authors": ["Paul Christiano", "Jan Leike", "Tom Brown"],
+      "citedByCount": 8500,
+      "abstract": "Aligning agents with human preferences via reinforcement learning from feedback.",
+      "concepts": [
+        { "id": "c_rlhf", "name": "Reinforcement Learning from Human Feedback", "score": 0.95, "level": 2 },
+        { "id": "c_reinforcement_learning", "name": "Reinforcement Learning", "score": 0.9, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_dqn_2015"]
+    },
+    {
+      "id": "p_instructgpt_2022",
+      "title": "Training Language Models to Follow Instructions with Human Feedback",
+      "doi": null,
+      "year": 2022,
+      "authors": ["Long Ouyang", "Jeffrey Wu", "Xu Jiang"],
+      "citedByCount": 16000,
+      "abstract": "InstructGPT: RLHF makes language models follow instructions.",
+      "concepts": [
+        { "id": "c_rlhf", "name": "Reinforcement Learning from Human Feedback", "score": 0.9, "level": 2 },
+        { "id": "c_llm", "name": "Large Language Model", "score": 0.9, "level": 1 },
+        { "id": "c_fine_tuning", "name": "Fine-tuning", "score": 0.8, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_gpt3_2020", "p_rlhf_2017"]
+    },
+    {
+      "id": "p_react_2022",
+      "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+      "doi": null,
+      "year": 2022,
+      "authors": ["Shunyu Yao", "Jeffrey Zhao", "Dian Yu"],
+      "citedByCount": 13000,
+      "abstract": "Interleaves chain-of-thought reasoning with actions for LLM agents.",
+      "concepts": [
+        { "id": "c_ai_agent", "name": "AI Agent", "score": 0.9, "level": 1 },
+        { "id": "c_llm", "name": "Large Language Model", "score": 0.85, "level": 1 },
+        { "id": "c_planning", "name": "Planning", "score": 0.7, "level": 1 },
+        { "id": "c_tool_use", "name": "Tool Use", "score": 0.6, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_gpt3_2020", "p_instructgpt_2022"]
+    },
+    {
+      "id": "p_toolformer_2023",
+      "title": "Toolformer: Language Models Can Teach Themselves to Use Tools",
+      "doi": null,
+      "year": 2023,
+      "authors": ["Timo Schick", "Jane Dwivedi-Yu", "Roberto Dessì"],
+      "citedByCount": 5200,
+      "abstract": "Language models learn to call external APIs by self-supervision.",
+      "concepts": [
+        { "id": "c_tool_use", "name": "Tool Use", "score": 0.95, "level": 2 },
+        { "id": "c_llm", "name": "Large Language Model", "score": 0.9, "level": 1 },
+        { "id": "c_prompt_engineering", "name": "Prompt Engineering", "score": 0.7, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_gpt3_2020", "p_instructgpt_2022"]
+    },
+    {
+      "id": "p_agent_survey_2023",
+      "title": "A Survey on Large Language Model based Autonomous Agents",
+      "doi": null,
+      "year": 2023,
+      "authors": ["Lei Wang", "Chen Ma", "Xueyang Feng"],
+      "citedByCount": 6500,
+      "abstract": "Systematic survey of LLM agent construction, memory, planning and evaluation.",
+      "concepts": [
+        { "id": "c_ai_agent", "name": "AI Agent", "score": 0.95, "level": 1 },
+        { "id": "c_planning", "name": "Planning", "score": 0.8, "level": 1 },
+        { "id": "c_llm", "name": "Large Language Model", "score": 0.8, "level": 1 },
+        { "id": "c_agent_memory", "name": "Agent Memory", "score": 0.6, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_react_2022", "p_toolformer_2023", "p_baddeley_1974"]
+    },
+    {
+      "id": "p_memgpt_2023",
+      "title": "MemGPT: Towards LLMs as Operating Systems",
+      "doi": null,
+      "year": 2023,
+      "authors": ["Charles Packer", "Sarah Wooders", "Kevin Lin"],
+      "citedByCount": 2100,
+      "abstract": "Virtual-context management for LLMs, paging between working and long-term memory inspired by cognitive memory models.",
+      "concepts": [
+        { "id": "c_agent_memory", "name": "Agent Memory", "score": 0.9, "level": 2 },
+        { "id": "c_llm", "name": "Large Language Model", "score": 0.85, "level": 1 },
+        { "id": "c_long_term_memory", "name": "Long-term Memory", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_gpt3_2020", "p_ebbinghaus_1885", "p_agent_survey_2023"]
+    },
+    {
+      "id": "p_multiagent_2023",
+      "title": "Large Language Model based Multi-Agents: A Survey of Progress and Challenges",
+      "doi": null,
+      "year": 2023,
+      "authors": ["Taicheng Guo", "Xiuying Chen", "Yaqi Wang"],
+      "citedByCount": 3200,
+      "abstract": "Survey of LLM-based multi-agent systems, including mechanisms borrowed from economics.",
+      "concepts": [
+        { "id": "c_multi_agent_coordination", "name": "Multi-Agent Coordination", "score": 0.9, "level": 1 },
+        { "id": "c_ai_agent", "name": "AI Agent", "score": 0.85, "level": 1 },
+        { "id": "c_llm", "name": "Large Language Model", "score": 0.8, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_agent_survey_2023", "p_mechanism_1973"]
+    },
+    {
+      "id": "p_nash_1950",
+      "title": "Equilibrium Points in N-Person Games",
+      "doi": null,
+      "year": 1950,
+      "authors": ["John F. Nash"],
+      "citedByCount": 26000,
+      "abstract": "Defines the Nash equilibrium for non-cooperative games.",
+      "concepts": [
+        { "id": "c_game_theory", "name": "Game Theory", "score": 0.95, "level": 1 },
+        { "id": "c_nash_equilibrium", "name": "Nash Equilibrium", "score": 0.95, "level": 2 },
+        { "id": "c_rational_choice", "name": "Rational Choice Theory", "score": 0.6, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": []
+    },
+    {
+      "id": "p_mechanism_1973",
+      "title": "The Design of Mechanisms for Resource Allocation",
+      "doi": null,
+      "year": 1973,
+      "authors": ["Leonid Hurwicz"],
+      "citedByCount": 5200,
+      "abstract": "Founding treatment of mechanism design as incentive-compatible resource allocation.",
+      "concepts": [
+        { "id": "c_mechanism_design", "name": "Mechanism Design", "score": 0.95, "level": 1 },
+        { "id": "c_game_theory", "name": "Game Theory", "score": 0.8, "level": 1 },
+        { "id": "c_social_choice", "name": "Social Choice Theory", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_nash_1950"]
+    },
+    {
+      "id": "p_vickrey_1961",
+      "title": "Counterspeculation, Auctions, and Competitive Sealed Tenders",
+      "doi": null,
+      "year": 1961,
+      "authors": ["William Vickrey"],
+      "citedByCount": 13000,
+      "abstract": "Founding paper of auction theory and the second-price mechanism.",
+      "concepts": [
+        { "id": "c_auction_theory", "name": "Auction Theory", "score": 0.95, "level": 1 },
+        { "id": "c_mechanism_design", "name": "Mechanism Design", "score": 0.8, "level": 1 },
+        { "id": "c_social_choice", "name": "Social Choice Theory", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_nash_1950"]
+    },
+    {
+      "id": "p_auction_1982",
+      "title": "A Theory of Auctions and Competitive Bidding",
+      "doi": null,
+      "year": 1982,
+      "authors": ["Paul Milgrom", "Robert J. Weber"],
+      "citedByCount": 12500,
+      "abstract": "Equilibrium theory of auctions under uncertainty.",
+      "concepts": [
+        { "id": "c_auction_theory", "name": "Auction Theory", "score": 0.9, "level": 1 },
+        { "id": "c_game_theory", "name": "Game Theory", "score": 0.8, "level": 1 },
+        { "id": "c_probability_theory", "name": "Probability Theory", "score": 0.4, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_vickrey_1961", "p_nash_1950"]
+    },
+    {
+      "id": "p_ebbinghaus_1885",
+      "title": "Memory: A Contribution to Experimental Psychology",
+      "doi": null,
+      "year": 1885,
+      "authors": ["Hermann Ebbinghaus"],
+      "citedByCount": 21000,
+      "abstract": "First experimental study of human memory; discovers the forgetting curve.",
+      "concepts": [
+        { "id": "c_human_memory", "name": "Human Memory", "score": 0.95, "level": 1 },
+        { "id": "c_forgetting_curve", "name": "Forgetting Curve", "score": 0.95, "level": 2 },
+        { "id": "c_cognitive_psychology", "name": "Cognitive Psychology", "score": 0.8, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": []
+    },
+    {
+      "id": "p_baddeley_1974",
+      "title": "Working Memory",
+      "doi": null,
+      "year": 1974,
+      "authors": ["Alan D. Baddeley", "Graham Hitch"],
+      "citedByCount": 31000,
+      "abstract": "The working memory model: central executive, phonological loop and visuospatial sketchpad.",
+      "concepts": [
+        { "id": "c_working_memory", "name": "Working Memory", "score": 0.95, "level": 1 },
+        { "id": "c_cognitive_psychology", "name": "Cognitive Psychology", "score": 0.9, "level": 1 },
+        { "id": "c_neuroscience", "name": "Neuroscience", "score": 0.4, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_ebbinghaus_1885"]
+    },
+    {
+      "id": "p_consolidation_2000",
+      "title": "Memory — A Century of Consolidation",
+      "doi": null,
+      "year": 2000,
+      "authors": ["James L. McGaugh"],
+      "citedByCount": 4200,
+      "abstract": "Century-spanning review of memory consolidation research.",
+      "concepts": [
+        { "id": "c_memory_consolidation", "name": "Memory Consolidation", "score": 0.95, "level": 1 },
+        { "id": "c_neuroscience", "name": "Neuroscience", "score": 0.85, "level": 1 },
+        { "id": "c_human_memory", "name": "Human Memory", "score": 0.7, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_baddeley_1974", "p_ebbinghaus_1885"]
+    },
+    {
+      "id": "p_spaced_2006",
+      "title": "Distributed Practice in Verbal Recall Tasks",
+      "doi": null,
+      "year": 2006,
+      "authors": ["Nicholas J. Cepeda", "Harold Pashler", "Edward Vul"],
+      "citedByCount": 3800,
+      "abstract": "Meta-analysis of the spacing effect and distributed practice.",
+      "concepts": [
+        { "id": "c_spaced_repetition", "name": "Spaced Repetition", "score": 0.95, "level": 2 },
+        { "id": "c_human_memory", "name": "Human Memory", "score": 0.8, "level": 1 },
+        { "id": "c_cognitive_psychology", "name": "Cognitive Psychology", "score": 0.7, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_ebbinghaus_1885", "p_consolidation_2000"]
+    },
+    {
+      "id": "p_bm25_1995",
+      "title": "Okapi at TREC-3",
+      "doi": null,
+      "year": 1995,
+      "authors": ["Stephen Robertson", "Karen Spärck Jones"],
+      "citedByCount": 8500,
+      "abstract": "Probabilistic retrieval framework behind the BM25 ranking function.",
+      "concepts": [
+        { "id": "c_information_retrieval", "name": "Information Retrieval", "score": 0.95, "level": 1 },
+        { "id": "c_probability_theory", "name": "Probability Theory", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_shannon_1948"]
+    },
+    {
+      "id": "p_rag_2020",
+      "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+      "doi": null,
+      "year": 2020,
+      "authors": ["Patrick Lewis", "Ethan Perez", "Aleksandra Piktus"],
+      "citedByCount": 8500,
+      "abstract": "RAG couples parametric language models with non-parametric retrieval.",
+      "concepts": [
+        { "id": "c_rag", "name": "Retrieval-Augmented Generation", "score": 0.95, "level": 2 },
+        { "id": "c_information_retrieval", "name": "Information Retrieval", "score": 0.85, "level": 1 },
+        { "id": "c_llm", "name": "Large Language Model", "score": 0.8, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_attention_2017", "p_bm25_1995"]
+    },
+    {
+      "id": "p_garfield_1955",
+      "title": "Citation Indexes for Science",
+      "doi": null,
+      "year": 1955,
+      "authors": ["Eugene Garfield"],
+      "citedByCount": 6200,
+      "abstract": "Proposes citation indexing as a tool for scientific literature retrieval.",
+      "concepts": [
+        { "id": "c_citation_analysis", "name": "Citation Analysis", "score": 0.9, "level": 1 },
+        { "id": "c_library_science", "name": "Library Science", "score": 0.7, "level": 1 },
+        { "id": "c_metadata", "name": "Metadata", "score": 0.4, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": []
+    },
+    {
+      "id": "p_price_1965",
+      "title": "Networks of Scientific Papers",
+      "doi": null,
+      "year": 1965,
+      "authors": ["Derek J. de Solla Price"],
+      "citedByCount": 5200,
+      "abstract": "Models the citation network of science, anticipating network science and scientometrics.",
+      "concepts": [
+        { "id": "c_citation_analysis", "name": "Citation Analysis", "score": 0.95, "level": 1 },
+        { "id": "c_bibliometrics", "name": "Bibliometrics", "score": 0.9, "level": 1 },
+        { "id": "c_library_science", "name": "Library Science", "score": 0.6, "level": 1 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_garfield_1955"]
+    },
+    {
+      "id": "p_smallworld_1998",
+      "title": "Collective Dynamics of 'Small-World' Networks",
+      "doi": null,
+      "year": 1998,
+      "authors": ["Duncan J. Watts", "Steven H. Strogatz"],
+      "citedByCount": 51000,
+      "abstract": "Small-world network model interpolating between regular and random graphs.",
+      "concepts": [
+        { "id": "c_complex_systems", "name": "Complex Systems", "score": 0.95, "level": 1 },
+        { "id": "c_phase_transition", "name": "Phase Transition", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_price_1965"]
+    },
+    {
+      "id": "p_ontology_1993",
+      "title": "A Translation Approach to Portable Ontology Specifications",
+      "doi": null,
+      "year": 1993,
+      "authors": ["Thomas R. Gruber"],
+      "citedByCount": 12500,
+      "abstract": "Classic definition of ontologies as explicit conceptual specifications.",
+      "concepts": [
+        { "id": "c_ontology", "name": "Ontology", "score": 0.95, "level": 1 },
+        { "id": "c_semantics", "name": "Semantics", "score": 0.6, "level": 2 },
+        { "id": "c_metadata", "name": "Metadata", "score": 0.5, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": []
+    },
+    {
+      "id": "p_kg_survey_2019",
+      "title": "Knowledge Graphs",
+      "doi": null,
+      "year": 2019,
+      "authors": ["Aidan Hogan", "Eva Blomqvist", "Michael Cochez"],
+      "citedByCount": 8200,
+      "abstract": "Comprehensive survey of knowledge graph concepts, techniques and applications.",
+      "concepts": [
+        { "id": "c_knowledge_graph", "name": "Knowledge Graph", "score": 0.95, "level": 1 },
+        { "id": "c_ontology", "name": "Ontology", "score": 0.7, "level": 1 },
+        { "id": "c_semantics", "name": "Semantics", "score": 0.6, "level": 2 }
+      ],
+      "openAccess": true,
+      "openAccessPdf": null,
+      "referencedWorks": ["p_ontology_1993"]
+    }
+  ]
+}
