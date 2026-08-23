@@ -184,3 +184,63 @@ export async function resetMemory(
   if (!store) return;
   await store.reset(userId);
 }
+
+/**
+ * Persist a full memory snapshot to the store（03-03 补交）.
+ *
+ * 写入策略：先 reset，再为快照的每个叶子键写一条 UserMemory 条目，
+ * 值为最终值 —— 因此经 buildSnapshot() 重建的结果与快照完全一致
+ * （确定性往返）。主仓库的 Prisma 实现可直接替换该存储。
+ */
+export async function saveSnapshot(
+  store: MemoryStore,
+  userId: UserId,
+  snapshot: MemorySnapshot
+): Promise<void> {
+  await store.reset(userId);
+  const now = new Date().toISOString();
+  const mk = (
+    category: UserMemory["category"],
+    key: string,
+    value: unknown
+  ): UserMemory => ({
+    userId,
+    category,
+    key,
+    value,
+    confidence: 0.8,
+    source: "explicit_feedback",
+    useCount: 1,
+    updatedAt: now,
+  });
+
+  const entries: UserMemory[] = [
+    mk("reading", "reading.languagePref", snapshot.reading.languagePref),
+    mk("reading", "reading.summaryFirst", snapshot.reading.summaryFirst),
+    mk("reading", "reading.resultCount", snapshot.reading.resultCount),
+    mk("difficulty", "difficulty.preferredLevel", snapshot.difficulty.preferredLevel),
+    mk("difficulty", "difficulty.mathTolerance", snapshot.difficulty.mathTolerance),
+    mk("serendipity", "serendipity.defaultSlider", snapshot.serendipity.defaultSlider),
+    mk("serendipity", "serendipity.likedDomains", [...snapshot.serendipity.likedDomains]),
+    mk("serendipity", "serendipity.dislikedDomains", [...snapshot.serendipity.dislikedDomains]),
+  ];
+
+  if (snapshot.reading.prefEmpirical !== undefined) {
+    entries.push(mk("reading", "reading.prefEmpirical", snapshot.reading.prefEmpirical));
+  }
+  if (snapshot.reading.prefTheoretical !== undefined) {
+    entries.push(mk("reading", "reading.prefTheoretical", snapshot.reading.prefTheoretical));
+  }
+  if (snapshot.difficulty.theoryTolerance !== undefined) {
+    entries.push(
+      mk("difficulty", "difficulty.theoryTolerance", snapshot.difficulty.theoryTolerance)
+    );
+  }
+  if (snapshot.citation?.defaultStyle !== undefined) {
+    entries.push(mk("citation", "citation.defaultStyle", snapshot.citation.defaultStyle));
+  }
+
+  for (const entry of entries) {
+    await store.saveEntry(entry);
+  }
+}

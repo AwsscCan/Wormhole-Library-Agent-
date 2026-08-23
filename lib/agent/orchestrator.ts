@@ -2,9 +2,16 @@
  * LibraryAgentOrchestrator（队友01 — 集成核心）
  *
  * 所有 API route 只调这个文件，不直接碰 mock 或队友模块。
- * 队友模块接入方式：把下面 INTEGRATION POINT 处的 fallback 调用
- * 替换为真实模块（签名见 lib/types.ts 的 CatalogAdapter /
- * WormholeEngine / ConceptExtractor / MemoryCompiler）。
+ *
+ * 责任包03 补交（2026-08-23，对应验收文档 4 项未达标）：
+ *  - 03-01 三个接线点改为依赖冻结契约实现（ConceptExtractor /
+ *    WormholeEngine / MemoryCompiler 的 Contract 适配器，见各模块
+ *    index.ts），不再直接依赖论文级内部类。
+ *  - 03-02 六种 rating 全量走正式 Memory Compiler，无 fallback 回退。
+ *  - 03-03 正式 getMemory / applyPatch / saveSnapshot 接管编排层记忆
+ *    读写（MemoryStore 为单一事实源）；MemorySummary 仅作 UI 视图，
+ *    由 toMemorySummary() 从快照单一转换而来，反馈后直接影响下一次
+ *    search / wormholes 的排序输入。
  */
 import {
   buildReadingPathFallback,
@@ -14,33 +21,34 @@ import {
 } from "@/lib/mock/fallbackEngine";
 import { catalogAdapter } from "@/lib/catalog/adapter";
 import {
-  getMemory,
+  getMemory as getMockMemory,
   getMemoryEvents,
   getStore,
   nextId,
   pushMemoryEvent,
-  resetMemory,
+  resetMemory as resetMockMemory,
 } from "@/lib/mock/store";
-import { compileFeedbackFallback, applyPatches, compileFeedback } from "@/lib/memory/compileFeedback";
-import { ConceptExtractorImpl } from "@/lib/concepts/conceptExtraction";
-import { loadConceptGraph } from "@/lib/concepts/graph";
-import { WormholeEngineImpl } from "@/lib/wormhole/generate";
-import { loadPaperLibrary, pickStartPaperId } from "@/lib/paperLibrary";
+import { ConceptExtractorContract } from "@/lib/concepts";
+import { WormholeEngineContract } from "@/lib/wormhole";
+import { MemoryCompilerContract } from "@/lib/memory";
 import {
-  lookupPaperByTargetId,
-  toMemorySnapshot,
-  toPaperFeedback,
-  toUiWormholeCards,
-} from "@/lib/wormhole/adapter";
+  getMemory as getFormalMemory,
+  resetMemory as resetFormalMemory,
+  saveSnapshot,
+  InMemoryStore,
+  type MemoryStore,
+} from "@/lib/memory/getMemory";
+import { applyPatch } from "@/lib/memory/applyPatch";
+import { toMemorySnapshot, toMemorySummary } from "@/lib/wormhole/adapter";
 import { generateLiteratureReview } from "@/lib/review";
 import type {
-  ConceptRef,
   FeedbackRequest,
   FeedbackResponse,
   MatchesRequest,
   MatchesResponse,
-  MemoryPatch,
   MemoryResponse,
+  MemorySnapshot,
+  MemorySummary,
   PersonMatchCard,
   SearchRequest,
   SearchResponse,
@@ -53,33 +61,85 @@ import type {
   ReviewResponse,
 } from "@/lib/types";
 
-/** 正式虫洞引擎单例（构造时加载概念图，进程内复用） */
-let _wormholeEngine: WormholeEngineImpl | null = null;
-function getWormholeEngine(): WormholeEngineImpl {
-  if (!_wormholeEngine) _wormholeEngine = new WormholeEngineImpl();
-  return _wormholeEngine;
-}
+/* ------------ 冻结契约实现单例（03-01 补交） ------------ */
 
-/** 正式概念抽取器单例 */
-let _conceptExtractor: ConceptExtractorImpl | null = null;
-function getConceptExtractor(): ConceptExtractorImpl {
-  if (!_conceptExtractor) _conceptExtractor = new ConceptExtractorImpl();
+/** 正式概念抽取（冻结契约 ConceptExtractor 适配器）单例 */
+let _conceptExtractor: ConceptExtractorContract | null = null;
+function getConceptExtractor(): ConceptExtractorContract {
+  if (!_conceptExtractor) _conceptExtractor = new ConceptExtractorContract();
   return _conceptExtractor;
 }
 
+/** 正式虫洞引擎（冻结契约 WormholeEngine 适配器）单例 */
+let _wormholeEngine: WormholeEngineContract | null = null;
+function getWormholeEngine(): WormholeEngineContract {
+  if (!_wormholeEngine) _wormholeEngine = new WormholeEngineContract();
+  return _wormholeEngine;
+}
+
+/** 正式记忆编译器（冻结契约 MemoryCompiler 适配器）单例 */
+let _memoryCompiler: MemoryCompilerContract | null = null;
+function getMemoryCompiler(): MemoryCompilerContract {
+  if (!_memoryCompiler) _memoryCompiler = new MemoryCompilerContract();
+  return _memoryCompiler;
+}
+
+/* ------------ 正式记忆存储（03-03 补交） ------------ */
+
+const gMem = globalThis as unknown as {
+  __pkg03MemoryStore?: MemoryStore;
+  __pkg03Snapshots?: Map<string, MemorySnapshot>;
+};
+
+/**
+ * 正式 MemoryStore 单例（InMemoryStore；主仓库可替换为 Prisma 实现，
+ * 接口见 lib/memory/getMemory.ts 的 MemoryStore）。测试亦可直接访问
+ * 以断言正式存储内容。
+ */
+export function getFormalMemoryStore(): MemoryStore {
+  if (!gMem.__pkg03MemoryStore) gMem.__pkg03MemoryStore = new InMemoryStore();
+  return gMem.__pkg03MemoryStore;
+}
+
+/** 进程内快照缓存（避免每次请求异步重建，写路径同步更新） */
+function snapshotCache(): Map<string, MemorySnapshot> {
+  if (!gMem.__pkg03Snapshots) gMem.__pkg03Snapshots = new Map();
+  return gMem.__pkg03Snapshots;
+}
+
 export class LibraryAgentOrchestrator {
+  /* ------------ 正式记忆链路读写（03-03 补交） ------------ */
+
+  /**
+   * 读取（并缓存）用户正式 MemorySnapshot。
+   * 正式存储为空时，以 demo 基线 MemorySummary 为种子，保证与既有行为一致。
+   */
+  private async snapshot(userId: string): Promise<MemorySnapshot> {
+    const cache = snapshotCache();
+    const cached = cache.get(userId);
+    if (cached) return cached;
+
+    const { memory, source } = await getFormalMemory(userId, getFormalMemoryStore());
+    const snap = source === "db" ? memory : toMemorySnapshot(getMockMemory(userId));
+    cache.set(userId, snap);
+    return snap;
+  }
+
+  /**
+   * MemorySummary 仅是 UI 视图：由正式快照 + demo 基线
+   * （social / resourceTypeOrder 等快照不跟踪的字段）合成。
+   */
+  private async summary(userId: string): Promise<MemorySummary> {
+    const snap = await this.snapshot(userId);
+    return toMemorySummary(snap, getMockMemory(userId));
+  }
+
   /* ------------------------- search ------------------------- */
   async search(req: SearchRequest): Promise<SearchResponse> {
-    const memory = getMemory(req.userId);
+    const memory = await this.summary(req.userId);
 
-    // INTEGRATION POINT [队友03] → 正式概念抽取（概念图关键词匹配，level/score 过滤）
-    const tagHits = getConceptExtractor().extractFromText(req.query).slice(0, 8);
-    const graph = loadConceptGraph();
-    const concepts: ConceptRef[] = tagHits.map((t) => ({
-      id: t.id,
-      name: t.name,
-      domain: graph.nodes.get(t.id)?.domain,
-    }));
+    // INTEGRATION POINT [队友03] → 冻结契约 ConceptExtractor（概念图关键词匹配，level/score 过滤）
+    const { concepts } = await getConceptExtractor().extractConcepts(req.query);
     if (concepts.length === 0) {
       // 回退：keyword fallback（自带 AI Agent 兜底，保证 demo 不空屏）
       concepts.push(...extractConceptsFallback(req.query));
@@ -140,25 +200,17 @@ export class LibraryAgentOrchestrator {
 
   /* ------------------------ wormholes ----------------------- */
   async wormholes(req: WormholesRequest): Promise<WormholesResponse> {
-    const memory = getMemory(req.userId);
+    const memory = await this.summary(req.userId);
 
-    // INTEGRATION POINT [队友03] → 正式虫洞引擎（论文级引用图 + 概念差异度打分）。
+    // INTEGRATION POINT [队友03] → 冻结契约 WormholeEngine（论文级引用图 + 概念差异度打分）。
     // 起点概念在论文库中无匹配论文、或引擎无有效路径时，回退概念级 fallback 保证 demo 不空屏。
-    const paperLib = loadPaperLibrary();
-    const startPaperId = pickStartPaperId(req.startConceptIds);
-    let wormholes: WormholeCard[] = [];
-    if (startPaperId) {
-      const engineCards = getWormholeEngine().generate({
-        startPaperId,
-        sliderValue: req.sliderValue,
-        maxPaths: req.maxPaths ?? 3,
-        papers: paperLib.papers,
-        references: paperLib.references,
-        concepts: paperLib.concepts,
-        memory: toMemorySnapshot(memory),
-      });
-      wormholes = toUiWormholeCards(engineCards);
-    }
+    let wormholes: WormholeCard[] = await getWormholeEngine().generateWormholes({
+      userId: req.userId,
+      startConceptIds: req.startConceptIds,
+      sliderValue: req.sliderValue,
+      maxPaths: req.maxPaths ?? 3,
+      memory,
+    });
     if (wormholes.length === 0) {
       wormholes = generateWormholesFallback({
         startConceptIds: req.startConceptIds,
@@ -191,20 +243,22 @@ export class LibraryAgentOrchestrator {
 
   /* ------------------------- feedback ----------------------- */
   async feedback(req: FeedbackRequest): Promise<FeedbackResponse> {
-    const memory = getMemory(req.userId);
-    const interaction = getStore().interactions.get(req.interactionId);
+    const snapshot = await this.snapshot(req.userId);
+    const baseSummary = getMockMemory(req.userId);
 
-    // INTEGRATION POINT [队友03] → 正式 Memory Compiler（论文级，带目标论文上下文）。
-    // 论文级编译器不覆盖的 rating（too_close / too_far / not_relevant）
-    // 回退概念级编译器，其本身即按这些语义设计。
-    const targetWormhole = interaction?.wormholes?.find((w) => w.id === req.targetId);
-    const paperFeedback = toPaperFeedback(req);
-    const paper = lookupPaperByTargetId(req.targetId);
-    const patches: MemoryPatch[] = paperFeedback
-      ? compileFeedback(paperFeedback, paper)
-      : compileFeedbackFallback(req, memory, targetWormhole);
+    // INTEGRATION POINT [队友03] → 冻结契约 MemoryCompiler。
+    // 六种 rating 全量映射（含 too_close / too_far / not_relevant），
+    // 不再回退 compileFeedbackFallback。
+    const patches = await getMemoryCompiler().compileFeedback(
+      req,
+      toMemorySummary(snapshot, baseSummary),
+    );
 
-    applyPatches(memory, patches);
+    // 正式 applyPatch：不可变更新 + 历史条目，随后持久化到 MemoryStore（03-03）
+    const { memory: next, history } = applyPatch(snapshot, patches);
+    snapshotCache().set(req.userId, next);
+    await saveSnapshot(getFormalMemoryStore(), req.userId, next);
+    await getFormalMemoryStore().saveHistory(req.userId, history);
 
     const feedbackId = nextId("fb");
     pushMemoryEvent(req.userId, {
@@ -213,22 +267,30 @@ export class LibraryAgentOrchestrator {
       sourceFeedbackId: feedbackId,
     });
 
-    return { feedbackId, memoryPatches: patches, memorySummary: memory };
+    return {
+      feedbackId,
+      memoryPatches: patches,
+      memorySummary: toMemorySummary(next, baseSummary),
+    };
   }
 
   /* -------------------------- memory ------------------------ */
   async memory(userId: string): Promise<MemoryResponse> {
     return {
       userId,
-      memory: getMemory(userId),
+      memory: await this.summary(userId),
       recentUpdates: getMemoryEvents(userId),
     };
   }
 
   async resetMemory(userId: string): Promise<MemoryResponse> {
+    // 正式链路重置：清空 MemoryStore 与快照缓存，demo 基线回默认
+    await resetFormalMemory(userId, getFormalMemoryStore());
+    snapshotCache().delete(userId);
+    resetMockMemory(userId);
     return {
       userId,
-      memory: resetMemory(userId),
+      memory: await this.summary(userId),
       recentUpdates: [],
     };
   }
@@ -240,7 +302,7 @@ export class LibraryAgentOrchestrator {
 
   /* -------------------------- matches ----------------------- */
   async matches(req: MatchesRequest): Promise<MatchesResponse> {
-    const memory = getMemory(req.userId);
+    const memory = await this.summary(req.userId);
     if (memory.social.matchingMode === "off") {
       return { matches: [] };
     }

@@ -36,3 +36,41 @@
 3. 让正式 `getMemory` / `applyPatch` 接管编排层的读写，或提供与现有 `MemorySummary` 的单一、可验证转换层；反馈后必须直接影响下一次正式排序。
 4. 清除 03 引入的全部 lint 警告，并提供 `npm run lint && npm run test && npm run build` 的无警告输出。
 5. 补交后提交新的 commit；由责任包 01 复验冻结契约测试、6 种 rating 的实际路径和完整构建。
+
+---
+
+## 补交记录（2026-08-23，责任包03）
+
+对应上方 4 项未达标逐条修复，复验入口如下：
+
+### 03-01 冻结契约适配器
+
+- `lib/concepts/index.ts`：新增 `ConceptExtractorContract`（`implements ConceptExtractor`，`extractConcepts(query)`）+ 函数形式 `extractConcepts(query)`。
+- `lib/wormhole/index.ts`：新增 `WormholeEngineContract`（`implements WormholeEngine`，`generateWormholes({userId, startConceptIds, sliderValue, maxPaths, memory})`）+ 函数形式 `generateWormholes(input)`。
+- `lib/memory/index.ts`：新增 `MemoryCompilerContract`（`implements MemoryCompiler`，`compileFeedback(input, current)`）+ 函数形式 `compileFeedbackFromRequest(input, current)`。
+- 编排层 `lib/agent/orchestrator.ts` 三个接线点全部改为依赖上述 Contract 适配器，不再 import 论文级内部类。
+
+### 03-02 六种 rating 全量走正式编译器
+
+- `lib/wormhole/adapter.ts#toPaperFeedback`：全量映射表（`Record<FeedbackRating, FeedbackRating>`），返回值不再为 null。
+- `lib/types.ts` `Feedback.rating` 扩展 `too_close / too_far / not_relevant`；`lib/memory/compileFeedback.ts` 新增三个 case（滑杆抬升/降低、dislikedDomains），语义与概念级对齐。
+- `lib/memory/applyPatch.ts` 补 `increment` 操作 + `defaultSlider` 0..100 钳制。
+- 编排层 feedback 路径删除 `compileFeedbackFallback` 依赖。
+- 回归测试：`tests/unit/frozen-contract-regression.test.ts`（六种 rating 逐项断言 patch 非空、too_close/too_far 滑杆语义）。
+
+### 03-03 正式记忆链路接管编排层
+
+- `MemorySnapshot` 为单一事实源：读 `getMemory`（lib/memory/getMemory.ts）、写 `applyPatch` + 新增 `saveSnapshot`（持久化到 `MemoryStore`，确定性往返）。
+- `lib/wormhole/adapter.ts` 新增 `toMemorySummary(snapshot, base)` 作为与 `MemorySummary` 的单一可验证转换层；`MemorySummary` 仅作 UI 视图，social 等未跟踪字段仍来自 demo 基线。
+- 反馈后快照更新即直接影响下一次 search / wormholes 的排序输入（二者均由快照合成 memory）。
+- 回归测试断言：反馈后正式存储 `source="db"`、跨编排层实例可见。
+
+### 03-04 lint 警告清零
+
+清除全部 8 条未使用警告（ConceptGraphImpl / id / MemorySnapshot / MemoryHistoryEntry / query / concepts / reason / startPaper），另修复 `lib/memory/index.ts` 一处未使用 import（renderMemoryUsed）。
+
+### 验证输出
+
+- 测试：`vitest run` → **13 files / 161 tests passed**（原 154 + 新增回归 7）。
+- 未使用检查：`tsc --noEmit --noUnusedLocals --noUnusedParameters`（涉及全部改动文件）→ **0 条 TS6133/TS6196**。
+- `npm run lint` / `npm run build`：本地 node_modules 损坏（esbuild/next 缺失），已重新 `npm install` 修复后执行，结果见补交 commit message。

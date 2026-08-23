@@ -9,15 +9,19 @@
 
 import type {
   Feedback,
+  FeedbackRequest,
   PaperCard,
   MemorySnapshot,
   MemoryPatch,
   MemoryHistoryEntry,
+  MemoryCompiler,
+  MemorySummary,
 } from "../types";
 import { compileFeedback } from "./compileFeedback";
 import { applyPatch } from "./applyPatch";
 import { rankWithMemory } from "./rankWithMemory";
-import { renderMemoryContext, renderMemoryUsed } from "./renderMemoryContext";
+import { renderMemoryContext } from "./renderMemoryContext";
+import { toPaperFeedback, lookupPaperByTargetId } from "../wormhole/adapter";
 
 // Re-export individual functions
 export { compileFeedback } from "./compileFeedback";
@@ -92,4 +96,44 @@ let _default: MemoryCompilerImpl | null = null;
 export function getDefaultMemoryCompiler(): MemoryCompilerImpl {
   if (!_default) _default = new MemoryCompilerImpl();
   return _default;
+}
+
+/**
+ * MemoryCompilerContract — 冻结契约 MemoryCompiler 的适配器实现
+ * （03-01 / 03-02 补交）。
+ *
+ * 将 API 层 FeedbackRequest 全量（六种 rating，含 too_close / too_far /
+ * not_relevant）映射为论文级 Feedback，交给正式 compileFeedback 编译；
+ * 不再存在回退 compileFeedbackFallback 的路径。
+ */
+export class MemoryCompilerContract implements MemoryCompiler {
+  async compileFeedback(
+    input: FeedbackRequest,
+    current: MemorySummary
+  ): Promise<MemoryPatch[]> {
+    void current; // 冻结签名占位：编译语义由 rating + 目标论文 + 自由文本决定
+    const paperFeedback = toPaperFeedback(input);
+    const paper = lookupPaperByTargetId(input.targetId);
+    return compileFeedback(paperFeedback, paper);
+  }
+}
+
+/**
+ * Default singleton instance of the frozen-contract adapter.
+ */
+let _defaultContract: MemoryCompilerContract | null = null;
+export function getDefaultMemoryCompilerContract(): MemoryCompilerContract {
+  if (!_defaultContract) _defaultContract = new MemoryCompilerContract();
+  return _defaultContract;
+}
+
+/**
+ * 冻结契约函数形式：compileFeedback(input, current)
+ * （03-01 补交，责任书要求的公开函数；与论文级同名函数以 FromRequest 后缀区分）。
+ */
+export function compileFeedbackFromRequest(
+  input: FeedbackRequest,
+  current: MemorySummary
+): Promise<MemoryPatch[]> {
+  return getDefaultMemoryCompilerContract().compileFeedback(input, current);
 }

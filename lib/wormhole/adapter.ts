@@ -155,18 +155,20 @@ export function toMemorySnapshot(summary: MemorySummary): MemorySnapshot {
 
 /**
  * Map API feedback ratings onto the paper-level compiler's ratings.
- * Returns null for ratings the paper-level compiler has no semantic
- * equivalent for (too_close / too_far / not_relevant) — caller then
- * uses the concept-level fallback compiler, which handles those.
+ * 03-02 补交：六种 API rating 全量映射（too_close / too_far / not_relevant
+ * 的语义已由正式编译器实现），不再有 null 路径，调用方无需回退
+ * compileFeedbackFallback。
  */
-export function toPaperFeedback(req: FeedbackRequest): Feedback | null {
-  const ratingMap: Partial<Record<FeedbackRequest["rating"], Feedback["rating"]>> = {
+export function toPaperFeedback(req: FeedbackRequest): Feedback {
+  const ratingMap: Record<FeedbackRequest["rating"], Feedback["rating"]> = {
     too_hard: "too_hard",
     just_right: "just_right",
     useful: "interesting",
+    too_close: "too_close",
+    too_far: "too_far",
+    not_relevant: "not_relevant",
   };
   const rating = ratingMap[req.rating];
-  if (!rating) return null;
 
   const targetType: Feedback["targetType"] =
     req.targetType === "wormhole" ? "wormhole" : "paper";
@@ -176,5 +178,70 @@ export function toPaperFeedback(req: FeedbackRequest): Feedback | null {
     targetId: req.targetId,
     rating,
     freeText: req.freeText ?? null,
+  };
+}
+
+/* ------------------- MemorySnapshot → MemorySummary ------------------- */
+
+const LEVEL_MAP_INV: Record<string, MemorySummary["difficulty"]["preferredLevel"]> = {
+  beginner: "intro",
+  undergrad: "undergrad",
+  graduate: "graduate",
+  research: "research",
+};
+
+/**
+ * 03-03 补交：正式 MemorySnapshot → UI 层 MemorySummary 的单一转换层。
+ *
+ * 编排层以 MemorySnapshot 为单一事实源（正式 getMemory / applyPatch /
+ * saveSnapshot 读写）；MemorySummary 仅作为 UI 视图，由快照字段覆盖
+ * demo 基线（基线提供 social / resourceTypeOrder 等快照不跟踪的字段）。
+ */
+export function toMemorySummary(
+  snapshot: MemorySnapshot,
+  base: MemorySummary
+): MemorySummary {
+  const language: MemorySummary["reading"]["language"] =
+    snapshot.reading.languagePref === "zh_first"
+      ? "zh_first"
+      : snapshot.reading.languagePref === "en_first"
+        ? "en_first"
+        : "any";
+
+  return {
+    ...base,
+    reading: {
+      ...base.reading,
+      language,
+      summaryFirst: snapshot.reading.summaryFirst ?? base.reading.summaryFirst,
+      maxResults: snapshot.reading.resultCount ?? base.reading.maxResults,
+      ...(snapshot.reading.prefEmpirical !== undefined
+        ? { prefEmpirical: snapshot.reading.prefEmpirical }
+        : {}),
+      ...(snapshot.reading.prefTheoretical !== undefined
+        ? { prefTheoretical: snapshot.reading.prefTheoretical }
+        : {}),
+    },
+    difficulty: {
+      ...base.difficulty,
+      preferredLevel:
+        snapshot.difficulty.preferredLevel != null
+          ? LEVEL_MAP_INV[snapshot.difficulty.preferredLevel] ??
+            base.difficulty.preferredLevel
+          : base.difficulty.preferredLevel,
+      mathTolerance: snapshot.difficulty.mathTolerance ?? base.difficulty.mathTolerance,
+      ...(snapshot.difficulty.theoryTolerance !== undefined
+        ? { theoryTolerance: snapshot.difficulty.theoryTolerance }
+        : {}),
+    },
+    serendipity: {
+      ...base.serendipity,
+      defaultSlider: snapshot.serendipity.defaultSlider ?? base.serendipity.defaultSlider,
+      likedDomains: [...snapshot.serendipity.likedDomains],
+      dislikedDomains: [...snapshot.serendipity.dislikedDomains],
+    },
+    citation: snapshot.citation?.defaultStyle
+      ? { defaultStyle: snapshot.citation.defaultStyle }
+      : base.citation,
   };
 }

@@ -220,8 +220,6 @@ import type {
   Feedback,
   PaperCard,
   ConceptTag,
-  MemorySnapshot,
-  MemoryHistoryEntry,
 } from "../types";
 
 /**
@@ -370,6 +368,53 @@ export function compileFeedback(
         }
       }
       break;
+
+    case "too_close":
+      // 03-02 补交：与概念级语义对齐 —— 太接近已知，抬高默认意外度
+      patches.push({
+        key: "serendipity.defaultSlider",
+        operation: "increment",
+        value: 10,
+        confidenceDelta: 0.08,
+        reason: "用户觉得太接近已知，抬高默认意外度。",
+      });
+      break;
+
+    case "too_far":
+      // 03-02 补交：跳得太远，降低默认意外度
+      patches.push({
+        key: "serendipity.defaultSlider",
+        operation: "decrement",
+        value: 10,
+        confidenceDelta: 0.08,
+        reason: "用户觉得跳得太远，降低默认意外度。",
+      });
+      break;
+
+    case "not_relevant": {
+      // 03-02 补交：不相关 → 将相关领域加入 dislikes（论文概念 + 自由文本）
+      const dislikedDomains = new Set<string>();
+      if (paper?.concepts) {
+        for (const d of extractDomainsFromConcepts(paper.concepts)) {
+          dislikedDomains.add(d);
+        }
+      }
+      if (feedback.freeText) {
+        for (const d of extractDomainsFromText(feedback.freeText)) {
+          dislikedDomains.add(d);
+        }
+      }
+      for (const domain of dislikedDomains) {
+        patches.push({
+          key: "serendipity.dislikedDomains",
+          operation: "add_or_increment",
+          value: domain,
+          confidenceDelta: 0.08,
+          reason: `用户认为「${domain}」方向的推荐不相关。`,
+        });
+      }
+      break;
+    }
 
     case "just_right":
       // No major change, but increment confidence of current preferences

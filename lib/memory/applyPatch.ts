@@ -96,6 +96,19 @@ function applySinglePatch(snapshot: MemorySnapshot, patch: MemoryPatch): void {
       }
       break;
 
+    case "increment":
+      // 03-02 补交：与概念级 patch 语义对齐（如 too_close 抬升滑杆）
+      if (typeof currentValue === "number") {
+        parent[field] = currentValue + (patch.value as number);
+      } else if (Array.isArray(currentValue)) {
+        if (!currentValue.includes(patch.value)) {
+          currentValue.push(patch.value);
+        }
+      } else if (currentValue === undefined) {
+        parent[field] = patch.value;
+      }
+      break;
+
     case "remove":
       if (Array.isArray(currentValue)) {
         parent[field] = currentValue.filter((v) => v !== patch.value);
@@ -131,6 +144,14 @@ export function applyPatch(
     updated.difficulty.theoryTolerance = Math.max(
       0,
       Math.min(1, updated.difficulty.theoryTolerance)
+    );
+  }
+
+  // 03-02 补交：确保 defaultSlider 保持在 [0, 100]
+  if (typeof updated.serendipity.defaultSlider === "number") {
+    updated.serendipity.defaultSlider = Math.max(
+      0,
+      Math.min(100, updated.serendipity.defaultSlider)
     );
   }
 

@@ -62,7 +62,6 @@ export class WormholeEngineImpl implements PaperWormholeEngine {
       maxPaths = 3,
       papers,
       references,
-      concepts,
       memory,
       conceptGraph,
     } = params;
@@ -122,7 +121,7 @@ export class WormholeEngineImpl implements PaperWormholeEngine {
       const diversity = computeDiversity(targetConcepts, selectedTargets);
 
       // Check elimination
-      const { eliminate, reason } = shouldEliminate(
+      const { eliminate } = shouldEliminate(
         bridge,
         true, // has paper (we only iterate papers that exist)
         novelty
@@ -174,7 +173,6 @@ export class WormholeEngineImpl implements PaperWormholeEngine {
         targetConcepts: uniqueConcepts,
         targetPaper: s.path.targetPaper,
         explanation: this.generateExplanation(
-          startPaper,
           s.path.targetPaper,
           s.path.papers,
           startConcepts,
@@ -198,7 +196,6 @@ export class WormholeEngineImpl implements PaperWormholeEngine {
    * which bridges to [domain B] where [target paper] is influential."
    */
   private generateExplanation(
-    startPaper: PaperCard,
     targetPaper: PaperCard,
     path: PaperId[],
     startConcepts: ConceptTag[],

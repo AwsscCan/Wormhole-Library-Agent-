@@ -8,7 +8,7 @@
  */
 
 import type { ConceptTag, PaperCard, PaperConceptExtractor, ConceptGraph } from "../types";
-import { ConceptGraphImpl, loadConceptGraph } from "./graph";
+import { loadConceptGraph } from "./graph";
 
 export class ConceptExtractorImpl implements PaperConceptExtractor {
   private graph: ConceptGraph | null = null;
@@ -43,7 +43,7 @@ export class ConceptExtractorImpl implements PaperConceptExtractor {
     const lowerText = text.toLowerCase();
     const matched: ConceptTag[] = [];
 
-    for (const [id, node] of g.nodes) {
+    for (const node of Array.from(g.nodes.values())) {
       const candidates = [node.name, ...node.aliases];
       for (const candidate of candidates) {
         if (lowerText.includes(candidate.toLowerCase())) {

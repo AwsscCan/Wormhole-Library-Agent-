@@ -32,6 +32,7 @@ export function renderMemoryContext(
   memory: MemorySnapshot,
   query?: string
 ): string {
+  void query; // 冻结签名占位：当前渲染不依赖查询词（03-04 补交：消除未使用警告）
   const lines: string[] = ["User preferences:"];
 
   // Reading preferences

@@ -459,7 +459,16 @@ export type CitationResult = {
 export type Feedback = {
   targetType: "paper" | "wormhole" | "citation";
   targetId: string;
-  rating: "too_theoretical" | "too_empirical" | "too_hard" | "just_right" | "interesting";
+  /** 03-02 补交：新增 too_close / too_far / not_relevant（与 API 层 FeedbackRating 全量对齐） */
+  rating:
+    | "too_theoretical"
+    | "too_empirical"
+    | "too_hard"
+    | "just_right"
+    | "interesting"
+    | "too_close"
+    | "too_far"
+    | "not_relevant";
   freeText: string | null;
 };
 
