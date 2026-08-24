@@ -1,11 +1,10 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { BetterAuthConfigurationError, getMemberPrincipal } from "@/lib/auth/server";
 
 export type CurrentPrincipal = {
   id: string;
   mode: "member" | "guest";
 };
-
-type MemberSession = { userId: string };
 
 const GUEST_COOKIE = "wl_guest";
 const guestIdPattern = /^[A-Za-z0-9_-]{32,128}$/;
@@ -15,15 +14,6 @@ export class AuthConfigurationError extends Error {
     super("Authentication is not configured");
     this.name = "AuthConfigurationError";
   }
-}
-
-/**
- * Member sessions are intentionally not inferred from request data. The member
- * session reader will be connected to the application's identity provider when
- * that provider is introduced.
- */
-async function readMemberSession(_cookieHeader: string): Promise<MemberSession | null> {
-  return null;
 }
 
 function guestSecret(): string {
@@ -78,8 +68,13 @@ function createGuestId(): string {
  */
 export async function resolveCurrentPrincipal(request: Request): Promise<CurrentPrincipal> {
   const cookieHeader = request.headers.get("cookie") ?? "";
-  const member = await readMemberSession(cookieHeader);
-  if (member) return { id: member.userId, mode: "member" };
+  try {
+    const member = await getMemberPrincipal(request);
+    if (member) return member;
+  } catch (error) {
+    if (error instanceof BetterAuthConfigurationError) throw new AuthConfigurationError();
+    throw error;
+  }
 
   const secret = guestSecret();
   const guestId = decodeGuest(readCookie(cookieHeader, GUEST_COOKIE), secret) ?? createGuestId();

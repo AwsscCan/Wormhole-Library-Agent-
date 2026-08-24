@@ -18,8 +18,10 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@better-auth/prisma-adapter": "^1.7.1",
     "@prisma/client": "^6.2.0",
     "@xyflow/react": "^12.4.0",
+    "better-auth": "^1.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.469.0",

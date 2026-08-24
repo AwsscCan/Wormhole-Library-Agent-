@@ -32,7 +32,7 @@ async function main() {
 
   // demo user
   const demoUser = await prisma.user.create({
-    data: { id: "demo-user", name: "Demo User" },
+    data: { id: "demo-user", name: "Demo User", email: "demo-user@wormhole.local" },
   });
 
   // demo 用户预置记忆（设计文档要求 3 条）
@@ -118,7 +118,10 @@ async function main() {
   // living books（每个人物挂一个虚构 user）
   for (const lb of livingBooksSeed.livingBooks) {
     const owner = await prisma.user.create({
-      data: { name: `fictional-owner-${lb.id}` },
+      data: {
+        name: `fictional-owner-${lb.id}`,
+        email: `fictional-owner-${lb.id}@wormhole.local`,
+      },
     });
     await prisma.livingBookProfile.create({
       data: {
