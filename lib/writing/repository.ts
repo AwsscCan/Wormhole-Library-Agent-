@@ -6,10 +6,13 @@ import { advanceWritingStage } from "@/lib/writing/stateMachine";
 
 export class WritingDependencyError extends Error { constructor() { super("Writing session and catalog ports are not configured"); } }
 export async function persistCandidate(ownerId: string, sessionId: string, item: EvidenceItem) {
-  await getPrisma().writingEvidence.upsert({ where: { id: item.id }, create: { id: item.id, ownerId, sessionId, title: item.title, excerpt: item.excerpt, provenanceJson: JSON.stringify(item.provenance), url: item.url, verificationStatus: "needs_review" }, update: { title: item.title, excerpt: item.excerpt, provenanceJson: JSON.stringify(item.provenance), url: item.url, verificationStatus: "needs_review", userConfirmedAt: null } });
+  const provenance = { ...item.provenance, doi: item.doi, authors: item.authors, titleAuthorMatch: item.titleAuthorMatch };
+  await getPrisma().writingEvidence.upsert({ where: { id: item.id }, create: { id: item.id, ownerId, sessionId, title: item.title, excerpt: item.excerpt, provenanceJson: JSON.stringify(provenance), url: item.url, verificationStatus: "needs_review" }, update: { title: item.title, excerpt: item.excerpt, provenanceJson: JSON.stringify(provenance), url: item.url, verificationStatus: "needs_review", userConfirmedAt: null } });
 }
 export async function confirmCandidate(ownerId: string, sessionId: string, evidenceId: string) {
   const record = await getPrisma().writingEvidence.findFirst({ where: { id: evidenceId, ownerId, sessionId, verificationStatus: "needs_review" } }); if (!record) return null;
+  const proof = JSON.parse(record.provenanceJson) as { retrievedAt?: string; sourceKind?: string; doi?: string; url?: string; titleAuthorMatch?: string };
+  if (!proof.retrievedAt || !proof.sourceKind || proof.titleAuthorMatch === "low" || (!proof.doi && !record.url)) return null;
   return getPrisma().writingEvidence.update({ where: { id: record.id }, data: { verificationStatus: "verified", userConfirmedAt: new Date() } });
 }
 export async function persistStage(ownerId: string, sessionId: string, previous: WritingStage | null, stage: WritingStage, content: string) {

@@ -3,6 +3,7 @@ import type { SourceProvenance } from "@/lib/types";
 
 export type EvidenceItem = {
   id: string; title: string; excerpt: string; provenance: SourceProvenance; url?: string;
+  doi?: string; authors?: string[]; titleAuthorMatch?: "matched" | "partial" | "low";
   verificationStatus: "verified" | "needs_review" | "rejected"; userConfirmedAt?: string;
 };
 export type WritingStage = "evidence" | "verified_sources" | "outline" | "draft" | "evidence_link" | "human_review" | "export";

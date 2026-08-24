@@ -1,0 +1,7 @@
+import { NextResponse } from "next/server";
+import { persistStage, resumeWriting } from "@/lib/writing/repository";
+import { apiError, parseBody } from "@/lib/validation/api";
+import { writingStageSchema } from "@/lib/validation/schemas";
+import { privateWritingResponse, rejectWritingUserId, requireWritingPrincipal } from "@/lib/writing/routeSupport";
+export async function GET(request: Request) { const q = rejectWritingUserId(request); if (q) return q; const p = await requireWritingPrincipal(request); if (p instanceof Response) return p; const sessionId = new URL(request.url).searchParams.get("sessionId"); if (!sessionId) return privateWritingResponse(apiError("BAD_REQUEST", "sessionId is required", 400), p); try { return privateWritingResponse(NextResponse.json(await resumeWriting(p.id, sessionId)), p); } catch { return privateWritingResponse(apiError("INTERNAL_ERROR", "Unable to resume writing", 500), p); } }
+export async function POST(request: Request) { const q = rejectWritingUserId(request); if (q) return q; const p = await requireWritingPrincipal(request); if (p instanceof Response) return p; const body = await parseBody(request, writingStageSchema); if (!body.ok) return privateWritingResponse(body.response, p); try { const value = await persistStage(p.id, body.data.sessionId, body.data.previous, body.data.stage, body.data.content); return privateWritingResponse(NextResponse.json(value, { status: 201 }), p); } catch { return privateWritingResponse(apiError("BAD_REQUEST", "Writing stage transition is invalid", 400), p); } }
