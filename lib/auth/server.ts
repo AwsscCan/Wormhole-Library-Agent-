@@ -25,9 +25,25 @@ export function getAuthSecret(): string {
   return developmentAuthSecret;
 }
 
+/** Resolves the only origin allowed to issue browser authentication writes. */
+export function getTrustedAuthOrigin(request: Request): string {
+  const configuredBaseURL = process.env.BETTER_AUTH_URL?.trim();
+  if (!configuredBaseURL) {
+    if (process.env.NODE_ENV === "production") throw new BetterAuthConfigurationError();
+    return new URL(request.url).origin;
+  }
+
+  try {
+    const url = new URL(configuredBaseURL);
+    if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("invalid protocol");
+    return url.origin;
+  } catch {
+    throw new BetterAuthConfigurationError();
+  }
+}
+
 function environmentFor(request: Request): AuthEnvironment {
-  const configuredBaseURL = process.env.BETTER_AUTH_URL;
-  const baseURL = new URL(configuredBaseURL ?? request.url).origin;
+  const baseURL = getTrustedAuthOrigin(request);
   return {
     baseURL,
     secret: getAuthSecret(),

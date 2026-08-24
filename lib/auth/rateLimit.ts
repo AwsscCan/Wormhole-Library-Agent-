@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getPrisma } from "@/lib/db/prisma";
-import { getAuthSecret } from "@/lib/auth/server";
+import { getAuthSecret, getTrustedAuthOrigin } from "@/lib/auth/server";
 
 type RateLimitInput = {
   action: string;
@@ -28,7 +28,7 @@ export function validateAuthOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return true;
   try {
-    return new URL(origin).origin === new URL(request.url).origin;
+    return new URL(origin).origin === getTrustedAuthOrigin(request);
   } catch {
     return false;
   }
