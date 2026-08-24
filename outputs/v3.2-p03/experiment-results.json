@@ -1,0 +1,106 @@
+{
+  "packageVersion": "v3.2-p03-schema-1",
+  "recordedAt": "2026-08-24T12:00:00.000Z",
+  "layoutSeed": "deterministic-radial-v1 (no random source)",
+  "inputTopics": [
+    {
+      "question": "How does hybrid retrieval improve RAG recall?",
+      "writing": "RAG retrieval quality",
+      "query": "hybrid dense sparse retrieval",
+      "concept": {
+        "id": "rag",
+        "name": "Retrieval Augmented Generation"
+      }
+    },
+    {
+      "question": "How can operating systems schedule latency-sensitive workloads fairly?",
+      "writing": "Scheduling fairness",
+      "query": "CFS latency scheduling fairness",
+      "concept": {
+        "id": "scheduling",
+        "name": "Operating System Scheduling"
+      }
+    },
+    {
+      "question": "How do graph neural networks support library discovery?",
+      "writing": "Graph discovery",
+      "query": "graph neural network recommendation",
+      "concept": {
+        "id": "gnn",
+        "name": "Graph Neural Networks"
+      }
+    }
+  ],
+  "results": [
+    {
+      "sessionId": "research-experiment-1",
+      "topic": "RAG retrieval quality",
+      "searchCount": 1,
+      "evidenceCount": 2,
+      "graphVersion": 1,
+      "restoredPosition": {
+        "x": 90,
+        "y": 45
+      },
+      "restoredPinned": true,
+      "restoredHiddenEdge": true,
+      "restoredLabel": "RAG retrieval quality · personal",
+      "restoredNote": "Experiment note survives restart",
+      "restoredPersonalEdge": "personal_note",
+      "publicHashBefore": "3bd6bb99b17939ed1732cb32ebb67b661554a9061b4748adbb162ef91f01e1ef",
+      "publicHashAfter": "3bd6bb99b17939ed1732cb32ebb67b661554a9061b4748adbb162ef91f01e1ef",
+      "publicGraphUnchanged": true
+    },
+    {
+      "sessionId": "research-experiment-2",
+      "topic": "Scheduling fairness",
+      "searchCount": 1,
+      "evidenceCount": 2,
+      "graphVersion": 1,
+      "restoredPosition": {
+        "x": 110,
+        "y": 60
+      },
+      "restoredPinned": true,
+      "restoredHiddenEdge": true,
+      "restoredLabel": "Scheduling fairness · personal",
+      "restoredNote": "Experiment note survives restart",
+      "restoredPersonalEdge": "personal_note",
+      "publicHashBefore": "42f3077ec3cee5339befcf5acb3bd7f54f0e36e4f0e43a05a23563033617625a",
+      "publicHashAfter": "42f3077ec3cee5339befcf5acb3bd7f54f0e36e4f0e43a05a23563033617625a",
+      "publicGraphUnchanged": true
+    },
+    {
+      "sessionId": "research-experiment-3",
+      "topic": "Graph discovery",
+      "searchCount": 1,
+      "evidenceCount": 2,
+      "graphVersion": 1,
+      "restoredPosition": {
+        "x": 130,
+        "y": 75
+      },
+      "restoredPinned": true,
+      "restoredHiddenEdge": true,
+      "restoredLabel": "Graph discovery · personal",
+      "restoredNote": "Experiment note survives restart",
+      "restoredPersonalEdge": "personal_note",
+      "publicHashBefore": "eb977753a26abd9bb4ef5ae4ee4edd324979189c208df64afbc254f942151a09",
+      "publicHashAfter": "eb977753a26abd9bb4ef5ae4ee4edd324979189c208df64afbc254f942151a09",
+      "publicGraphUnchanged": true
+    }
+  ],
+  "publicSeedHashes": {
+    "before": {
+      "data/seed-concepts.json": "8a0812dc3c792dad91b14294888dc2d7264bb31e6b675a740de7cb44937b075c",
+      "data/seed-edges.json": "c9d7965a26e59578d03c28001aa9ac420c911691fbc3930a9a7b0768cd58476b",
+      "data/seed-living-books.json": "1cc3a39ced08a348d5250757130ab7954aa0518575ab6256f5bb6beeda77312d"
+    },
+    "after": {
+      "data/seed-concepts.json": "8a0812dc3c792dad91b14294888dc2d7264bb31e6b675a740de7cb44937b075c",
+      "data/seed-edges.json": "c9d7965a26e59578d03c28001aa9ac420c911691fbc3930a9a7b0768cd58476b",
+      "data/seed-living-books.json": "1cc3a39ced08a348d5250757130ab7954aa0518575ab6256f5bb6beeda77312d"
+    },
+    "unchanged": true
+  }
+}

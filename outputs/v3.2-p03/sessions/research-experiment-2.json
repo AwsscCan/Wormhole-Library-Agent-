@@ -1,0 +1,83 @@
+{
+  "id": "research-experiment-2",
+  "ownerId": "guest:experiment",
+  "researchQuestion": "How can operating systems schedule latency-sensitive workloads fairly?",
+  "writingTopic": "Scheduling fairness",
+  "interactionIds": [
+    "int-experiment-2"
+  ],
+  "evidenceIds": [
+    "scheduling-evidence-1",
+    "scheduling-evidence-2"
+  ],
+  "searches": [
+    {
+      "interactionId": "int-experiment-2",
+      "query": "CFS latency scheduling fairness",
+      "at": "2026-08-24T12:00:00.000Z",
+      "concepts": [
+        {
+          "id": "scheduling",
+          "name": "Operating System Scheduling"
+        }
+      ],
+      "resources": [
+        {
+          "id": "scheduling-evidence-1",
+          "title": "Scheduling fairness evidence 1",
+          "concepts": [
+            {
+              "id": "scheduling",
+              "name": "Operating System Scheduling"
+            }
+          ],
+          "sourceLabel": "Experiment fixture"
+        },
+        {
+          "id": "scheduling-evidence-2",
+          "title": "Scheduling fairness evidence 2",
+          "concepts": [
+            {
+              "id": "scheduling",
+              "name": "Operating System Scheduling"
+            }
+          ],
+          "sourceLabel": "Experiment fixture"
+        }
+      ]
+    }
+  ],
+  "wormholes": [],
+  "personalGraph": {
+    "schemaVersion": 1,
+    "version": 1,
+    "nodeOverrides": {
+      "topic": {
+        "position": {
+          "x": 110,
+          "y": 60
+        },
+        "pinned": true,
+        "hidden": false,
+        "label": "Scheduling fairness · personal",
+        "note": "Experiment note survives restart",
+        "updatedAt": "2026-08-24T12:00:00.000Z"
+      }
+    },
+    "hiddenSystemEdgeIds": [
+      "system:topic_search:topic:search:int-experiment-2"
+    ],
+    "personalEdges": [
+      {
+        "id": "personal-2",
+        "source": "topic",
+        "target": "concept:scheduling",
+        "type": "personal_note",
+        "label": "my evidence path",
+        "note": "Private relation"
+      }
+    ]
+  },
+  "createdAt": "2026-08-24T12:00:00.000Z",
+  "updatedAt": "2026-08-24T12:00:00.000Z"
+}

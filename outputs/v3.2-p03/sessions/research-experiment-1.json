@@ -1,0 +1,83 @@
+{
+  "id": "research-experiment-1",
+  "ownerId": "guest:experiment",
+  "researchQuestion": "How does hybrid retrieval improve RAG recall?",
+  "writingTopic": "RAG retrieval quality",
+  "interactionIds": [
+    "int-experiment-1"
+  ],
+  "evidenceIds": [
+    "rag-evidence-1",
+    "rag-evidence-2"
+  ],
+  "searches": [
+    {
+      "interactionId": "int-experiment-1",
+      "query": "hybrid dense sparse retrieval",
+      "at": "2026-08-24T12:00:00.000Z",
+      "concepts": [
+        {
+          "id": "rag",
+          "name": "Retrieval Augmented Generation"
+        }
+      ],
+      "resources": [
+        {
+          "id": "rag-evidence-1",
+          "title": "RAG retrieval quality evidence 1",
+          "concepts": [
+            {
+              "id": "rag",
+              "name": "Retrieval Augmented Generation"
+            }
+          ],
+          "sourceLabel": "Experiment fixture"
+        },
+        {
+          "id": "rag-evidence-2",
+          "title": "RAG retrieval quality evidence 2",
+          "concepts": [
+            {
+              "id": "rag",
+              "name": "Retrieval Augmented Generation"
+            }
+          ],
+          "sourceLabel": "Experiment fixture"
+        }
+      ]
+    }
+  ],
+  "wormholes": [],
+  "personalGraph": {
+    "schemaVersion": 1,
+    "version": 1,
+    "nodeOverrides": {
+      "topic": {
+        "position": {
+          "x": 90,
+          "y": 45
+        },
+        "pinned": true,
+        "hidden": false,
+        "label": "RAG retrieval quality · personal",
+        "note": "Experiment note survives restart",
+        "updatedAt": "2026-08-24T12:00:00.000Z"
+      }
+    },
+    "hiddenSystemEdgeIds": [
+      "system:topic_search:topic:search:int-experiment-1"
+    ],
+    "personalEdges": [
+      {
+        "id": "personal-1",
+        "source": "topic",
+        "target": "concept:rag",
+        "type": "personal_note",
+        "label": "my evidence path",
+        "note": "Private relation"
+      }
+    ]
+  },
+  "createdAt": "2026-08-24T12:00:00.000Z",
+  "updatedAt": "2026-08-24T12:00:00.000Z"
+}

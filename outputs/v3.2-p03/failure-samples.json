@@ -1,0 +1,27 @@
+[
+  {
+    "code": "EXPIRED_INTERACTION",
+    "status": 404,
+    "ui": "这次旧检索已过期，但你可以创建新会话后从主题节点重新搜索。"
+  },
+  {
+    "code": "SOURCE_FAILURE",
+    "status": 503,
+    "ui": "来源暂时不可用；这不是‘无结果’，你的图已保留。"
+  },
+  {
+    "code": "NO_RESOURCES",
+    "status": 200,
+    "empty": true,
+    "ui": "这个主题暂时没有找到资源，可以换词重试。"
+  },
+  {
+    "code": "CONFLICT",
+    "status": 409,
+    "ui": "另一窗口保存了更新。请刷新后重新应用本次修改。"
+  },
+  {
+    "code": "CORRUPT_RECOVERY",
+    "recovery": "rename to .corrupt and start empty"
+  }
+]

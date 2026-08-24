@@ -1,0 +1,83 @@
+{
+  "id": "research-experiment-3",
+  "ownerId": "guest:experiment",
+  "researchQuestion": "How do graph neural networks support library discovery?",
+  "writingTopic": "Graph discovery",
+  "interactionIds": [
+    "int-experiment-3"
+  ],
+  "evidenceIds": [
+    "gnn-evidence-1",
+    "gnn-evidence-2"
+  ],
+  "searches": [
+    {
+      "interactionId": "int-experiment-3",
+      "query": "graph neural network recommendation",
+      "at": "2026-08-24T12:00:00.000Z",
+      "concepts": [
+        {
+          "id": "gnn",
+          "name": "Graph Neural Networks"
+        }
+      ],
+      "resources": [
+        {
+          "id": "gnn-evidence-1",
+          "title": "Graph discovery evidence 1",
+          "concepts": [
+            {
+              "id": "gnn",
+              "name": "Graph Neural Networks"
+            }
+          ],
+          "sourceLabel": "Experiment fixture"
+        },
+        {
+          "id": "gnn-evidence-2",
+          "title": "Graph discovery evidence 2",
+          "concepts": [
+            {
+              "id": "gnn",
+              "name": "Graph Neural Networks"
+            }
+          ],
+          "sourceLabel": "Experiment fixture"
+        }
+      ]
+    }
+  ],
+  "wormholes": [],
+  "personalGraph": {
+    "schemaVersion": 1,
+    "version": 1,
+    "nodeOverrides": {
+      "topic": {
+        "position": {
+          "x": 130,
+          "y": 75
+        },
+        "pinned": true,
+        "hidden": false,
+        "label": "Graph discovery · personal",
+        "note": "Experiment note survives restart",
+        "updatedAt": "2026-08-24T12:00:00.000Z"
+      }
+    },
+    "hiddenSystemEdgeIds": [
+      "system:topic_search:topic:search:int-experiment-3"
+    ],
+    "personalEdges": [
+      {
+        "id": "personal-3",
+        "source": "topic",
+        "target": "concept:gnn",
+        "type": "personal_note",
+        "label": "my evidence path",
+        "note": "Private relation"
+      }
+    ]
+  },
+  "createdAt": "2026-08-24T12:00:00.000Z",
+  "updatedAt": "2026-08-24T12:00:00.000Z"
+}
