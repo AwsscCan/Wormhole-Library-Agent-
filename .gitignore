@@ -13,6 +13,9 @@ next-env.d.ts
 prisma/*.db
 prisma/*.db-journal
 
+# memory file store (FileStore 运行时落盘)
+.data/
+
 # misc
 .DS_Store
 coverage/

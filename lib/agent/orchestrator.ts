@@ -39,6 +39,7 @@ import {
   type MemoryStore,
 } from "@/lib/memory/getMemory";
 import { applyPatch } from "@/lib/memory/applyPatch";
+import { sharedStore } from "@/lib/memory/fileStore";
 import { toMemorySnapshot, toMemorySummary } from "@/lib/wormhole/adapter";
 import { generateLiteratureReview } from "@/lib/review";
 import type {
@@ -92,11 +93,17 @@ const gMem = globalThis as unknown as {
 };
 
 /**
- * 正式 MemoryStore 单例（InMemoryStore；主仓库可替换为 Prisma 实现，
- * 接口见 lib/memory/getMemory.ts 的 MemoryStore）。测试亦可直接访问
- * 以断言正式存储内容。
+ * 正式 MemoryStore 单例。
+ * - 运行时：FileStore（lib/memory/fileStore.ts）——JSON 落盘、重启不丢、
+ *   跨 API route 共享同一实例。
+ * - 测试环境（VITEST / NODE_ENV=test）：保持 InMemoryStore，用例隔离
+ *   且不会把 <cwd>/.data 写脏。
+ * - 接 Prisma 时仅需在此替换为 Prisma 实现（接口见 MemoryStore）。
  */
 export function getFormalMemoryStore(): MemoryStore {
+  const isTest =
+    process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+  if (!isTest) return sharedStore;
   if (!gMem.__pkg03MemoryStore) gMem.__pkg03MemoryStore = new InMemoryStore();
   return gMem.__pkg03MemoryStore;
 }
