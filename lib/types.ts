@@ -329,7 +329,8 @@ export interface ApiError {
       | "INTERNAL_ERROR"
       | "UNAUTHORIZED"
       | "FORBIDDEN"
-      | "CONFLICT";
+      | "CONFLICT"
+      | "DEPENDENCY_UNAVAILABLE";
     message: string;
   };
 }
