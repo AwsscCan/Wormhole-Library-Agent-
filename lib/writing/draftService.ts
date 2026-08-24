@@ -50,7 +50,7 @@ export async function generateEvidenceDraft(input: { principal: CurrentPrincipal
   const markdown = `## ${input.focus}\n\n${verified.map((item) => factualSentence(item.excerpt, item.id)).join(" ")}`;
   let checkpoint: WritingCheckpoint = { id: randomUUID(), ownerId: input.principal.id, sessionId: input.sessionId, stage: "draft", createdAt: new Date().toISOString() };
   if (active.checkpoint) await active.checkpoint(checkpoint);
-  else if (!testPorts) { let previous: import("@/lib/writing/types").WritingStage | null = null; for (const stage of ["evidence", "verified_sources", "outline", "draft"] as const) { const saved = await persistStage(input.principal.id, input.sessionId, previous, stage, stage === "draft" ? markdown : ""); checkpoint = { ...saved, stage: saved.stage as import("@/lib/writing/types").WritingStage }; previous = stage; } }
+  else if (!testPorts) { let previous: import("@/lib/writing/types").WritingStage | null = null; for (const stage of ["evidence", "verified_sources", "outline", "draft"] as const) { const saved = await persistStage(input.principal.id, input.sessionId, previous, stage, stage === "draft" ? markdown : ""); checkpoint = { id: saved.id, ownerId: saved.ownerId, sessionId: saved.sessionId, stage: saved.stage as import("@/lib/writing/types").WritingStage, artifactId: saved.artifactId ?? undefined, createdAt: saved.createdAt.toISOString() }; previous = stage; } }
   return {
     markdown,
     citations: verified.map((item) => ({ evidenceId: item.id, marker: `[${item.id}]` })),
