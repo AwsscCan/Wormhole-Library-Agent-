@@ -1,3 +1,4 @@
+import "server-only";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 export class WritingConfigurationError extends Error { constructor() { super("Writing provider encryption is not configured"); } }
