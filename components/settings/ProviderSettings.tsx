@@ -12,6 +12,7 @@ type Provider = { id: string; name: string; baseUrl: string; model: string; wire
 type Preset = { id: string; name: string; providerId: string; model: string; temperature: number; maxTokens: number };
 type ProviderFields = { name: string; baseUrl: string; model: string; wireApi: WireApi };
 const blankProvider: ProviderFields = { name: "", baseUrl: "https://", model: "", wireApi: "chat_completions" };
+const loadFailure = "暂时无法读取配置；请确认当前账户权限和服务状态。";
 
 function isHttpsBaseUrl(baseUrl: string) {
   try { return new URL(baseUrl).protocol === "https:"; } catch { return false; }
@@ -28,42 +29,82 @@ export function ProviderSettings() {
   const apiKeyInput = useRef<HTMLInputElement>(null);
 
   async function load() {
-    const [providerResponse, presetResponse] = await Promise.all([fetch("/api/v3/providers", { cache: "no-store" }), fetch("/api/v3/model-presets", { cache: "no-store" })]);
-    if (!providerResponse.ok || !presetResponse.ok) { setStatus("暂时无法读取配置；请确认当前账户权限和服务状态。"); return; }
-    const nextProviders = await providerResponse.json() as Provider[];
-    setProviders(nextProviders);
-    setPresets(await presetResponse.json() as Preset[]);
-    setPresetForm((current) => ({ ...current, providerId: current.providerId || nextProviders[0]?.id || "" }));
+    try {
+      const [providerResponse, presetResponse] = await Promise.all([
+        fetch("/api/v3/providers", { cache: "no-store" }),
+        fetch("/api/v3/model-presets", { cache: "no-store" }),
+      ]);
+      if (!providerResponse.ok || !presetResponse.ok) { setStatus(loadFailure); return; }
+      const nextProviders = await providerResponse.json() as Provider[];
+      setProviders(nextProviders);
+      setPresets(await presetResponse.json() as Preset[]);
+      setPresetForm((current) => ({ ...current, providerId: current.providerId || nextProviders[0]?.id || "" }));
+    } catch {
+      setStatus(loadFailure);
+    }
   }
+
   useEffect(() => { void load(); }, []);
-  function resetProviderForm() { setEditingId(null); setProviderForm(blankProvider); if (apiKeyInput.current) apiKeyInput.current.value = ""; }
+
+  function resetProviderForm() {
+    setEditingId(null);
+    setProviderForm(blankProvider);
+    if (apiKeyInput.current) apiKeyInput.current.value = "";
+  }
 
   async function saveProvider() {
     if (!providerForm.name.trim() || !providerForm.model.trim() || !isHttpsBaseUrl(providerForm.baseUrl)) { setStatus("请填写名称、模型与 HTTPS Provider Base URL。"); return; }
     const apiKey = apiKeyInput.current?.value ?? "";
     const body = { ...providerForm, ...(apiKey ? { apiKey } : {}) };
     if (apiKeyInput.current) apiKeyInput.current.value = "";
-    setSaving(true); setStatus("");
+    setSaving(true);
+    setStatus("");
     try {
       const response = await fetch(editingId ? `/api/v3/providers/${editingId}` : "/api/v3/providers", { method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!response.ok) { setStatus("保存失败；请检查字段或服务器端加密配置。"); return; }
-      resetProviderForm(); setStatus("Provider 配置已保存。密钥不会再次显示。"); await load();
-    } catch { setStatus("保存失败，请检查网络后重试。"); } finally { setSaving(false); }
+      resetProviderForm();
+      setStatus("Provider 配置已保存。密钥不会再次显示。");
+      await load();
+    } catch {
+      setStatus("保存失败，请检查网络后重试。");
+    } finally {
+      setSaving(false);
+    }
   }
+
   async function deleteProvider(providerId: string) {
-    const response = await fetch(`/api/v3/providers/${providerId}`, { method: "DELETE" });
-    if (!response.ok) { setStatus("删除失败，请重新加载后重试。"); return; }
-    if (editingId === providerId) resetProviderForm(); setStatus("Provider 已删除，关联预设将由服务端一致性规则处理。"); await load();
+    try {
+      const response = await fetch(`/api/v3/providers/${providerId}`, { method: "DELETE" });
+      if (!response.ok) { setStatus("删除失败，请重新加载后再试。"); return; }
+      if (editingId === providerId) resetProviderForm();
+      setStatus("Provider 已删除，关联预设将由服务端一致性规则处理。");
+      await load();
+    } catch {
+      setStatus("删除失败，请检查网络后重试。");
+    }
   }
+
   async function testConnection(providerId: string) {
     setStatus("正在测试连接…");
-    try { const response = await fetch(`/api/v3/providers/${providerId}/connection-test`, { method: "POST" }); setStatus(response.ok ? "连接测试成功。" : "连接测试未通过或尚未启用；未显示服务端细节。"); } catch { setStatus("连接测试无法完成，请检查网络后重试。"); }
+    try {
+      const response = await fetch(`/api/v3/providers/${providerId}/connection-test`, { method: "POST" });
+      setStatus(response.ok ? "连接测试成功。" : "连接测试未通过或尚未启用；未显示服务端细节。");
+    } catch {
+      setStatus("连接测试无法完成，请检查网络后重试。");
+    }
   }
+
   async function savePreset() {
     if (!presetForm.name.trim() || !presetForm.providerId || !presetForm.model.trim()) { setStatus("请填写预设名称、Provider 与模型。"); return; }
-    const response = await fetch("/api/v3/model-presets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: presetForm.name, providerId: presetForm.providerId, model: presetForm.model, temperature: Number(presetForm.temperature), maxTokens: Number(presetForm.maxTokens) }) });
-    if (!response.ok) { setStatus("预设保存失败，请检查字段。"); return; }
-    setPresetForm((current) => ({ ...current, name: "", model: "" })); setStatus("模型预设已保存。"); await load();
+    try {
+      const response = await fetch("/api/v3/model-presets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: presetForm.name, providerId: presetForm.providerId, model: presetForm.model, temperature: Number(presetForm.temperature), maxTokens: Number(presetForm.maxTokens) }) });
+      if (!response.ok) { setStatus("预设保存失败，请检查字段。"); return; }
+      setPresetForm((current) => ({ ...current, name: "", model: "" }));
+      setStatus("模型预设已保存。");
+      await load();
+    } catch {
+      setStatus("预设保存失败，请检查网络后重试。");
+    }
   }
 
   return <div className="mx-auto max-w-5xl space-y-4">

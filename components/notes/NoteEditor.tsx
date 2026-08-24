@@ -29,14 +29,18 @@ export function NoteEditor() {
   const [saving, setSaving] = useState(false);
 
   async function loadNotes() {
-    const response = await fetch("/api/v3/notes", { cache: "no-store" });
-    if (!response.ok) {
+    try {
+      const response = await fetch("/api/v3/notes", { cache: "no-store" });
+      if (!response.ok) {
+        setStatus("暂时无法加载私有笔记。");
+        return;
+      }
+      const nextNotes = await response.json() as Note[];
+      setNotes(nextNotes);
+      setStatus(nextNotes.length ? "" : "尚无笔记。创建的内容只对当前账户可见。");
+    } catch {
       setStatus("暂时无法加载私有笔记。");
-      return;
     }
-    const nextNotes = await response.json() as Note[];
-    setNotes(nextNotes);
-    setStatus(nextNotes.length ? "" : "尚无笔记。创建的内容只对当前账户可见。");
   }
 
   useEffect(() => { void loadNotes(); }, []);
@@ -84,10 +88,14 @@ export function NoteEditor() {
 
   async function remove() {
     if (!selected) return;
-    const response = await fetch(`/api/v3/notes/${selected.id}`, { method: "DELETE" });
-    if (!response.ok) { setStatus("删除失败，请重新加载后再试。"); return; }
-    startNew();
-    await loadNotes();
+    try {
+      const response = await fetch(`/api/v3/notes/${selected.id}`, { method: "DELETE" });
+      if (!response.ok) { setStatus("删除失败，请重新加载后再试。"); return; }
+      startNew();
+      await loadNotes();
+    } catch {
+      setStatus("删除失败，请检查网络后重试。");
+    }
   }
 
   return (
