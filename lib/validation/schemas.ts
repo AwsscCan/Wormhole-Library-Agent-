@@ -3,6 +3,29 @@
  */
 import { z } from "zod";
 
+export const noteLinkSchema = z.object({
+  kind: z.enum(["session", "resource", "graph_node", "draft_section"]),
+  targetId: z.string().min(1),
+}).strict();
+
+const noteFieldsSchema = {
+  title: z.string().min(1).max(160),
+  markdown: z.string().max(50_000),
+  links: z.array(noteLinkSchema).max(64),
+};
+
+export const createNoteSchema = z.object(noteFieldsSchema).strict();
+
+export const updateNoteSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  title: noteFieldsSchema.title.optional(),
+  markdown: noteFieldsSchema.markdown.optional(),
+  links: noteFieldsSchema.links.optional(),
+}).strict().refine(
+  ({ title, markdown, links }) => title !== undefined || markdown !== undefined || links !== undefined,
+  { message: "At least one note field must be provided" },
+);
+
 export const searchRequestSchema = z.object({
   userId: z.string().min(1),
   query: z.string().min(1),

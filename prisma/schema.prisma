@@ -82,6 +82,20 @@ model AuthRateLimit {
   @@index([expiresAt])
 }
 
+model Note {
+  id        String   @id @default(cuid())
+  ownerId   String
+  title     String
+  markdown  String
+  linksJson String   @default("[]")
+  version   Int      @default(1)
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, deletedAt, updatedAt])
+}
+
 model Concept {
   id              String              @id
   name            String
