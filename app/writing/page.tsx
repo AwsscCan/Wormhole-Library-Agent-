@@ -21,6 +21,8 @@ export default function WritingPage() {
   const [focus, setFocus] = useState("");
   const [evidenceInput, setEvidenceInput] = useState("");
   const [result, setResult] = useState<DraftResult | null>(null);
+  const [artifactSessionId, setArtifactSessionId] = useState("");
+  const [reviewStage, setReviewStage] = useState<"draft" | "evidence_link" | "human_review">("draft");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const evidenceIds = useMemo(() => [...new Set(evidenceInput.split(/[\n,]/).map((id) => id.trim()).filter(Boolean))].slice(0, 12), [evidenceInput]);
@@ -40,6 +42,8 @@ export default function WritingPage() {
       });
       if (!response.ok) { setStatus(friendlyError(response)); return; }
       setResult(await response.json() as DraftResult);
+      setArtifactSessionId(sessionId.trim());
+      setReviewStage("draft");
     } catch {
       setStatus("网络不可用，草稿未生成。");
     } finally {
@@ -47,15 +51,49 @@ export default function WritingPage() {
     }
   }
 
-  function download() {
-    if (!result) return;
-    const blob = new Blob([result.markdown], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "evidence-bound-draft.md";
-    anchor.click();
-    URL.revokeObjectURL(url);
+  async function advanceReview(stage: "evidence_link" | "human_review") {
+    if (!result || !artifactSessionId) return;
+    setStatus("");
+    try {
+      const response = await fetch("/api/v3/writing/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: artifactSessionId,
+          stage,
+          ...(stage === "human_review" ? { confirmed: true } : {}),
+        }),
+      });
+      if (!response.ok) {
+        setStatus(stage === "human_review" ? "人工复核确认失败；当前工件不能导出。" : "证据回链失败；当前工件不能进入复核。");
+        return;
+      }
+      setReviewStage(stage);
+      setStatus(stage === "human_review" ? "人工复核已明确确认，可以请求服务端导出。" : "证据回链已完成，请人工检查草稿与引用后确认。" );
+    } catch {
+      setStatus("复核状态无法保存；当前工件不能导出。");
+    }
+  }
+
+  async function download() {
+    if (!result || reviewStage !== "human_review" || !artifactSessionId) return;
+    try {
+      const response = await fetch("/api/v3/writing/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: artifactSessionId }),
+      });
+      if (!response.ok) { setStatus("服务端拒绝导出：请确认该工件已完成最新人工复核。"); return; }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "evidence-bound-draft.md";
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setStatus("导出失败，请检查网络后重试。");
+    }
   }
 
   return <div className="mx-auto max-w-5xl space-y-4">
@@ -71,7 +109,7 @@ export default function WritingPage() {
       </PanelBody></Panel>
       <div className="space-y-4">
         {status && <p className="rounded-md border border-copper/40 bg-copper-faint/30 p-3 text-sm text-copper">{status}</p>}
-        {result && <Panel><PanelHeader icon={FileText} title="draft · 可复核草稿" accent="copper" right={<div className="flex items-center gap-2"><Badge tone={result.source === "provider" ? "cyan" : "copper"}>{result.source === "provider" ? "Provider" : "deterministic"}</Badge><Button size="sm" onClick={download}><Download className="h-3.5 w-3.5" />.md</Button></div>} /><PanelBody className="space-y-4"><SafeMarkdown markdown={result.markdown} className="space-y-3 text-sm text-steel" /><div className="border-t border-ink-border pt-3"><p className="font-mono text-[10px] uppercase tracking-widest text-steel-dim">citations · 段落证据标记</p><ul className="mt-2 space-y-1 text-xs text-steel">{result.citations.map((citation) => <li key={`${citation.evidenceId}-${citation.marker}`}><code className="text-pulse">{citation.marker}</code> {citation.evidenceId}</li>)}</ul></div></PanelBody></Panel>}
+        {result && <Panel><PanelHeader icon={FileText} title="draft · 可复核草稿" accent="copper" right={<div className="flex items-center gap-2"><Badge tone={result.source === "provider" ? "cyan" : "copper"}>{result.source === "provider" ? "Provider" : "deterministic"}</Badge>{reviewStage === "draft" && <Button size="sm" onClick={() => advanceReview("evidence_link")}>建立证据回链</Button>}{reviewStage === "evidence_link" && <Button size="sm" onClick={() => advanceReview("human_review")}>确认人工复核</Button>}{reviewStage === "human_review" && <Button size="sm" onClick={download}><Download className="h-3.5 w-3.5" />.md</Button>}</div>} /><PanelBody className="space-y-4"><SafeMarkdown markdown={result.markdown} className="space-y-3 text-sm text-steel" /><div className="border-t border-ink-border pt-3"><p className="font-mono text-[10px] uppercase tracking-widest text-steel-dim">citations · 段落证据标记</p><ul className="mt-2 space-y-1 text-xs text-steel">{result.citations.map((citation) => <li key={`${citation.evidenceId}-${citation.marker}`}><code className="text-pulse">{citation.marker}</code> {citation.evidenceId}</li>)}</ul></div></PanelBody></Panel>}
       </div>
     </div>
   </div>;

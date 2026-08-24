@@ -13,6 +13,7 @@ const databaseFiles = [databasePath, `${databasePath}-journal`, `${databasePath}
 const migrationPaths = [
   resolve(process.cwd(), "prisma", "migrations", "202608240001_baseline_auth_notes", "migration.sql"),
   resolve(process.cwd(), "prisma", "migrations", "202608240002_provider_writing", "migration.sql"),
+  resolve(process.cwd(), "prisma", "migrations", "202608240003_reviewed_artifact_export", "migration.sql"),
 ];
 const testOrigin = "http://writing-routes.test";
 const ownerA = "a".repeat(43);
@@ -22,11 +23,19 @@ type PortsModule = typeof import("@/lib/writing/ports");
 type DraftRoute = typeof import("@/app/api/v3/writing/drafts/route");
 type CandidateRoute = typeof import("@/app/api/v3/writing/candidates/route");
 type StageRoute = typeof import("@/app/api/v3/writing/stages/route");
+type ReviewRoute = typeof import("@/app/api/v3/writing/review/route");
+type ExportRoute = typeof import("@/app/api/v3/writing/export/route");
+type ProviderRepository = typeof import("@/lib/llm/providerRepository");
+type ProviderAdapter = typeof import("@/lib/llm/providerAdapter");
 
 let ports: PortsModule;
 let draftRoute: DraftRoute;
 let candidateRoute: CandidateRoute;
 let stageRoute: StageRoute;
+let reviewRoute: ReviewRoute;
+let exportRoute: ExportRoute;
+let providerRepository: ProviderRepository;
+let providerAdapter: ProviderAdapter;
 
 const evidence = (id: string): EvidenceItem => ({
   id,
@@ -60,11 +69,40 @@ const sessions = new Map<string, ResearchSessionReadPort>([
       "method-3",
     ],
   }],
+  ["provider-success-session", {
+    id: "provider-success-session",
+    ownerId: ownerA,
+    researchQuestion: "Provider methods",
+    evidenceIds: [
+      ...Array.from({ length: 15 }, (_, index) => `unrelated-${index + 1}`),
+      "method-1",
+      "method-2",
+      "method-3",
+    ],
+  }],
   ["missing-session", {
     id: "missing-session",
     ownerId: ownerA,
     researchQuestion: "Missing",
     evidenceIds: ["available", "missing-1", "missing-2"],
+  }],
+  ["review-session", {
+    id: "review-session",
+    ownerId: ownerA,
+    researchQuestion: "Review",
+    evidenceIds: ["review-1", "review-2", "review-3"],
+  }],
+  ["provider-failure-session", {
+    id: "provider-failure-session",
+    ownerId: ownerA,
+    researchQuestion: "Provider failure",
+    evidenceIds: ["failure-1", "failure-2", "failure-3"],
+  }],
+  ["provider-no-key-session", {
+    id: "provider-no-key-session",
+    ownerId: ownerA,
+    researchQuestion: "Provider without key",
+    evidenceIds: ["no-key-1", "no-key-2", "no-key-3"],
   }],
 ]);
 
@@ -103,7 +141,10 @@ function expectPrivate(response: Response) {
 }
 
 describe("production writing route integration", () => {
-  const originalDatabaseUrl = process.env.DATABASE_URL;
+  const originalEnvironment = {
+    databaseUrl: process.env.DATABASE_URL,
+    encryptionKey: process.env.WRITING_CONFIG_ENCRYPTION_KEY,
+  };
 
   beforeAll(async () => {
     await mkdir(dirname(databasePath), { recursive: true });
@@ -113,16 +154,22 @@ describe("production writing route integration", () => {
     for (const path of migrationPaths) database.exec(await readFile(path, "utf8"));
     database.close();
     process.env.DATABASE_URL = databaseUrl;
+    process.env.WRITING_CONFIG_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
     vi.resetModules();
     delete (globalThis as { __prisma?: unknown }).__prisma;
     ports = await import("@/lib/writing/ports");
     draftRoute = await import("@/app/api/v3/writing/drafts/route");
     candidateRoute = await import("@/app/api/v3/writing/candidates/route");
     stageRoute = await import("@/app/api/v3/writing/stages/route");
+    reviewRoute = await import("@/app/api/v3/writing/review/route");
+    exportRoute = await import("@/app/api/v3/writing/export/route");
+    providerRepository = await import("@/lib/llm/providerRepository");
+    providerAdapter = await import("@/lib/llm/providerAdapter");
   });
 
   beforeEach(() => {
     ports.clearWritingPortsForTest();
+    providerAdapter.clearProviderEgressForTest();
   });
 
   afterAll(async () => {
@@ -130,8 +177,10 @@ describe("production writing route integration", () => {
     const prisma = (globalThis as { __prisma?: { $disconnect(): Promise<void> } }).__prisma;
     await prisma?.$disconnect();
     delete (globalThis as { __prisma?: unknown }).__prisma;
-    if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
-    else process.env.DATABASE_URL = originalDatabaseUrl;
+    if (originalEnvironment.databaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalEnvironment.databaseUrl;
+    if (originalEnvironment.encryptionKey === undefined) delete process.env.WRITING_CONFIG_ENCRYPTION_KEY;
+    else process.env.WRITING_CONFIG_ENCRYPTION_KEY = originalEnvironment.encryptionKey;
     await Promise.all(databaseFiles.map((path) => rm(path, { force: true })));
   });
 
@@ -150,6 +199,13 @@ describe("production writing route integration", () => {
         sessionId: "state-session",
         stage: "evidence",
         content: "evidence",
+      })),
+      reviewRoute.POST(jsonRequest(ownerA, "/api/v3/writing/review", "POST", {
+        sessionId: "state-session",
+        stage: "evidence_link",
+      })),
+      exportRoute.POST(jsonRequest(ownerA, "/api/v3/writing/export", "POST", {
+        sessionId: "state-session",
       })),
     ]);
     for (const response of responses) {
@@ -206,7 +262,7 @@ describe("production writing route integration", () => {
     ]);
   });
 
-  it("derives every transition from the last owner/session checkpoint and stores immutable artifacts", async () => {
+  it("binds the generated draft artifact to explicit evidence review before same-owner server export", async () => {
     installPorts();
     const forged = await stageRoute.POST(jsonRequest(ownerA, "/api/v3/writing/stages", "POST", {
       sessionId: "state-session",
@@ -222,7 +278,7 @@ describe("production writing route integration", () => {
     }));
     expect(skipped.status).toBe(400);
 
-    for (const stage of ["evidence", "verified_sources", "outline", "draft", "evidence_link", "human_review", "export"] as WritingStage[]) {
+    for (const stage of ["evidence", "verified_sources", "outline"] as WritingStage[]) {
       const response = await stageRoute.POST(jsonRequest(ownerA, "/api/v3/writing/stages", "POST", {
         sessionId: "state-session",
         stage,
@@ -232,18 +288,75 @@ describe("production writing route integration", () => {
       expectPrivate(response);
     }
 
+    const generatedResponse = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {
+      sessionId: "state-session",
+      focus: "reviewed methods",
+      evidenceIds: ["s1", "s2", "s3"],
+    }));
+    expect(generatedResponse.status).toBe(201);
+    const generated = await generatedResponse.json() as { markdown: string };
+
+    const injected = await stageRoute.POST(jsonRequest(ownerA, "/api/v3/writing/stages", "POST", {
+      sessionId: "state-session",
+      stage: "evidence_link",
+      content: "attacker-controlled replacement markdown",
+    }));
+    expect(injected.status).toBe(400);
+    const earlyExport = await exportRoute.POST(jsonRequest(ownerA, "/api/v3/writing/export", "POST", {
+      sessionId: "state-session",
+    }));
+    expect(earlyExport.status).toBe(400);
+
+    const evidenceLink = await reviewRoute.POST(jsonRequest(ownerA, "/api/v3/writing/review", "POST", {
+      sessionId: "state-session",
+      stage: "evidence_link",
+    }));
+    expect(evidenceLink.status).toBe(201);
+    const unconfirmedReview = await reviewRoute.POST(jsonRequest(ownerA, "/api/v3/writing/review", "POST", {
+      sessionId: "state-session",
+      stage: "human_review",
+      confirmed: false,
+    }));
+    expect(unconfirmedReview.status).toBe(400);
+    const confirmedReview = await reviewRoute.POST(jsonRequest(ownerA, "/api/v3/writing/review", "POST", {
+      sessionId: "state-session",
+      stage: "human_review",
+      confirmed: true,
+    }));
+    expect(confirmedReview.status).toBe(201);
+
+    const forbiddenExport = await exportRoute.POST(jsonRequest(ownerB, "/api/v3/writing/export", "POST", {
+      sessionId: "state-session",
+    }));
+    expect(forbiddenExport.status).toBe(403);
+    const exported = await exportRoute.POST(jsonRequest(ownerA, "/api/v3/writing/export", "POST", {
+      sessionId: "state-session",
+    }));
+    expect(exported.status).toBe(200);
+    expectPrivate(exported);
+    expect(exported.headers.get("content-type")).toContain("text/markdown");
+    expect(exported.headers.get("content-disposition")).toContain("attachment");
+    await expect(exported.text()).resolves.toBe(generated.markdown);
+    const regenerated = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {
+      sessionId: "state-session",
+      focus: "unpersisted replacement",
+      evidenceIds: ["s1", "s2", "s3"],
+    }));
+    expect(regenerated.status).toBe(400);
+
     const database = new DatabaseSync(databasePath);
     const checkpoints = database.prepare("SELECT stage, artifactId FROM WritingCheckpoint WHERE ownerId = ? AND sessionId = ? ORDER BY createdAt, rowid")
       .all(ownerA, "state-session") as Array<{ stage: string; artifactId: string }>;
-    const artifacts = database.prepare("SELECT stage, contentHash FROM WritingArtifact WHERE ownerId = ? AND sessionId = ? ORDER BY createdAt, rowid")
-      .all(ownerA, "state-session") as Array<{ stage: string; contentHash: string }>;
+    const artifacts = database.prepare("SELECT stage, contentHash, content FROM WritingArtifact WHERE ownerId = ? AND sessionId = ? ORDER BY createdAt, rowid")
+      .all(ownerA, "state-session") as Array<{ stage: string; contentHash: string; content: string }>;
     database.close();
     expect(checkpoints.map(({ stage }) => stage)).toEqual([
       "evidence", "verified_sources", "outline", "draft", "evidence_link", "human_review", "export",
     ]);
-    expect(new Set(checkpoints.map(({ artifactId }) => artifactId))).toHaveLength(7);
-    expect(artifacts).toHaveLength(7);
+    expect(new Set(checkpoints.slice(3).map(({ artifactId }) => artifactId))).toHaveLength(1);
+    expect(artifacts).toHaveLength(4);
     expect(artifacts.every(({ contentHash }) => /^[a-f0-9]{64}$/.test(contentHash))).toBe(true);
+    expect(artifacts.find(({ stage }) => stage === "draft")?.content).toBe(generated.markdown);
   });
 
   it("rejects a session evidence list containing missing records", async () => {
@@ -259,7 +372,7 @@ describe("production writing route integration", () => {
     });
   });
 
-  it("selects bounded focus context from the complete session list and marks every sentence", async () => {
+  it("uses only the caller-selected verified evidence even when unselected session evidence scores higher", async () => {
     installPorts();
     const response = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {
       sessionId: "focus-session",
@@ -270,8 +383,112 @@ describe("production writing route integration", () => {
     const draft = await response.json() as { markdown: string; source: string; checkpointId: string; citations: Array<{ evidenceId: string }> };
     expect(draft.source).toBe("deterministic");
     expect(draft.checkpointId).toBeTruthy();
-    expect(draft.citations).toHaveLength(12);
-    expect(draft.citations.slice(0, 3).map(({ evidenceId }) => evidenceId)).toEqual(["method-1", "method-2", "method-3"]);
-    expect(draft.markdown.match(/\[method-1\]/g)).toHaveLength(4);
+    expect(draft.citations.map(({ evidenceId }) => evidenceId)).toEqual(["unrelated-1", "unrelated-2", "unrelated-3"]);
+    expect(draft.markdown).not.toContain("method-1");
+  });
+
+  it("uses the owner step preset before lower-precedence presets and sends only selected evidence to provider generation", async () => {
+    installPorts();
+    const principal = { id: ownerA, mode: "guest" } as const;
+    const provider = await providerRepository.createProvider(principal, {
+      name: "Writing provider",
+      baseUrl: "https://provider.example.test",
+      model: "provider-default",
+      wireApi: "responses",
+      apiKey: "owner-secret",
+    });
+    const presets = await Promise.all(["step", "workflow", "role", "default"].map((name) =>
+      providerRepository.createPreset(principal, {
+        name,
+        providerId: provider.id,
+        model: `${name}-model`,
+        temperature: 0.2,
+        maxTokens: 600,
+      })));
+    let providerPayload = "";
+    providerAdapter.installProviderEgress({
+      lookup: async () => [{ address: "93.184.216.34", family: 4 }],
+      request: async (probe) => {
+        providerPayload = String(probe.init.body);
+        return {
+          status: 200,
+          headers: new Headers(),
+          body: JSON.stringify({ output_text: "Provider synthesis. [unrelated-1] Provider comparison. [unrelated-2] Provider conclusion. [unrelated-3]" }),
+        };
+      },
+    });
+
+    const response = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {
+      sessionId: "provider-success-session",
+      focus: "methods",
+      evidenceIds: ["unrelated-1", "unrelated-2", "unrelated-3"],
+      stepPresetId: presets[0].id,
+      workflowPresetId: presets[1].id,
+      rolePresetId: presets[2].id,
+      userDefaultPresetId: presets[3].id,
+    }));
+    expect(response.status).toBe(201);
+    const draft = await response.json() as { source: string; markdown: string; citations: Array<{ evidenceId: string }> };
+    expect(draft.source).toBe("provider");
+    expect(draft.markdown).toContain("Provider synthesis");
+    expect(JSON.parse(providerPayload)).toMatchObject({ model: "step-model" });
+    expect(providerPayload).toContain("unrelated-1");
+    expect(providerPayload).not.toContain("method-1");
+  });
+
+  it("falls back deterministically when the selected owner model fails or its Provider has no key", async () => {
+    installPorts();
+    const principal = { id: ownerA, mode: "guest" } as const;
+    const failingProvider = await providerRepository.createProvider(principal, {
+      name: "Failing provider",
+      baseUrl: "https://provider-failure.example.test",
+      model: "provider-default",
+      wireApi: "chat_completions",
+      apiKey: "owner-secret",
+    });
+    const failingPreset = await providerRepository.createPreset(principal, {
+      name: "Failing preset",
+      providerId: failingProvider.id,
+      model: "failing-model",
+      temperature: 0,
+      maxTokens: 100,
+    });
+    let transportAttempts = 0;
+    providerAdapter.installProviderEgress({
+      lookup: async () => [{ address: "93.184.216.34", family: 4 }],
+      request: async () => { transportAttempts += 1; throw new Error("mock model failure"); },
+    });
+    const failedModel = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {
+      sessionId: "provider-failure-session",
+      focus: "failure",
+      evidenceIds: ["failure-1", "failure-2", "failure-3"],
+      stepPresetId: failingPreset.id,
+    }));
+    expect(failedModel.status).toBe(201);
+    await expect(failedModel.json()).resolves.toMatchObject({ source: "deterministic" });
+    expect(transportAttempts).toBe(1);
+
+    const noKeyProvider = await providerRepository.createProvider(principal, {
+      name: "No-key provider",
+      baseUrl: "https://provider-no-key.example.test",
+      model: "provider-default",
+      wireApi: "anthropic_messages",
+    });
+    const noKeyPreset = await providerRepository.createPreset(principal, {
+      name: "No-key preset",
+      providerId: noKeyProvider.id,
+      model: "no-key-model",
+      temperature: 0,
+      maxTokens: 100,
+    });
+    const noKey = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {
+      sessionId: "provider-no-key-session",
+      focus: "no key",
+      evidenceIds: ["no-key-1", "no-key-2", "no-key-3"],
+      stepPresetId: noKeyPreset.id,
+    }));
+    expect(noKey.status).toBe(201);
+    await expect(noKey.json()).resolves.toMatchObject({ source: "deterministic" });
+    expect(transportAttempts).toBe(1);
   });
 });

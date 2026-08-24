@@ -49,6 +49,9 @@ afterEach(async () => {
   await act(async () => { roots.splice(0).forEach((root) => root.unmount()); });
   document.body.replaceChildren();
   vi.unstubAllGlobals();
+  Reflect.deleteProperty(URL, "createObjectURL");
+  Reflect.deleteProperty(URL, "revokeObjectURL");
+  vi.restoreAllMocks();
 });
 
 describe("workspace UI rejected-fetch recovery", () => {
@@ -98,6 +101,23 @@ describe("workspace UI rejected-fetch recovery", () => {
 });
 
 describe("workspace UI security behavior", () => {
+  it("clears a stored provider key only after the explicit confirmed clear action", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json([provider])).mockResolvedValueOnce(json([]))
+      .mockResolvedValueOnce(json({ ...provider, hasApiKey: false }))
+      .mockResolvedValueOnce(json([{ ...provider, hasApiKey: false }])).mockResolvedValueOnce(json([]));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    const container = await render(createElement(ProviderSettings));
+    expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("清除密钥"))).toBe(true);
+    await click(container, "清除密钥");
+    await settle();
+    expect(fetchMock.mock.calls[2][0]).toBe("/api/v3/providers/provider-1");
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "PATCH" });
+    expect(JSON.parse(String((fetchMock.mock.calls[2][1] as RequestInit).body))).toEqual({ apiKey: "" });
+    expect(container.textContent).toContain("Provider 密钥已清除");
+  });
+
   it("clears the provider key input after submitting it", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(json([])).mockResolvedValueOnce(json([]))
@@ -126,6 +146,65 @@ describe("workspace UI security behavior", () => {
     await click(container, "生成有证据草稿", true);
     await settle();
     expect(container.textContent).toContain("写作证据端口尚未接入");
+  });
+
+  it("downloads only the server export after explicit evidence linking and human review", async () => {
+    const generated = {
+      markdown: "# Unreviewed browser preview",
+      citations: ["e1", "e2", "e3"].map((evidenceId) => ({ evidenceId, marker: `[${evidenceId}]` })),
+      source: "deterministic",
+      checkpointId: "draft-checkpoint",
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json(generated))
+      .mockResolvedValueOnce(json({ stage: "evidence_link" }))
+      .mockResolvedValueOnce(json({ stage: "human_review" }))
+      .mockResolvedValueOnce(new Response("# Server-reviewed export", {
+        status: 200,
+        headers: { "content-type": "text/markdown" },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+    const createObjectUrl = vi.fn().mockReturnValue("blob:reviewed-export");
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectUrl });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectUrl });
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const container = await render(createElement(WritingPage));
+    const inputs = [...container.querySelectorAll("input")];
+    await setInput(inputs[0], "session-1");
+    await setInput(inputs[1], "Methods");
+    await setInput(container.querySelector("textarea")!, "e1,e2,e3");
+    await click(container, "生成有证据草稿", true);
+    await settle();
+
+    expect([...container.querySelectorAll("button")].some((button) => button.textContent === ".md")).toBe(false);
+    await click(container, "建立证据回链", true);
+    await settle();
+    await click(container, "确认人工复核", true);
+    await settle();
+    await click(container, ".md", true);
+    await settle();
+
+    expect(fetchMock.mock.calls.slice(1).map(([url]) => url)).toEqual([
+      "/api/v3/writing/review",
+      "/api/v3/writing/review",
+      "/api/v3/writing/export",
+    ]);
+    expect(JSON.parse(String((fetchMock.mock.calls[2][1] as RequestInit).body))).toMatchObject({
+      sessionId: "session-1",
+      stage: "human_review",
+      confirmed: true,
+    });
+    const exportedBlob = createObjectUrl.mock.calls[0][0] as Blob;
+    const exportedText = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(String(reader.result)));
+      reader.addEventListener("error", () => reject(reader.error));
+      reader.readAsText(exportedBlob);
+    });
+    expect(exportedText).toBe("# Server-reviewed export");
+    expect(anchorClick).toHaveBeenCalledOnce();
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:reviewed-export");
   });
 
   it("strips unsafe raw HTML and hardens an allowed Markdown link", async () => {

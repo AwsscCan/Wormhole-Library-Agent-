@@ -12,6 +12,7 @@ const databaseFiles = [databasePath, `${databasePath}-journal`, `${databasePath}
 const migrationPaths = [
   resolve(process.cwd(), "prisma", "migrations", "202608240001_baseline_auth_notes", "migration.sql"),
   resolve(process.cwd(), "prisma", "migrations", "202608240002_provider_writing", "migration.sql"),
+  resolve(process.cwd(), "prisma", "migrations", "202608240003_reviewed_artifact_export", "migration.sql"),
 ];
 const testOrigin = "http://provider-routes.test";
 const ownerA = "p".repeat(43);
@@ -224,6 +225,47 @@ describe("Provider Prisma and route integration", () => {
       expect(response.status).toBe(400);
       expectPrivate(response);
     }
+  });
+
+  it("rejects hostile or malformed origins before key decryption, rate limiting, DNS, or egress", async () => {
+    const { body } = await createProvider();
+    let lookups = 0;
+    let requests = 0;
+    adapter.installProviderEgress({
+      lookup: async () => { lookups += 1; return [{ address: "93.184.216.34", family: 4 }]; },
+      request: async () => { requests += 1; return { status: 200, headers: new Headers() }; },
+    });
+    const configuredKey = process.env.WRITING_CONFIG_ENCRYPTION_KEY;
+    delete process.env.WRITING_CONFIG_ENCRYPTION_KEY;
+    try {
+      for (const origin of ["https://attacker.example", "not a valid origin"]) {
+        const response = await connectionRoute.POST(guestRequest(ownerA, `/api/v3/providers/${body.id}/connection-test`, {
+          method: "POST",
+          headers: { origin },
+        }), { params: Promise.resolve({ providerId: body.id }) });
+        expect(response.status).toBe(403);
+        expectPrivate(response);
+      }
+    } finally {
+      process.env.WRITING_CONFIG_ENCRYPTION_KEY = configuredKey;
+    }
+    const database = new DatabaseSync(databasePath);
+    const rateRows = (database.prepare("SELECT count(*) AS count FROM ProviderConnectionRateLimit").get() as { count: number }).count;
+    database.close();
+    expect({ lookups, requests, rateRows }).toEqual({ lookups: 0, requests: 0, rateRows: 0 });
+  });
+
+  it("allows an explicit same-origin browser connection test", async () => {
+    const { body } = await createProvider();
+    adapter.installProviderEgress({
+      lookup: async () => [{ address: "93.184.216.34", family: 4 }],
+      request: async () => ({ status: 200, headers: new Headers() }),
+    });
+    const response = await connectionRoute.POST(guestRequest(ownerA, `/api/v3/providers/${body.id}/connection-test`, {
+      method: "POST",
+      headers: { origin: testOrigin },
+    }), { params: Promise.resolve({ providerId: body.id }) });
+    expect(response.status).toBe(200);
   });
 
   it("fails provider writes privately when server encryption is not configured", async () => {

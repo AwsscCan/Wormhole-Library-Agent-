@@ -137,6 +137,9 @@ export async function persistStage(
   stage: WritingStage,
   content: string,
 ): Promise<WritingCheckpoint> {
+  if (["evidence_link", "human_review", "export"].includes(stage)) {
+    throw new WritingStateError(`Stage ${stage} requires the protected artifact lifecycle`);
+  }
   return getPrisma().$transaction(async (transaction) => {
     const previous = await transaction.writingCheckpoint.findFirst({
       where: { ownerId, sessionId },
@@ -151,7 +154,7 @@ export async function persistStage(
     const artifactId = randomUUID();
     const contentHash = createHash("sha256").update(content).digest("hex");
     await transaction.writingArtifact.create({
-      data: { id: artifactId, ownerId, sessionId, stage, contentHash },
+      data: { id: artifactId, ownerId, sessionId, stage, contentHash, content },
     });
     const checkpoint = await transaction.writingCheckpoint.create({
       data: { id: randomUUID(), ownerId, sessionId, stage, artifactId },
@@ -166,6 +169,54 @@ export async function resumeWriting(ownerId: string, sessionId: string): Promise
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
   return last ? checkpointDto(last) : null;
+}
+
+export async function advanceDraftArtifactStage(
+  ownerId: string,
+  sessionId: string,
+  stage: "evidence_link" | "human_review",
+): Promise<WritingCheckpoint> {
+  return getPrisma().$transaction(async (transaction) => {
+    const previous = await transaction.writingCheckpoint.findFirst({
+      where: { ownerId, sessionId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    if (!previous) throw new WritingStateError(`Cannot begin writing at ${stage}`);
+    advanceWritingStage(previous.stage as WritingStage, stage);
+    const artifact = await transaction.writingArtifact.findFirst({
+      where: { id: previous.artifactId, ownerId, sessionId, stage: "draft" },
+    });
+    if (!artifact) throw new WritingStateError("Protected writing stage is not bound to a draft artifact");
+    const checkpoint = await transaction.writingCheckpoint.create({
+      data: { id: randomUUID(), ownerId, sessionId, stage, artifactId: artifact.id },
+    });
+    return checkpointDto(checkpoint);
+  });
+}
+
+export async function exportReviewedArtifact(
+  ownerId: string,
+  sessionId: string,
+): Promise<{ markdown: string; checkpoint: WritingCheckpoint } | null> {
+  return getPrisma().$transaction(async (transaction) => {
+    const previous = await transaction.writingCheckpoint.findFirst({
+      where: { ownerId, sessionId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    if (!previous || (previous.stage !== "human_review" && previous.stage !== "export")) return null;
+    const artifact = await transaction.writingArtifact.findFirst({
+      where: { id: previous.artifactId, ownerId, sessionId, stage: "draft" },
+    });
+    if (!artifact) return null;
+    if (previous.stage === "export") {
+      return { markdown: artifact.content, checkpoint: checkpointDto(previous) };
+    }
+    advanceWritingStage("human_review", "export");
+    const checkpoint = await transaction.writingCheckpoint.create({
+      data: { id: randomUUID(), ownerId, sessionId, stage: "export", artifactId: artifact.id },
+    });
+    return { markdown: artifact.content, checkpoint: checkpointDto(checkpoint) };
+  });
 }
 
 export async function consumeConnectionTest(ownerId: string, providerId: string, now = new Date()) {

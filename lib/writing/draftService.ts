@@ -1,11 +1,17 @@
 import type { CurrentPrincipal } from "@/lib/auth/principal";
+import { generateProviderText } from "@/lib/llm/providerAdapter";
+import {
+  getOwnedProviderSecret,
+  resolveModelForWriting,
+} from "@/lib/llm/providerRepository";
 import {
   requireWritingPorts,
   WritingPortsUnavailableError,
   writingPortsAreInstalled,
 } from "@/lib/writing/ports";
 import {
-  listVerifiedCandidates,
+  advanceDraftArtifactStage,
+  exportReviewedArtifact,
   persistCandidate,
   persistStage,
   resumeWriting,
@@ -80,6 +86,54 @@ async function loadCompleteSessionEvidence(
   return loaded as EvidenceItem[];
 }
 
+function deterministicMarkdown(focus: string, evidence: EvidenceItem[]): string {
+  return `## ${focus}\n\n${evidence.map((item) => factualSentence(item.excerpt, item.id)).join(" ")}`;
+}
+
+function evidencePrompt(focus: string, evidence: EvidenceItem[]): string {
+  return [
+    "Write a concise Markdown section grounded only in the allowed evidence JSON below.",
+    "Every factual sentence must end with an allowed evidence marker in the exact form [evidence-id].",
+    "Never cite, mention, infer from, or invent evidence outside this JSON.",
+    `Section focus: ${focus}`,
+    `Allowed evidence JSON: ${JSON.stringify(evidence.map(({ id, title, excerpt, provenance }) => ({ id, title, excerpt, provenance })))}`,
+  ].join("\n");
+}
+
+function evidenceMarkers(markdown: string, allowedIds: Set<string>): string[] | null {
+  const markers = [...markdown.matchAll(/\[([^\]\r\n]+)\]/g)].map((match) => match[1]);
+  if (!markers.length || markers.some((id) => !allowedIds.has(id))) return null;
+  const prose = markdown.split(/\r?\n/).filter((line) => !line.trim().startsWith("#")).join(" ");
+  const sentences = prose.match(/[^.!?。！？]+[.!?。！？]+(?:\s*\[[^\]\r\n]+\])?/g) ?? [];
+  if (!sentences.length || sentences.some((sentence) => !/\[[^\]\r\n]+\]\s*$/.test(sentence))) return null;
+  return [...new Set(markers)];
+}
+
+async function providerMarkdown(input: {
+  principal: CurrentPrincipal;
+  focus: string;
+  evidence: EvidenceItem[];
+  stepPresetId?: string;
+  workflowPresetId?: string;
+  rolePresetId?: string;
+  userDefaultPresetId?: string;
+}): Promise<{ markdown: string; citedIds: string[] } | null> {
+  try {
+    const preset = await resolveModelForWriting(input.principal, input);
+    if (!preset) return null;
+    const { provider, apiKey } = await getOwnedProviderSecret(input.principal, preset.providerId);
+    const markdown = await generateProviderText(provider, apiKey, {
+      model: preset.model,
+      temperature: preset.temperature,
+      maxTokens: preset.maxTokens,
+    }, evidencePrompt(input.focus, input.evidence));
+    const citedIds = evidenceMarkers(markdown, new Set(input.evidence.map(({ id }) => id)));
+    return citedIds ? { markdown, citedIds } : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function discoverWritingEvidence(input: {
   principal: CurrentPrincipal;
   sessionId: string;
@@ -109,7 +163,9 @@ async function advanceToDraft(
   ];
   let checkpoint = await resumeWriting(principal.id, sessionId);
   const completedIndex = checkpoint ? stages.findIndex(({ stage }) => stage === checkpoint?.stage) : -1;
-  if (checkpoint && completedIndex === -1) return checkpoint;
+  if (checkpoint?.stage === "draft" || (checkpoint && completedIndex === -1)) {
+    throw new WritingError("BAD_REQUEST", "This research session already has a server-owned draft artifact");
+  }
   for (const item of stages.slice(completedIndex + 1)) {
     checkpoint = await persistStage(principal.id, sessionId, item.stage, item.content);
   }
@@ -122,6 +178,10 @@ export async function generateEvidenceDraft(input: {
   sessionId: string;
   focus: string;
   evidenceIds: string[];
+  stepPresetId?: string;
+  workflowPresetId?: string;
+  rolePresetId?: string;
+  userDefaultPresetId?: string;
 }): Promise<DraftResult> {
   if (input.evidenceIds.length < 3) {
     throw new WritingError("BAD_REQUEST", "At least three verified evidence items are required");
@@ -131,34 +191,26 @@ export async function generateEvidenceDraft(input: {
       || input.evidenceIds.some((id) => !session.evidenceIds.includes(id))) {
     throw new WritingError("BAD_REQUEST", "Selected evidence must belong to this research session");
   }
-
-  const completeSessionEvidence = await loadCompleteSessionEvidence(
+  const selectedEvidence = await loadCompleteSessionEvidence(
     input.principal,
     input.sessionId,
-    session.evidenceIds,
+    input.evidenceIds,
   );
-  const byId = new Map(completeSessionEvidence.map((item) => [item.id, item]));
-  if (input.evidenceIds.some((id) => {
-    const item = byId.get(id);
-    return !item || item.verificationStatus !== "verified" || !item.userConfirmedAt;
-  })) {
+  if (selectedEvidence.some((item) => item.verificationStatus !== "verified" || !item.userConfirmedAt)) {
     throw new WritingError("BAD_REQUEST", "Selected evidence must be verified and user confirmed");
   }
-
-  const persisted = await listVerifiedCandidates(input.principal.id, input.sessionId);
-  const allVerified = [...completeSessionEvidence.filter(
-    (item) => item.verificationStatus === "verified" && Boolean(item.userConfirmedAt),
-  ), ...persisted]
-    .filter((item, index, all) => all.findIndex(({ id }) => id === item.id) === index);
-  if (allVerified.length < 3) {
-    throw new WritingError("BAD_REQUEST", "At least three verified and user-confirmed evidence items are required");
+  const activeCheckpoint = await resumeWriting(input.principal.id, input.sessionId);
+  if (activeCheckpoint && ["draft", "evidence_link", "human_review", "export"].includes(activeCheckpoint.stage)) {
+    throw new WritingError("BAD_REQUEST", "This research session already has a server-owned draft artifact");
   }
+
   const focusTerms = input.focus.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-  const verified = allVerified.map((item, index) => ({ item, index }))
+  const verified = selectedEvidence.map((item, index) => ({ item, index }))
     .sort((left, right) => focusScore(right.item, focusTerms) - focusScore(left.item, focusTerms) || left.index - right.index)
     .slice(0, 12)
     .map(({ item }) => item);
-  const markdown = `## ${input.focus}\n\n${verified.map((item) => factualSentence(item.excerpt, item.id)).join(" ")}`;
+  const generated = await providerMarkdown({ ...input, evidence: verified });
+  const markdown = generated?.markdown ?? deterministicMarkdown(input.focus, verified);
   const checkpoint = await advanceToDraft(
     input.principal,
     input.sessionId,
@@ -168,8 +220,32 @@ export async function generateEvidenceDraft(input: {
   );
   return {
     markdown,
-    citations: verified.map((item) => ({ evidenceId: item.id, marker: `[${item.id}]` })),
-    source: "deterministic",
+    citations: (generated?.citedIds ?? verified.map(({ id }) => id))
+      .map((evidenceId) => ({ evidenceId, marker: `[${evidenceId}]` })),
+    source: generated ? "provider" : "deterministic",
     checkpointId: checkpoint.id,
   };
+}
+
+export async function advanceDraftReview(input: {
+  principal: CurrentPrincipal;
+  sessionId: string;
+  stage: "evidence_link" | "human_review";
+  confirmed?: boolean;
+}): Promise<WritingCheckpoint> {
+  await requireOwnedResearchSession(input.principal, input.sessionId);
+  if (input.stage === "human_review" && input.confirmed !== true) {
+    throw new WritingError("BAD_REQUEST", "Human review must be explicitly confirmed");
+  }
+  return advanceDraftArtifactStage(input.principal.id, input.sessionId, input.stage);
+}
+
+export async function exportEvidenceDraft(input: {
+  principal: CurrentPrincipal;
+  sessionId: string;
+}): Promise<{ markdown: string; checkpoint: WritingCheckpoint }> {
+  await requireOwnedResearchSession(input.principal, input.sessionId);
+  const artifact = await exportReviewedArtifact(input.principal.id, input.sessionId);
+  if (!artifact) throw new WritingError("BAD_REQUEST", "The latest draft has not completed human review");
+  return artifact;
 }

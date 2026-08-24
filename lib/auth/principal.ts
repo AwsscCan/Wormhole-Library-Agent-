@@ -86,7 +86,8 @@ export function encodeGuestForTest(id: string): string {
   return encodeGuest(id, guestSecret());
 }
 
-export function guestCookieHeader(principal: CurrentPrincipal): string | null {
+export function guestCookieHeader(principal: CurrentPrincipal, request?: Request): string | null {
   if (principal.mode !== "guest") return null;
-  return `${GUEST_COOKIE}=${encodeGuest(principal.id, guestSecret())}; HttpOnly; SameSite=Lax; Path=/`;
+  const secure = process.env.NODE_ENV === "production" || (request ? new URL(request.url).protocol === "https:" : false);
+  return `${GUEST_COOKIE}=${encodeGuest(principal.id, guestSecret())}; HttpOnly; SameSite=Lax; Path=/${secure ? "; Secure" : ""}`;
 }

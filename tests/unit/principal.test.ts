@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeGuestForTest, resolveCurrentPrincipal } from "@/lib/auth/principal";
+import { encodeGuestForTest, guestCookieHeader, resolveCurrentPrincipal } from "@/lib/auth/principal";
 import { requirePrincipal } from "@/lib/auth/requirePrincipal";
 import { GET as principalGET } from "@/app/api/v3/principal/route";
 
@@ -91,6 +91,7 @@ describe("resolveCurrentPrincipal", () => {
     expect(first.principal).toMatchObject({ mode: "guest" });
     expect(first.principal.id).not.toBe("forged-user");
     expect(setCookie).toMatch(/^wl_guest=[A-Za-z0-9_=-]+\.[A-Za-z0-9_-]+; HttpOnly; SameSite=Lax; Path=\/$/);
+    expect(firstResponse.headers.get("cache-control")).toBe("private, no-store");
 
     const replayResponse = await principalGET(
       new Request("http://test/api/v3/principal", {
@@ -99,5 +100,38 @@ describe("resolveCurrentPrincipal", () => {
     );
     const replay = await replayResponse.json();
     expect(replay.principal).toEqual(first.principal);
+  });
+
+  it("marks an HTTPS guest cookie Secure", () => {
+    const cookie = guestCookieHeader(
+      { id: "s".repeat(43), mode: "guest" },
+      new Request("https://library.example/api/v3/principal"),
+    );
+    expect(cookie).toContain("; Secure");
+  });
+
+  it("marks principal configuration failures private and non-cacheable", async () => {
+    const environment = process.env as Record<string, string | undefined>;
+    const previousNodeEnv = environment.NODE_ENV;
+    const previousAuthSecret = environment.AUTH_SECRET;
+    const previousBetterSecret = environment.BETTER_AUTH_SECRET;
+    const previousBetterUrl = environment.BETTER_AUTH_URL;
+    environment.NODE_ENV = "production";
+    delete environment.AUTH_SECRET;
+    environment.BETTER_AUTH_SECRET = "production-test-secret-that-is-long-enough";
+    environment.BETTER_AUTH_URL = "https://library.example";
+    try {
+      const response = await principalGET(new Request("https://library.example/api/v3/principal"));
+      expect(response.status).toBe(500);
+      expect(response.headers.get("cache-control")).toBe("private, no-store");
+    } finally {
+      environment.NODE_ENV = previousNodeEnv;
+      if (previousAuthSecret === undefined) delete environment.AUTH_SECRET;
+      else environment.AUTH_SECRET = previousAuthSecret;
+      if (previousBetterSecret === undefined) delete environment.BETTER_AUTH_SECRET;
+      else environment.BETTER_AUTH_SECRET = previousBetterSecret;
+      if (previousBetterUrl === undefined) delete environment.BETTER_AUTH_URL;
+      else environment.BETTER_AUTH_URL = previousBetterUrl;
+    }
   });
 });

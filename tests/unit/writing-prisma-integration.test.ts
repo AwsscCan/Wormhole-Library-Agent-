@@ -11,6 +11,7 @@ const files = [path, `${path}-journal`, `${path}-shm`, `${path}-wal`];
 const migrations = [
   resolve(process.cwd(), "prisma", "migrations", "202608240001_baseline_auth_notes", "migration.sql"),
   resolve(process.cwd(), "prisma", "migrations", "202608240002_provider_writing", "migration.sql"),
+  resolve(process.cwd(), "prisma", "migrations", "202608240003_reviewed_artifact_export", "migration.sql"),
 ];
 const originalDatabaseUrl = process.env.DATABASE_URL;
 let repo: typeof import("@/lib/writing/repository");
@@ -83,11 +84,24 @@ describe("writing Prisma persistence", () => {
     await expect(repo.confirmCandidate("owner-a", "s-proof", stored.id)).resolves.toBeNull();
   });
 
-  it("persists seven immutable checkpoints and resumes only for the owner", async () => {
-    for (const stage of ["evidence", "verified_sources", "outline", "draft", "evidence_link", "human_review", "export"] as const) {
-      const checkpoint = await repo.persistStage("owner-a", "s2", stage, stage);
-      expect(checkpoint.artifactId).toBeTruthy();
+  it("advances one server-owned draft artifact through review and returns only its reviewed Markdown", async () => {
+    const lifecycle = repo as typeof repo & {
+      advanceDraftArtifactStage?: (ownerId: string, sessionId: string, stage: "evidence_link" | "human_review") => Promise<{ artifactId?: string }>;
+      exportReviewedArtifact?: (ownerId: string, sessionId: string) => Promise<{ markdown: string; checkpoint: { artifactId?: string } } | null>;
+    };
+    expect(typeof lifecycle.advanceDraftArtifactStage).toBe("function");
+    expect(typeof lifecycle.exportReviewedArtifact).toBe("function");
+    const checkpoints = [];
+    for (const stage of ["evidence", "verified_sources", "outline", "draft"] as const) {
+      checkpoints.push(await repo.persistStage("owner-a", "s2", stage, stage === "draft" ? "# Reviewed draft" : stage));
     }
+    checkpoints.push(await lifecycle.advanceDraftArtifactStage!("owner-a", "s2", "evidence_link"));
+    checkpoints.push(await lifecycle.advanceDraftArtifactStage!("owner-a", "s2", "human_review"));
+    await expect(lifecycle.exportReviewedArtifact!("owner-b", "s2")).resolves.toBeNull();
+    const exported = await lifecycle.exportReviewedArtifact!("owner-a", "s2");
+    expect(exported?.markdown).toBe("# Reviewed draft");
+    checkpoints.push(exported!.checkpoint);
+    expect(new Set(checkpoints.slice(3).map(({ artifactId }) => artifactId))).toHaveLength(1);
     await expect(repo.resumeWriting("owner-a", "s2")).resolves.toMatchObject({ stage: "export" });
     await expect(repo.resumeWriting("owner-b", "s2")).resolves.toBeNull();
   });

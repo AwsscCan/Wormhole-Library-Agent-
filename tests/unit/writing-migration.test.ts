@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
+import { execFile } from "node:child_process";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
+import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
@@ -8,8 +10,25 @@ const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
 const temporaryRoot = resolve(process.cwd(), ".tmp");
 const freshPath = resolve(temporaryRoot, `writing-migration-fresh-${process.pid}.db`);
 const upgradePath = resolve(temporaryRoot, `writing-migration-upgrade-${process.pid}.db`);
+const cliFreshPath = resolve(temporaryRoot, `writing-migrate-cli-fresh-${process.pid}.db`);
+const cliExistingPath = resolve(temporaryRoot, `writing-migrate-cli-existing-${process.pid}.db`);
 const baselineMigration = resolve(process.cwd(), "prisma", "migrations", "202608240001_baseline_auth_notes", "migration.sql");
 const task4Migration = resolve(process.cwd(), "prisma", "migrations", "202608240002_provider_writing", "migration.sql");
+const reviewExportMigration = resolve(process.cwd(), "prisma", "migrations", "202608240003_reviewed_artifact_export", "migration.sql");
+const prismaCli = resolve(process.cwd(), "node_modules", "prisma", "build", "index.js");
+const executeFile = promisify(execFile);
+
+function databaseUrl(path: string) {
+  return `file:./../.tmp/${path.split(/[\\/]/).at(-1)}`;
+}
+
+async function runPrisma(path: string, args: string[]) {
+  return executeFile(process.execPath, [prismaCli, ...args], {
+    cwd: process.cwd(),
+    env: { ...process.env, DATABASE_URL: databaseUrl(path), PRISMA_HIDE_UPDATE_MESSAGE: "1" },
+    windowsHide: true,
+  });
+}
 
 async function executeMigrations(path: string, migrations: string[]) {
   const database = new DatabaseSync(path);
@@ -95,38 +114,47 @@ function createExistingAuthAndNoteDatabase() {
 describe("Task 4 Prisma migration", () => {
   beforeAll(async () => {
     await mkdir(temporaryRoot, { recursive: true });
-    await Promise.all([freshPath, upgradePath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
+    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
       .map((path) => rm(path, { force: true })));
     createExistingAuthAndNoteDatabase();
   });
 
   afterAll(async () => {
-    await Promise.all([freshPath, upgradePath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
+    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
       .map((path) => rm(path, { force: true })));
   });
 
   it("deploys the reviewed schema to a fresh SQLite database", async () => {
-    await executeMigrations(freshPath, [baselineMigration, task4Migration]);
+    await executeMigrations(freshPath, [baselineMigration, task4Migration, reviewExportMigration]);
     const database = new DatabaseSync(freshPath);
-    const tables = tableNames(database);
-    expect(tables).toEqual(expect.arrayContaining([
-      "User",
-      "Note",
-      "ProviderConfig",
-      "ModelPreset",
-      "WritingEvidence",
-      "WritingArtifact",
-      "WritingCheckpoint",
-      "ProviderConnectionRateLimit",
-    ]));
-    const evidenceColumns = database.prepare("PRAGMA table_info('WritingEvidence')").all()
-      .map((row) => (row as { name: string }).name);
-    expect(evidenceColumns).toEqual(expect.arrayContaining(["id", "externalEvidenceId", "ownerId", "sessionId"]));
-    database.close();
+    try {
+      const tables = tableNames(database);
+      expect(tables).toEqual(expect.arrayContaining([
+        "User",
+        "Note",
+        "ProviderConfig",
+        "ModelPreset",
+        "WritingEvidence",
+        "WritingArtifact",
+        "WritingCheckpoint",
+        "ProviderConnectionRateLimit",
+      ]));
+      const evidenceColumns = database.prepare("PRAGMA table_info('WritingEvidence')").all()
+        .map((row) => (row as { name: string }).name);
+      expect(evidenceColumns).toEqual(expect.arrayContaining(["id", "externalEvidenceId", "ownerId", "sessionId"]));
+      const artifactColumns = database.prepare("PRAGMA table_info('WritingArtifact')").all()
+        .map((row) => (row as { name: string }).name);
+      expect(artifactColumns).toContain("content");
+      const checkpointIndexes = database.prepare("PRAGMA index_list('WritingCheckpoint')").all()
+        .map((row) => (row as { name: string }).name);
+      expect(checkpointIndexes).not.toContain("WritingCheckpoint_ownerId_sessionId_artifactId_key");
+    } finally {
+      database.close();
+    }
   });
 
   it("upgrades an existing auth and Note database without losing data", async () => {
-    await executeMigrations(upgradePath, [task4Migration]);
+    await executeMigrations(upgradePath, [task4Migration, reviewExportMigration]);
     const database = new DatabaseSync(upgradePath);
     try {
       expect(database.prepare("SELECT issuer FROM Account WHERE id = 'account-a'").get()).toEqual({ issuer: "wormhole" });
@@ -140,4 +168,56 @@ describe("Task 4 Prisma migration", () => {
       database.close();
     }
   });
+
+  it("creates complete Prisma migration history on a fresh migrate deploy", async () => {
+    new DatabaseSync(cliFreshPath).close();
+    await runPrisma(cliFreshPath, ["migrate", "deploy"]);
+    const database = new DatabaseSync(cliFreshPath);
+    try {
+      const migrations = database.prepare(`
+        SELECT migration_name FROM _prisma_migrations
+        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
+        ORDER BY started_at
+      `).all().map((row) => (row as { migration_name: string }).migration_name);
+      expect(migrations).toEqual([
+        "202608240001_baseline_auth_notes",
+        "202608240002_provider_writing",
+        "202608240003_reviewed_artifact_export",
+      ]);
+      expect(tableNames(database)).toEqual(expect.arrayContaining(["Note", "ProviderConfig", "WritingArtifact"]));
+    } finally {
+      database.close();
+    }
+  }, 30_000);
+
+  it("baselines an equivalent existing schema before deploy without losing Auth or Note data", async () => {
+    await executeMigrations(cliExistingPath, [baselineMigration]);
+    const existing = new DatabaseSync(cliExistingPath);
+    existing.exec(`
+      INSERT INTO "User" ("id", "email", "updatedAt") VALUES ('member-cli', 'cli@example.test', CURRENT_TIMESTAMP);
+      INSERT INTO "Note" ("id", "ownerId", "title", "markdown", "updatedAt")
+        VALUES ('note-cli', 'member-cli', 'Keep CLI', 'Existing CLI note', CURRENT_TIMESTAMP);
+    `);
+    existing.close();
+
+    await runPrisma(cliExistingPath, ["migrate", "resolve", "--applied", "202608240001_baseline_auth_notes"]);
+    await runPrisma(cliExistingPath, ["migrate", "deploy"]);
+    const database = new DatabaseSync(cliExistingPath);
+    try {
+      expect(database.prepare("SELECT markdown FROM Note WHERE id = 'note-cli'").get()).toEqual({ markdown: "Existing CLI note" });
+      const migrations = database.prepare(`
+        SELECT migration_name FROM _prisma_migrations
+        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
+        ORDER BY started_at
+      `).all().map((row) => (row as { migration_name: string }).migration_name);
+      expect(migrations).toEqual([
+        "202608240001_baseline_auth_notes",
+        "202608240002_provider_writing",
+        "202608240003_reviewed_artifact_export",
+      ]);
+      expect(tableNames(database)).toEqual(expect.arrayContaining(["ProviderConfig", "WritingCheckpoint", "ProviderConnectionRateLimit"]));
+    } finally {
+      database.close();
+    }
+  }, 30_000);
 });

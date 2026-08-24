@@ -67,7 +67,6 @@ model WritingCheckpoint {
   artifact   WritingArtifact @relation(fields: [ownerId, sessionId, artifactId], references: [ownerId, sessionId, id], onDelete: Restrict)
 
   @@unique([ownerId, sessionId, stage])
-  @@unique([ownerId, sessionId, artifactId])
   @@index([ownerId, sessionId, createdAt])
 }
 
@@ -77,8 +76,9 @@ model WritingArtifact {
   sessionId   String
   stage       String
   contentHash String
+  content     String
   createdAt   DateTime @default(now())
-  checkpoint WritingCheckpoint?
+  checkpoints WritingCheckpoint[]
 
   @@unique([ownerId, sessionId, id])
   @@unique([ownerId, sessionId, stage])

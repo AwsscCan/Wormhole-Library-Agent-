@@ -8,7 +8,7 @@ import type { WireApi } from "@/lib/llm/providerRepository";
 export type ProviderConnection = { baseUrl: string; model: string; wireApi: WireApi };
 export type ProbeRequest = { url: string; init: RequestInit };
 export type ProviderDestination = { hostname: string; address: string; family: 4 | 6; port: number };
-export type ProviderProbeResponse = { status: number; headers: Headers };
+export type ProviderProbeResponse = { status: number; headers: Headers; body?: string };
 export type ProviderNetwork = {
   lookup(hostname: string): Promise<Array<{ address: string; family: 4 | 6 }>>;
   request(probe: ProbeRequest, destination: ProviderDestination): Promise<ProviderProbeResponse>;
@@ -52,6 +52,56 @@ export function buildConnectionProbe(provider: ProviderConnection, apiKey: strin
       body,
       redirect: "manual",
       signal: AbortSignal.timeout(10_000),
+    },
+  };
+}
+
+export function buildGenerationRequest(
+  provider: ProviderConnection,
+  apiKey: string,
+  options: { model: string; temperature: number; maxTokens: number },
+  prompt: string,
+): ProbeRequest {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  let path: string;
+  let body: string;
+  if (provider.wireApi === "anthropic_messages") {
+    path = "/v1/messages";
+    headers["x-api-key"] = apiKey;
+    headers["anthropic-version"] = "2023-06-01";
+    body = JSON.stringify({
+      model: options.model,
+      max_tokens: options.maxTokens,
+      temperature: options.temperature,
+      messages: [{ role: "user", content: prompt }],
+    });
+  } else if (provider.wireApi === "responses") {
+    path = "/v1/responses";
+    headers.authorization = `Bearer ${apiKey}`;
+    body = JSON.stringify({
+      model: options.model,
+      input: prompt,
+      temperature: options.temperature,
+      max_output_tokens: options.maxTokens,
+    });
+  } else {
+    path = "/v1/chat/completions";
+    headers.authorization = `Bearer ${apiKey}`;
+    body = JSON.stringify({
+      model: options.model,
+      temperature: options.temperature,
+      max_tokens: options.maxTokens,
+      messages: [{ role: "user", content: prompt }],
+    });
+  }
+  return {
+    url: `${provider.baseUrl}${path}`,
+    init: {
+      method: "POST",
+      headers,
+      body,
+      redirect: "manual",
+      signal: AbortSignal.timeout(30_000),
     },
   };
 }
@@ -109,11 +159,17 @@ const pinnedHttpsRequest: ProviderNetwork["request"] = async (probe, destination
       if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(", ") : value);
     }
     let received = 0;
+    const chunks: Buffer[] = [];
     response.on("data", (chunk: Buffer) => {
       received += chunk.length;
       if (received > 1_000_000) response.destroy(new Error("Provider response is too large"));
+      else chunks.push(chunk);
     });
-    response.on("end", () => resolve({ status: response.statusCode ?? 500, headers }));
+    response.on("end", () => resolve({
+      status: response.statusCode ?? 500,
+      headers,
+      body: Buffer.concat(chunks).toString("utf8"),
+    }));
     response.on("error", reject);
   });
   request.on("error", reject);
@@ -139,4 +195,50 @@ export async function testProviderConnection(
   const contentLength = Number(response.headers.get("content-length") ?? "0");
   if (contentLength > 1_000_000) throw new Error("Provider response is too large");
   return { ok: true };
+}
+
+function configuredNetwork(injectedNetwork?: ProviderNetwork): ProviderNetwork {
+  const configured = injectedNetwork ?? installedEgress;
+  if (!configured && process.env.NODE_ENV === "test") {
+    throw new Error("Provider network is disabled in tests unless an explicit mock transport is injected");
+  }
+  return configured ?? { lookup: defaultLookup, request: pinnedHttpsRequest };
+}
+
+function responseText(wireApi: WireApi, body: string): string {
+  const parsed = JSON.parse(body) as {
+    choices?: Array<{ message?: { content?: unknown } }>;
+    output_text?: unknown;
+    output?: Array<{ content?: Array<{ text?: unknown }> }>;
+    content?: Array<{ text?: unknown }>;
+  };
+  const value = wireApi === "chat_completions"
+    ? parsed.choices?.[0]?.message?.content
+    : wireApi === "anthropic_messages"
+      ? parsed.content?.find(({ text }) => typeof text === "string")?.text
+      : typeof parsed.output_text === "string"
+        ? parsed.output_text
+        : parsed.output?.flatMap(({ content }) => content ?? []).find(({ text }) => typeof text === "string")?.text;
+  if (typeof value !== "string" || !value.trim()) throw new Error("Provider returned no generated text");
+  return value.trim();
+}
+
+export async function generateProviderText(
+  provider: ProviderConnection,
+  apiKey: string,
+  options: { model: string; temperature: number; maxTokens: number },
+  prompt: string,
+  injectedNetwork?: ProviderNetwork,
+): Promise<string> {
+  const network = configuredNetwork(injectedNetwork);
+  const request = buildGenerationRequest(provider, apiKey, options, prompt);
+  const destination = await assertPublicDestination(request.url, network.lookup);
+  const response = await network.request(request, destination);
+  if (response.status >= 300 && response.status < 400) throw new Error("Provider redirects are not allowed");
+  if (response.status < 200 || response.status >= 300) throw new Error("Provider rejected draft generation");
+  const contentLength = Number(response.headers.get("content-length") ?? "0");
+  if (contentLength > 1_000_000 || (response.body?.length ?? 0) > 1_000_000) {
+    throw new Error("Provider response is too large");
+  }
+  return responseText(provider.wireApi, response.body ?? "");
 }

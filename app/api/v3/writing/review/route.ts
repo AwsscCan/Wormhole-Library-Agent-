@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import {
-  requireOwnedResearchSession,
+  advanceDraftReview,
   WritingDependencyUnavailableError,
   WritingError,
 } from "@/lib/writing/draftService";
-import { persistStage, resumeWriting } from "@/lib/writing/repository";
 import { WritingStateError } from "@/lib/writing/stateMachine";
 import { apiError, parseBody } from "@/lib/validation/api";
-import { writingStageSchema } from "@/lib/validation/schemas";
+import { reviewArtifactSchema } from "@/lib/validation/schemas";
 import {
   privateWritingResponse,
   rejectWritingUserId,
@@ -25,22 +24,7 @@ function failure(error: unknown, principal: import("@/lib/auth/principal").Curre
   if (error instanceof WritingStateError) {
     return privateWritingResponse(apiError("BAD_REQUEST", "Writing stage transition is invalid", 400), principal);
   }
-  return privateWritingResponse(apiError("INTERNAL_ERROR", "Unable to advance writing", 500), principal);
-}
-
-export async function GET(request: Request) {
-  const rejected = rejectWritingUserId(request);
-  if (rejected) return rejected;
-  const principal = await requireWritingPrincipal(request);
-  if (principal instanceof Response) return principal;
-  const sessionId = new URL(request.url).searchParams.get("sessionId");
-  if (!sessionId) return privateWritingResponse(apiError("BAD_REQUEST", "sessionId is required", 400), principal);
-  try {
-    await requireOwnedResearchSession(principal, sessionId);
-    return privateWritingResponse(NextResponse.json(await resumeWriting(principal.id, sessionId)), principal);
-  } catch (error) {
-    return failure(error, principal);
-  }
+  return privateWritingResponse(apiError("INTERNAL_ERROR", "Unable to review draft", 500), principal);
 }
 
 export async function POST(request: Request) {
@@ -48,14 +32,10 @@ export async function POST(request: Request) {
   if (rejected) return rejected;
   const principal = await requireWritingPrincipal(request);
   if (principal instanceof Response) return principal;
-  const body = await parseBody(request, writingStageSchema);
+  const body = await parseBody(request, reviewArtifactSchema);
   if (!body.ok) return privateWritingResponse(body.response, principal);
   try {
-    await requireOwnedResearchSession(principal, body.data.sessionId);
-    if (["draft", "evidence_link", "human_review", "export"].includes(body.data.stage)) {
-      throw new WritingError("BAD_REQUEST", "Protected artifact stages require their dedicated server operation");
-    }
-    const checkpoint = await persistStage(principal.id, body.data.sessionId, body.data.stage, body.data.content);
+    const checkpoint = await advanceDraftReview({ ...body.data, principal });
     return privateWritingResponse(NextResponse.json(checkpoint, { status: 201 }), principal);
   } catch (error) {
     return failure(error, principal);
