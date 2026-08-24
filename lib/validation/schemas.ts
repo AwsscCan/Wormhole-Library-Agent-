@@ -34,6 +34,15 @@ export const searchRequestSchema = z.object({
   sliderValue: z.number().min(0).max(100).optional(),
 });
 
+const providerFields = {
+  name: z.string().min(1).max(120), baseUrl: z.string().min(1).max(2_048), model: z.string().min(1).max(200),
+  wireApi: z.enum(["chat_completions", "responses", "anthropic_messages"]), apiKey: z.string().max(4_096).optional(),
+};
+export const createProviderSchema = z.object(providerFields).strict();
+export const updateProviderSchema = z.object({ name: providerFields.name.optional(), baseUrl: providerFields.baseUrl.optional(), model: providerFields.model.optional(), wireApi: providerFields.wireApi.optional(), apiKey: providerFields.apiKey }).strict().refine((value) => Object.keys(value).length > 0, "At least one provider field must be provided");
+export const createModelPresetSchema = z.object({ name: z.string().min(1).max(120), providerId: z.string().min(1), model: z.string().min(1).max(200), temperature: z.number().min(0).max(2), maxTokens: z.number().int().min(1).max(200_000) }).strict();
+export const createDraftSchema = z.object({ sessionId: z.string().min(1), focus: z.string().min(1).max(500), evidenceIds: z.array(z.string().min(1)).min(1).max(12) }).strict();
+
 export const wormholesRequestSchema = z.object({
   userId: z.string().min(1),
   interactionId: z.string().min(1),

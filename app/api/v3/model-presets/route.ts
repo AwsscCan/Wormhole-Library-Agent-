@@ -1,0 +1,8 @@
+import { NextResponse } from "next/server";
+import { createPreset, listPresets, ProviderError } from "@/lib/llm/providerRepository";
+import { apiError, parseBody } from "@/lib/validation/api";
+import { createModelPresetSchema } from "@/lib/validation/schemas";
+import { privateWritingResponse, rejectWritingUserId, requireWritingPrincipal } from "@/lib/writing/routeSupport";
+const failure = (error: unknown, principal?: import("@/lib/auth/principal").CurrentPrincipal) => privateWritingResponse(error instanceof ProviderError ? apiError(error.code, error.message, error.code === "NOT_FOUND" ? 404 : 400) : apiError("INTERNAL_ERROR", "Unable to manage model presets", 500), principal);
+export async function GET(request: Request) { const rejected = rejectWritingUserId(request); if (rejected) return rejected; const principal = await requireWritingPrincipal(request); if (principal instanceof Response) return principal; try { return privateWritingResponse(NextResponse.json(await listPresets(principal)), principal); } catch (error) { return failure(error, principal); } }
+export async function POST(request: Request) { const rejected = rejectWritingUserId(request); if (rejected) return rejected; const principal = await requireWritingPrincipal(request); if (principal instanceof Response) return principal; const parsed = await parseBody(request, createModelPresetSchema); if (!parsed.ok) return privateWritingResponse(parsed.response, principal); try { return privateWritingResponse(NextResponse.json(await createPreset(principal, parsed.data), { status: 201 }), principal); } catch (error) { return failure(error, principal); } }

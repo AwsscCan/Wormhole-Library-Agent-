@@ -295,6 +295,13 @@ export interface ContactRequestResponse {
 /** 文献综述是扩展接口；不改变既有冻结 API 的请求/响应结构。 */
 export type ReviewFocus = "methods" | "findings" | "timeline";
 
+export type SourceProvenance = {
+  sourceKind: "openalex" | "openlibrary" | "library" | "seed";
+  sourceLabel: string;
+  retrievedAt: string;
+  externalId?: string;
+};
+
 export interface ReviewRequest {
   userId: string;
   /** Demo catalog resource IDs; production may map these to OpenAlex paper IDs. */

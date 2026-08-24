@@ -32,7 +32,7 @@ export async function generateLiteratureReview(req: ReviewRequest): Promise<Revi
   const resources = selected as (typeof resourcesSeed.resources)[number][];
   const fallback = fallbackReview(resources, focus);
   const prompt = `Write one concise Chinese literature-review paragraph focused on ${focusLabels[focus]} using only: ${fallback}`;
-  const generated = await getLlmProvider().complete(prompt);
+  const generated = await getLlmProvider()?.complete(prompt);
 
   return {
     reviewText: generated?.trim() || fallback,
