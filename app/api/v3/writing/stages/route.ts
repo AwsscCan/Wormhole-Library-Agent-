@@ -1,7 +1,60 @@
 import { NextResponse } from "next/server";
+import {
+  requireOwnedResearchSession,
+  WritingDependencyUnavailableError,
+  WritingError,
+} from "@/lib/writing/draftService";
 import { persistStage, resumeWriting } from "@/lib/writing/repository";
+import { WritingStateError } from "@/lib/writing/stateMachine";
 import { apiError, parseBody } from "@/lib/validation/api";
 import { writingStageSchema } from "@/lib/validation/schemas";
-import { privateWritingResponse, rejectWritingUserId, requireWritingPrincipal } from "@/lib/writing/routeSupport";
-export async function GET(request: Request) { const q = rejectWritingUserId(request); if (q) return q; const p = await requireWritingPrincipal(request); if (p instanceof Response) return p; const sessionId = new URL(request.url).searchParams.get("sessionId"); if (!sessionId) return privateWritingResponse(apiError("BAD_REQUEST", "sessionId is required", 400), p); try { return privateWritingResponse(NextResponse.json(await resumeWriting(p.id, sessionId)), p); } catch { return privateWritingResponse(apiError("INTERNAL_ERROR", "Unable to resume writing", 500), p); } }
-export async function POST(request: Request) { const q = rejectWritingUserId(request); if (q) return q; const p = await requireWritingPrincipal(request); if (p instanceof Response) return p; const body = await parseBody(request, writingStageSchema); if (!body.ok) return privateWritingResponse(body.response, p); try { const value = await persistStage(p.id, body.data.sessionId, body.data.previous, body.data.stage, body.data.content); return privateWritingResponse(NextResponse.json(value, { status: 201 }), p); } catch { return privateWritingResponse(apiError("BAD_REQUEST", "Writing stage transition is invalid", 400), p); } }
+import {
+  privateWritingResponse,
+  rejectWritingUserId,
+  requireWritingPrincipal,
+} from "@/lib/writing/routeSupport";
+
+function failure(error: unknown, principal: import("@/lib/auth/principal").CurrentPrincipal) {
+  if (error instanceof WritingDependencyUnavailableError) {
+    return privateWritingResponse(apiError("DEPENDENCY_UNAVAILABLE", "Writing dependencies are not configured", 503), principal);
+  }
+  if (error instanceof WritingError) {
+    const status = error.code === "NOT_FOUND" ? 404 : error.code === "FORBIDDEN" ? 403 : 400;
+    return privateWritingResponse(apiError(error.code, error.message, status), principal);
+  }
+  if (error instanceof WritingStateError) {
+    return privateWritingResponse(apiError("BAD_REQUEST", "Writing stage transition is invalid", 400), principal);
+  }
+  return privateWritingResponse(apiError("INTERNAL_ERROR", "Unable to advance writing", 500), principal);
+}
+
+export async function GET(request: Request) {
+  const rejected = rejectWritingUserId(request);
+  if (rejected) return rejected;
+  const principal = await requireWritingPrincipal(request);
+  if (principal instanceof Response) return principal;
+  const sessionId = new URL(request.url).searchParams.get("sessionId");
+  if (!sessionId) return privateWritingResponse(apiError("BAD_REQUEST", "sessionId is required", 400), principal);
+  try {
+    await requireOwnedResearchSession(principal, sessionId);
+    return privateWritingResponse(NextResponse.json(await resumeWriting(principal.id, sessionId)), principal);
+  } catch (error) {
+    return failure(error, principal);
+  }
+}
+
+export async function POST(request: Request) {
+  const rejected = rejectWritingUserId(request);
+  if (rejected) return rejected;
+  const principal = await requireWritingPrincipal(request);
+  if (principal instanceof Response) return principal;
+  const body = await parseBody(request, writingStageSchema);
+  if (!body.ok) return privateWritingResponse(body.response, principal);
+  try {
+    await requireOwnedResearchSession(principal, body.data.sessionId);
+    const checkpoint = await persistStage(principal.id, body.data.sessionId, body.data.stage, body.data.content);
+    return privateWritingResponse(NextResponse.json(checkpoint, { status: 201 }), principal);
+  } catch (error) {
+    return failure(error, principal);
+  }
+}

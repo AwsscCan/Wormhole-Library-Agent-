@@ -23,85 +23,92 @@ model User {
   memories          UserMemory[]
   interactions      Interaction[]
   livingBookProfile LivingBookProfile?
-  providerConfigs    ProviderConfig[]
-  modelPresets       ModelPreset[]
-  writingCheckpoints WritingCheckpoint[]
-  writingArtifacts   WritingArtifact[]
-  writingEvidence    WritingEvidence[]
 }
 
 model ProviderConfig {
-  id String @id @default(cuid())
-  ownerId String
-  name String
-  baseUrl String
-  model String
-  wireApi String
+  id              String   @id @default(cuid())
+  ownerId         String
+  name            String
+  baseUrl         String
+  model           String
+  wireApi         String
   encryptedApiKey String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  presets ModelPreset[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  presets         ModelPreset[]
+  rateLimits      ProviderConnectionRateLimit[]
+
+  @@unique([ownerId, id])
   @@index([ownerId, updatedAt])
 }
 
 model ModelPreset {
-  id String @id @default(cuid())
-  ownerId String
-  providerId String
-  name String
-  model String
+  id          String   @id @default(cuid())
+  ownerId     String
+  providerId  String
+  name        String
+  model       String
   temperature Float
-  maxTokens Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  provider ProviderConfig @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  maxTokens   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  provider    ProviderConfig @relation(fields: [ownerId, providerId], references: [ownerId, id], onDelete: Cascade)
+
   @@index([ownerId, providerId])
 }
 
 model WritingCheckpoint {
-  id String @id @default(cuid())
-  ownerId String
-  sessionId String
-  stage String
-  artifactId String?
+  id         String   @id @default(cuid())
+  ownerId    String
+  sessionId  String
+  stage      String
+  artifactId String
   createdAt DateTime @default(now())
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  artifact   WritingArtifact @relation(fields: [ownerId, sessionId, artifactId], references: [ownerId, sessionId, id], onDelete: Restrict)
+
+  @@unique([ownerId, sessionId, stage])
+  @@unique([ownerId, sessionId, artifactId])
   @@index([ownerId, sessionId, createdAt])
 }
 
 model WritingArtifact {
-  id String @id @default(cuid())
-  ownerId String
-  sessionId String
-  stage String
+  id          String   @id @default(cuid())
+  ownerId     String
+  sessionId   String
+  stage       String
   contentHash String
-  createdAt DateTime @default(now())
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  checkpoint WritingCheckpoint?
+
+  @@unique([ownerId, sessionId, id])
+  @@unique([ownerId, sessionId, stage])
   @@index([ownerId, sessionId, createdAt])
 }
 
 model WritingEvidence {
-  id String @id
-  ownerId String
-  sessionId String
-  title String
-  excerpt String
-  provenanceJson String
-  url String?
+  id                 String   @id @default(uuid())
+  externalEvidenceId String
+  ownerId            String
+  sessionId          String
+  title              String
+  excerpt            String
+  provenanceJson     String
+  url                String?
   verificationStatus String
-  userConfirmedAt DateTime?
-  createdAt DateTime @default(now())
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  userConfirmedAt    DateTime?
+  createdAt          DateTime @default(now())
+
+  @@unique([ownerId, sessionId, externalEvidenceId])
   @@index([ownerId, sessionId, verificationStatus])
 }
 
 model ProviderConnectionRateLimit {
-  ownerId String
-  providerId String
+  ownerId         String
+  providerId      String
   windowStartedAt DateTime
-  attempts Int
+  attempts        Int
+  provider        ProviderConfig @relation(fields: [ownerId, providerId], references: [ownerId, id], onDelete: Cascade)
+
   @@id([ownerId, providerId])
 }
 

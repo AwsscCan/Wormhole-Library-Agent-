@@ -41,10 +41,10 @@ const providerFields = {
 export const createProviderSchema = z.object(providerFields).strict();
 export const updateProviderSchema = z.object({ name: providerFields.name.optional(), baseUrl: providerFields.baseUrl.optional(), model: providerFields.model.optional(), wireApi: providerFields.wireApi.optional(), apiKey: providerFields.apiKey }).strict().refine((value) => Object.keys(value).length > 0, "At least one provider field must be provided");
 export const createModelPresetSchema = z.object({ name: z.string().min(1).max(120), providerId: z.string().min(1), model: z.string().min(1).max(200), temperature: z.number().min(0).max(2), maxTokens: z.number().int().min(1).max(200_000) }).strict();
-export const createDraftSchema = z.object({ sessionId: z.string().min(1), focus: z.string().min(1).max(500), evidenceIds: z.array(z.string().min(1)).min(1).max(12) }).strict();
-export const candidateSchema = z.object({ sessionId: z.string().min(1), id: z.string().min(1), title: z.string().min(1), excerpt: z.string().min(1), url: z.string().url().optional(), doi: z.string().min(1).optional(), authors: z.array(z.string().min(1)).min(1), titleAuthorMatch: z.enum(["matched", "partial", "low"]), provenance: z.object({ sourceKind: z.enum(["openalex", "openlibrary", "library", "seed"]), sourceLabel: z.string().min(1), retrievedAt: z.string().datetime(), externalId: z.string().optional() }).strict() }).strict();
+export const createDraftSchema = z.object({ sessionId: z.string().min(1), focus: z.string().min(1).max(500), evidenceIds: z.array(z.string().min(1)).min(3) }).strict();
+export const candidateSchema = z.object({ sessionId: z.string().min(1), researchQuestion: z.string().min(1).max(2_000) }).strict();
 export const confirmCandidateSchema = z.object({ sessionId: z.string().min(1), evidenceId: z.string().min(1) }).strict();
-export const writingStageSchema = z.object({ sessionId: z.string().min(1), previous: z.enum(["evidence", "verified_sources", "outline", "draft", "evidence_link", "human_review"]).nullable(), stage: z.enum(["verified_sources", "outline", "draft", "evidence_link", "human_review", "export"]), content: z.string().max(100_000) }).strict();
+export const writingStageSchema = z.object({ sessionId: z.string().min(1), stage: z.enum(["evidence", "verified_sources", "outline", "draft", "evidence_link", "human_review", "export"]), content: z.string().max(100_000) }).strict();
 
 export const wormholesRequestSchema = z.object({
   userId: z.string().min(1),

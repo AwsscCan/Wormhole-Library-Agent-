@@ -1,48 +1,142 @@
 import "server-only";
-import { lookup } from "node:dns/promises";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { request as httpsRequest } from "node:https";
+import { isIP, type LookupFunction } from "node:net";
+import { isPublicProviderIp } from "@/lib/llm/networkPolicy";
 import type { WireApi } from "@/lib/llm/providerRepository";
 
 export type ProviderConnection = { baseUrl: string; model: string; wireApi: WireApi };
 export type ProbeRequest = { url: string; init: RequestInit };
+export type ProviderDestination = { hostname: string; address: string; family: 4 | 6; port: number };
+export type ProviderProbeResponse = { status: number; headers: Headers };
+export type ProviderNetwork = {
+  lookup(hostname: string): Promise<Array<{ address: string; family: 4 | 6 }>>;
+  request(probe: ProbeRequest, destination: ProviderDestination): Promise<ProviderProbeResponse>;
+};
+
+let installedEgress: ProviderNetwork | undefined;
+
+/** Installs a reviewed server-side egress proxy/transport at the composition root. */
+export function installProviderEgress(network: ProviderNetwork): void {
+  installedEgress = network;
+}
+
+export function clearProviderEgressForTest(): void {
+  if (process.env.NODE_ENV === "production") throw new Error("Provider egress cannot be cleared in production");
+  installedEgress = undefined;
+}
 
 export function buildConnectionProbe(provider: ProviderConnection, apiKey: string): ProbeRequest {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  let path: string; let body: string;
+  let path: string;
+  let body: string;
   if (provider.wireApi === "anthropic_messages") {
-    path = "/v1/messages"; headers["x-api-key"] = apiKey; headers["anthropic-version"] = "2023-06-01";
+    path = "/v1/messages";
+    headers["x-api-key"] = apiKey;
+    headers["anthropic-version"] = "2023-06-01";
     body = JSON.stringify({ model: provider.model, max_tokens: 1, messages: [{ role: "user", content: "ping" }] });
   } else if (provider.wireApi === "responses") {
-    path = "/v1/responses"; headers.authorization = `Bearer ${apiKey}`; body = JSON.stringify({ model: provider.model, input: "ping", max_output_tokens: 1 });
+    path = "/v1/responses";
+    headers.authorization = `Bearer ${apiKey}`;
+    body = JSON.stringify({ model: provider.model, input: "ping", max_output_tokens: 1 });
   } else {
-    path = "/v1/chat/completions"; headers.authorization = `Bearer ${apiKey}`; body = JSON.stringify({ model: provider.model, max_tokens: 1, messages: [{ role: "user", content: "ping" }] });
+    path = "/v1/chat/completions";
+    headers.authorization = `Bearer ${apiKey}`;
+    body = JSON.stringify({ model: provider.model, max_tokens: 1, messages: [{ role: "user", content: "ping" }] });
   }
-  return { url: `${provider.baseUrl}${path}`, init: { method: "POST", headers, body, redirect: "manual", signal: AbortSignal.timeout(10_000) } };
+  return {
+    url: `${provider.baseUrl}${path}`,
+    init: {
+      method: "POST",
+      headers,
+      body,
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
+    },
+  };
 }
 
-function isPublicIp(address: string): boolean {
-  const lower = address.toLowerCase();
-  if (lower.includes(":")) {
-    if (lower === "::" || lower === "::1" || lower.startsWith("fc") || lower.startsWith("fd") || /^fe[89ab]/.test(lower) || lower.startsWith("ff")) return false;
-    if (lower.startsWith("2001:db8")) return false;
-    return true;
+const defaultLookup: ProviderNetwork["lookup"] = async (hostname) => {
+  const answers = await dnsLookup(hostname, { all: true, verbatim: true });
+  return answers.map(({ address, family }) => ({ address, family: family as 4 | 6 }));
+};
+
+export async function assertPublicDestination(
+  urlValue: string,
+  lookup: ProviderNetwork["lookup"] = defaultLookup,
+): Promise<ProviderDestination> {
+  const url = new URL(urlValue);
+  const hostname = url.hostname.replace(/^\[|\]$/g, "");
+  if (!hostname) throw new Error("Provider destination is not public");
+  let answers: Array<{ address: string; family: 4 | 6 }>;
+  const literalFamily = isIP(hostname);
+  if (literalFamily) {
+    answers = [{ address: hostname, family: literalFamily as 4 | 6 }];
+  } else {
+    answers = await lookup(hostname);
   }
-  const octets = lower.split(".").map(Number); if (octets.length !== 4 || octets.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;
-  const [a, b] = octets;
-  if (a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && (b === 0 || b === 2 || b === 168)) || (a === 198 && (b === 18 || b === 19 || b === 51)) || (a === 203 && b === 0)) return false;
-  return true;
+  if (!answers.length || answers.some(({ address, family }) => isIP(address) !== family || !isPublicProviderIp(address))) {
+    throw new Error("Provider destination is not public");
+  }
+  const selected = answers[0];
+  return {
+    hostname,
+    address: selected.address,
+    family: selected.family,
+    port: url.port ? Number(url.port) : 443,
+  };
 }
-export async function assertPublicDestination(urlValue: string): Promise<void> {
-  const url = new URL(urlValue); const host = url.hostname.replace(/^\[|\]$/g, "");
-  if (!host || !isPublicIp(host) && /^[\d.]+$|:/.test(host)) throw new Error("Provider destination is not public");
-  if (/^[\d.]+$|:/.test(host)) return;
-  const answers = await lookup(host, { all: true, verbatim: true });
-  if (!answers.length || answers.some((answer) => !isPublicIp(answer.address))) throw new Error("Provider destination is not public");
-}
-export async function testProviderConnection(provider: ProviderConnection, apiKey: string): Promise<{ ok: boolean }> {
-  const probe = buildConnectionProbe(provider, apiKey); await assertPublicDestination(probe.url);
-  const response = await fetch(probe.url, probe.init);
+
+const pinnedHttpsRequest: ProviderNetwork["request"] = async (probe, destination) => new Promise((resolve, reject) => {
+  const url = new URL(probe.url);
+  if (url.hostname.replace(/^\[|\]$/g, "") !== destination.hostname) {
+    reject(new Error("Provider destination changed after validation"));
+    return;
+  }
+  const pinnedLookup: LookupFunction = (_hostname, _options, callback) => {
+    callback(null, destination.address, destination.family);
+  };
+  const request = httpsRequest(url, {
+    method: probe.init.method,
+    headers: probe.init.headers as Record<string, string>,
+    signal: probe.init.signal ?? undefined,
+    lookup: pinnedLookup,
+    servername: isIP(destination.hostname) ? undefined : destination.hostname,
+    agent: false,
+  }, (response) => {
+    const headers = new Headers();
+    for (const [name, value] of Object.entries(response.headers)) {
+      if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(", ") : value);
+    }
+    let received = 0;
+    response.on("data", (chunk: Buffer) => {
+      received += chunk.length;
+      if (received > 1_000_000) response.destroy(new Error("Provider response is too large"));
+    });
+    response.on("end", () => resolve({ status: response.statusCode ?? 500, headers }));
+    response.on("error", reject);
+  });
+  request.on("error", reject);
+  if (typeof probe.init.body === "string") request.end(probe.init.body);
+  else request.end();
+});
+
+export async function testProviderConnection(
+  provider: ProviderConnection,
+  apiKey: string,
+  injectedNetwork?: ProviderNetwork,
+): Promise<{ ok: boolean }> {
+  const configuredNetwork = injectedNetwork ?? installedEgress;
+  if (!configuredNetwork && process.env.NODE_ENV === "test") {
+    throw new Error("Provider network is disabled in tests unless an explicit mock transport is injected");
+  }
+  const network: ProviderNetwork = configuredNetwork ?? { lookup: defaultLookup, request: pinnedHttpsRequest };
+  const probe = buildConnectionProbe(provider, apiKey);
+  const destination = await assertPublicDestination(probe.url, network.lookup);
+  const response = await network.request(probe, destination);
   if (response.status >= 300 && response.status < 400) throw new Error("Provider redirects are not allowed");
-  if (!response.ok) throw new Error("Provider rejected the connection test");
-  const contentLength = Number(response.headers.get("content-length") ?? "0"); if (contentLength > 1_000_000) throw new Error("Provider response is too large");
+  if (response.status < 200 || response.status >= 300) throw new Error("Provider rejected the connection test");
+  const contentLength = Number(response.headers.get("content-length") ?? "0");
+  if (contentLength > 1_000_000) throw new Error("Provider response is too large");
   return { ok: true };
 }
