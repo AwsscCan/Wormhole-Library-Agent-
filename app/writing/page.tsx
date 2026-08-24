@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, FileText, Sparkles } from "lucide-react";
 import { SafeMarkdown } from "@/components/notes/SafeMarkdown";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
 
 type DraftResult = { markdown: string; citations: Array<{ evidenceId: string; marker: string }>; source: "provider" | "deterministic"; checkpointId: string; missingEvidence?: string[] };
+type WritingPreset = { id: string; name: string; providerId: string; model: string; temperature: number; maxTokens: number };
 
 function friendlyError(response: Response) {
   if (response.status === 503) return "写作证据端口尚未接入：请在 package 02/03 完成受审计集成后再生成草稿。";
@@ -20,12 +21,31 @@ export default function WritingPage() {
   const [sessionId, setSessionId] = useState("");
   const [focus, setFocus] = useState("");
   const [evidenceInput, setEvidenceInput] = useState("");
+  const [presets, setPresets] = useState<WritingPreset[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState("");
+  const [presetStatus, setPresetStatus] = useState("");
   const [result, setResult] = useState<DraftResult | null>(null);
   const [artifactSessionId, setArtifactSessionId] = useState("");
   const [reviewStage, setReviewStage] = useState<"draft" | "evidence_link" | "human_review">("draft");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const evidenceIds = useMemo(() => [...new Set(evidenceInput.split(/[\n,]/).map((id) => id.trim()).filter(Boolean))].slice(0, 12), [evidenceInput]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadPresets() {
+      try {
+        const response = await fetch("/api/v3/model-presets");
+        if (!response.ok) throw new Error("preset request failed");
+        const loaded = await response.json() as unknown;
+        if (active && Array.isArray(loaded)) setPresets(loaded as WritingPreset[]);
+      } catch {
+        if (active) setPresetStatus("模型预设暂不可用；未选择时仍可使用 deterministic 生成。");
+      }
+    }
+    void loadPresets();
+    return () => { active = false; };
+  }, []);
 
   async function generate() {
     if (!sessionId.trim() || !focus.trim() || evidenceIds.length < 3) {
@@ -38,7 +58,12 @@ export default function WritingPage() {
       const response = await fetch("/api/v3/writing/drafts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sessionId.trim(), focus: focus.trim(), evidenceIds }),
+        body: JSON.stringify({
+          sessionId: sessionId.trim(),
+          focus: focus.trim(),
+          evidenceIds,
+          ...(selectedPresetId ? { stepPresetId: selectedPresetId } : {}),
+        }),
       });
       if (!response.ok) { setStatus(friendlyError(response)); return; }
       setResult(await response.json() as DraftResult);
@@ -102,6 +127,12 @@ export default function WritingPage() {
       <Panel><PanelHeader icon={Sparkles} title="section · 选择证据" accent="cyan" /><PanelBody className="space-y-3">
         <Input value={sessionId} placeholder="Research session ID" onChange={(event) => setSessionId(event.target.value)} />
         <Input value={focus} maxLength={500} placeholder="当前章节焦点，例如：比较实验方法" onChange={(event) => setFocus(event.target.value)} />
+        <label className="block text-xs text-steel" htmlFor="writing-preset">本次生成模型预设（可选）</label>
+        <select id="writing-preset" value={selectedPresetId} onChange={(event) => setSelectedPresetId(event.target.value)} className="w-full rounded-md border border-ink-border bg-ink-raise px-3 py-2 text-sm text-ivory focus:border-pulse/60 focus:outline-none">
+          <option value="">未选择 · deterministic</option>
+          {presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name} · {preset.model}</option>)}
+        </select>
+        {presetStatus && <p className="text-xs text-copper">{presetStatus}</p>}
         <label className="block text-xs text-steel" htmlFor="evidence-ids">本章节 evidence IDs（每行或逗号一个）</label>
         <textarea id="evidence-ids" value={evidenceInput} rows={8} placeholder="只粘贴当前章节已验证证据 ID" onChange={(event) => setEvidenceInput(event.target.value)} className="w-full rounded-md border border-ink-border bg-ink-raise p-3 font-mono text-sm text-ivory focus:border-pulse/60 focus:outline-none" />
         <p className="text-xs text-steel">已选择 {evidenceIds.length}/12 条。服务端会基于章节焦点对当前选择进行有界编排，完整 collection 仍保留在 session 中。</p>

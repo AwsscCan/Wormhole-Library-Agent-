@@ -12,6 +12,7 @@ const freshPath = resolve(temporaryRoot, `writing-migration-fresh-${process.pid}
 const upgradePath = resolve(temporaryRoot, `writing-migration-upgrade-${process.pid}.db`);
 const cliFreshPath = resolve(temporaryRoot, `writing-migrate-cli-fresh-${process.pid}.db`);
 const cliExistingPath = resolve(temporaryRoot, `writing-migrate-cli-existing-${process.pid}.db`);
+const legacyDraftPath = resolve(temporaryRoot, `writing-migration-legacy-draft-${process.pid}.db`);
 const baselineMigration = resolve(process.cwd(), "prisma", "migrations", "202608240001_baseline_auth_notes", "migration.sql");
 const task4Migration = resolve(process.cwd(), "prisma", "migrations", "202608240002_provider_writing", "migration.sql");
 const reviewExportMigration = resolve(process.cwd(), "prisma", "migrations", "202608240003_reviewed_artifact_export", "migration.sql");
@@ -114,13 +115,13 @@ function createExistingAuthAndNoteDatabase() {
 describe("Task 4 Prisma migration", () => {
   beforeAll(async () => {
     await mkdir(temporaryRoot, { recursive: true });
-    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
+    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath, legacyDraftPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
       .map((path) => rm(path, { force: true })));
     createExistingAuthAndNoteDatabase();
   });
 
   afterAll(async () => {
-    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
+    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath, legacyDraftPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
       .map((path) => rm(path, { force: true })));
   });
 
@@ -166,6 +167,45 @@ describe("Task 4 Prisma migration", () => {
       ]));
     } finally {
       database.close();
+    }
+  });
+
+  it("invalidates unrecoverable 002 writing state so the owner can regenerate after 003", async () => {
+    await executeMigrations(legacyDraftPath, [baselineMigration, task4Migration]);
+    const before = new DatabaseSync(legacyDraftPath);
+    before.exec(`
+      INSERT INTO "WritingEvidence" (
+        "id", "externalEvidenceId", "ownerId", "sessionId", "title", "excerpt",
+        "provenanceJson", "verificationStatus", "userConfirmedAt"
+      ) VALUES (
+        'legacy-evidence', 'external-legacy-evidence', 'legacy-owner', 'legacy-session',
+        'Retained source', 'Retained verified evidence', '{"sourceKind":"seed"}',
+        'verified', CURRENT_TIMESTAMP
+      );
+      INSERT INTO "WritingArtifact" ("id", "ownerId", "sessionId", "stage", "contentHash")
+        VALUES ('legacy-artifact', 'legacy-owner', 'legacy-session', 'draft', 'unrecoverable-hash');
+      INSERT INTO "WritingCheckpoint" ("id", "ownerId", "sessionId", "stage", "artifactId")
+        VALUES ('legacy-checkpoint', 'legacy-owner', 'legacy-session', 'draft', 'legacy-artifact');
+    `);
+    before.close();
+
+    await executeMigrations(legacyDraftPath, [reviewExportMigration]);
+    const after = new DatabaseSync(legacyDraftPath);
+    try {
+      expect(after.prepare("SELECT COUNT(*) AS count FROM WritingCheckpoint").get()).toEqual({ count: 0 });
+      expect(after.prepare("SELECT COUNT(*) AS count FROM WritingArtifact").get()).toEqual({ count: 0 });
+      expect(after.prepare("SELECT verificationStatus FROM WritingEvidence WHERE id = 'legacy-evidence'").get())
+        .toEqual({ verificationStatus: "verified" });
+      after.exec(`
+        INSERT INTO "WritingArtifact" ("id", "ownerId", "sessionId", "stage", "contentHash", "content")
+          VALUES ('new-artifact', 'legacy-owner', 'legacy-session', 'draft', 'recoverable-hash', '# Regenerated draft');
+        INSERT INTO "WritingCheckpoint" ("id", "ownerId", "sessionId", "stage", "artifactId")
+          VALUES ('new-checkpoint', 'legacy-owner', 'legacy-session', 'draft', 'new-artifact');
+      `);
+      expect(after.prepare("SELECT content FROM WritingArtifact WHERE id = 'new-artifact'").get())
+        .toEqual({ content: "# Regenerated draft" });
+    } finally {
+      after.close();
     }
   });
 

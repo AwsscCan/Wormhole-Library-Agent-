@@ -104,6 +104,30 @@ const sessions = new Map<string, ResearchSessionReadPort>([
     researchQuestion: "Provider without key",
     evidenceIds: ["no-key-1", "no-key-2", "no-key-3"],
   }],
+  ["provider-one-marker-session", {
+    id: "provider-one-marker-session",
+    ownerId: ownerA,
+    researchQuestion: "Insufficient Provider evidence",
+    evidenceIds: ["one-marker-1", "one-marker-2", "one-marker-3"],
+  }],
+  ["provider-tail-session", {
+    id: "provider-tail-session",
+    ownerId: ownerA,
+    researchQuestion: "Uncited Provider tail",
+    evidenceIds: ["tail-1", "tail-2", "tail-3"],
+  }],
+  ["legacy-blank-review-session", {
+    id: "legacy-blank-review-session",
+    ownerId: ownerA,
+    researchQuestion: "Legacy blank review",
+    evidenceIds: ["legacy-review-1", "legacy-review-2", "legacy-review-3"],
+  }],
+  ["legacy-blank-export-session", {
+    id: "legacy-blank-export-session",
+    ownerId: ownerA,
+    researchQuestion: "Legacy blank export",
+    evidenceIds: ["legacy-export-1", "legacy-export-2", "legacy-export-3"],
+  }],
 ]);
 
 function installPorts() {
@@ -490,5 +514,84 @@ describe("production writing route integration", () => {
     expect(noKey.status).toBe(201);
     await expect(noKey.json()).resolves.toMatchObject({ source: "deterministic" });
     expect(transportAttempts).toBe(1);
+  });
+
+  it.each([
+    {
+      name: "uses fewer than three distinct evidence markers",
+      sessionId: "provider-one-marker-session",
+      evidenceIds: ["one-marker-1", "one-marker-2", "one-marker-3"],
+      providerMarkdown: "Only one source is cited. [one-marker-1]",
+    },
+    {
+      name: "has an uncited unpunctuated factual tail",
+      sessionId: "provider-tail-session",
+      evidenceIds: ["tail-1", "tail-2", "tail-3"],
+      providerMarkdown: "Supported fact. [tail-1]\nSecond fact. [tail-2]\nThird fact. [tail-3]\nUnsupported factual tail",
+    },
+  ])("falls back deterministically when Provider output $name", async ({ sessionId, evidenceIds, providerMarkdown }) => {
+    installPorts();
+    const principal = { id: ownerA, mode: "guest" } as const;
+    const provider = await providerRepository.createProvider(principal, {
+      name: `Validation provider ${sessionId}`,
+      baseUrl: `https://${sessionId}.example.test`,
+      model: "provider-default",
+      wireApi: "responses",
+      apiKey: "owner-secret",
+    });
+    const preset = await providerRepository.createPreset(principal, {
+      name: `Validation preset ${sessionId}`,
+      providerId: provider.id,
+      model: "validation-model",
+      temperature: 0,
+      maxTokens: 200,
+    });
+    providerAdapter.installProviderEgress({
+      lookup: async () => [{ address: "93.184.216.34", family: 4 }],
+      request: async () => ({ status: 200, headers: new Headers(), body: JSON.stringify({ output_text: providerMarkdown }) }),
+    });
+
+    const response = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {
+      sessionId,
+      focus: "validation",
+      evidenceIds,
+      stepPresetId: preset.id,
+    }));
+    expect(response.status).toBe(201);
+    const draft = await response.json() as { source: string; markdown: string; citations: Array<{ evidenceId: string }> };
+    expect(draft.source).toBe("deterministic");
+    expect(draft.markdown).not.toBe(providerMarkdown);
+    expect(draft.citations.map(({ evidenceId }) => evidenceId)).toEqual(evidenceIds);
+  });
+
+  it("rejects review and export for blank legacy artifacts", async () => {
+    installPorts();
+    const database = new DatabaseSync(databasePath);
+    try {
+      database.exec(`
+        INSERT INTO "WritingArtifact" ("id", "ownerId", "sessionId", "stage", "contentHash", "content")
+          VALUES ('legacy-review-artifact', '${ownerA}', 'legacy-blank-review-session', 'draft', 'legacy-hash', '');
+        INSERT INTO "WritingCheckpoint" ("id", "ownerId", "sessionId", "stage", "artifactId")
+          VALUES ('legacy-review-draft', '${ownerA}', 'legacy-blank-review-session', 'draft', 'legacy-review-artifact');
+        INSERT INTO "WritingArtifact" ("id", "ownerId", "sessionId", "stage", "contentHash", "content")
+          VALUES ('legacy-export-artifact', '${ownerA}', 'legacy-blank-export-session', 'draft', 'legacy-hash', '   ');
+        INSERT INTO "WritingCheckpoint" ("id", "ownerId", "sessionId", "stage", "artifactId") VALUES
+          ('legacy-export-draft', '${ownerA}', 'legacy-blank-export-session', 'draft', 'legacy-export-artifact'),
+          ('legacy-export-evidence', '${ownerA}', 'legacy-blank-export-session', 'evidence_link', 'legacy-export-artifact'),
+          ('legacy-export-review', '${ownerA}', 'legacy-blank-export-session', 'human_review', 'legacy-export-artifact');
+      `);
+    } finally {
+      database.close();
+    }
+
+    const review = await reviewRoute.POST(jsonRequest(ownerA, "/api/v3/writing/review", "POST", {
+      sessionId: "legacy-blank-review-session",
+      stage: "evidence_link",
+    }));
+    expect(review.status).toBe(400);
+    const exported = await exportRoute.POST(jsonRequest(ownerA, "/api/v3/writing/export", "POST", {
+      sessionId: "legacy-blank-export-session",
+    }));
+    expect(exported.status).toBe(400);
   });
 });

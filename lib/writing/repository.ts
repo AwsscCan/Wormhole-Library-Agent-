@@ -187,6 +187,7 @@ export async function advanceDraftArtifactStage(
       where: { id: previous.artifactId, ownerId, sessionId, stage: "draft" },
     });
     if (!artifact) throw new WritingStateError("Protected writing stage is not bound to a draft artifact");
+    if (!artifact.content.trim()) throw new WritingStateError("Legacy draft content is unavailable; regenerate the draft");
     const checkpoint = await transaction.writingCheckpoint.create({
       data: { id: randomUUID(), ownerId, sessionId, stage, artifactId: artifact.id },
     });
@@ -207,7 +208,7 @@ export async function exportReviewedArtifact(
     const artifact = await transaction.writingArtifact.findFirst({
       where: { id: previous.artifactId, ownerId, sessionId, stage: "draft" },
     });
-    if (!artifact) return null;
+    if (!artifact || !artifact.content.trim()) return null;
     if (previous.stage === "export") {
       return { markdown: artifact.content, checkpoint: checkpointDto(previous) };
     }

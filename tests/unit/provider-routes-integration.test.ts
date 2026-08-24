@@ -179,6 +179,14 @@ describe("Provider Prisma and route integration", () => {
       maxTokens: 500,
     }));
     expect(preset.status).toBe(201);
+    const ownPresets = await presetsRoute.GET(guestRequest(ownerA, "/api/v3/model-presets"));
+    expect(ownPresets.status).toBe(200);
+    await expect(ownPresets.json()).resolves.toEqual([
+      expect.objectContaining({ name: "Default", providerId: body.id }),
+    ]);
+    const foreignPresets = await presetsRoute.GET(guestRequest(ownerB, "/api/v3/model-presets"));
+    expect(foreignPresets.status).toBe(200);
+    await expect(foreignPresets.json()).resolves.toEqual([]);
     adapter.installProviderEgress({
       lookup: async () => [{ address: "93.184.216.34", family: 4 }],
       request: async () => ({ status: 200, headers: new Headers() }),

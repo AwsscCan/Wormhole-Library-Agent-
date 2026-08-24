@@ -9,6 +9,7 @@ import WritingPage from "@/app/writing/page";
 
 const note = { id: "note-1", title: "Private note", markdown: "body", version: 1, updatedAt: "2026-08-24T00:00:00.000Z" };
 const provider = { id: "provider-1", name: "Safe provider", baseUrl: "https://provider.example", model: "model-1", wireApi: "chat_completions", hasApiKey: true };
+const writingPreset = { id: "preset-owner-1", name: "Evidence writer", providerId: "provider-1", model: "model-1", temperature: 0.2, maxTokens: 600 };
 const roots: Root[] = [];
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -42,6 +43,13 @@ async function setInput(input: HTMLInputElement | HTMLTextAreaElement, value: st
   await act(async () => {
     Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+async function setSelect(select: HTMLSelectElement, value: string) {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set?.call(select, value);
+    select.dispatchEvent(new Event("change", { bubbles: true }));
   });
 }
 
@@ -148,6 +156,43 @@ describe("workspace UI security behavior", () => {
     expect(container.textContent).toContain("写作证据端口尚未接入");
   });
 
+  it("loads an owner model preset, submits the explicit selection, and renders the Provider result", async () => {
+    const generated = {
+      markdown: "Provider fact. [e1] Provider comparison. [e2] Provider conclusion. [e3]",
+      citations: ["e1", "e2", "e3"].map((evidenceId) => ({ evidenceId, marker: `[${evidenceId}]` })),
+      source: "provider",
+      checkpointId: "provider-draft-checkpoint",
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json([writingPreset]))
+      .mockResolvedValueOnce(json(generated));
+    vi.stubGlobal("fetch", fetchMock);
+    const container = await render(createElement(WritingPage));
+    await settle();
+
+    const select = container.querySelector("select");
+    expect(select).not.toBeNull();
+    expect(select?.textContent).toContain("Evidence writer");
+    await setSelect(select!, writingPreset.id);
+    const inputs = [...container.querySelectorAll("input")];
+    await setInput(inputs[0], "session-1");
+    await setInput(inputs[1], "Methods");
+    await setInput(container.querySelector("textarea")!, "e1,e2,e3");
+    await click(container, "生成有证据草稿", true);
+    await settle();
+
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/v3/model-presets");
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/v3/writing/drafts");
+    expect(JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body))).toEqual({
+      sessionId: "session-1",
+      focus: "Methods",
+      evidenceIds: ["e1", "e2", "e3"],
+      stepPresetId: writingPreset.id,
+    });
+    expect(container.textContent).toContain("Provider");
+    expect(container.textContent).toContain("Provider fact");
+  });
+
   it("downloads only the server export after explicit evidence linking and human review", async () => {
     const generated = {
       markdown: "# Unreviewed browser preview",
@@ -156,6 +201,7 @@ describe("workspace UI security behavior", () => {
       checkpointId: "draft-checkpoint",
     };
     const fetchMock = vi.fn()
+      .mockResolvedValueOnce(json([]))
       .mockResolvedValueOnce(json(generated))
       .mockResolvedValueOnce(json({ stage: "evidence_link" }))
       .mockResolvedValueOnce(json({ stage: "human_review" }))
@@ -185,16 +231,18 @@ describe("workspace UI security behavior", () => {
     await click(container, ".md", true);
     await settle();
 
-    expect(fetchMock.mock.calls.slice(1).map(([url]) => url)).toEqual([
+    expect(fetchMock.mock.calls.slice(2).map(([url]) => url)).toEqual([
       "/api/v3/writing/review",
       "/api/v3/writing/review",
       "/api/v3/writing/export",
     ]);
-    expect(JSON.parse(String((fetchMock.mock.calls[2][1] as RequestInit).body))).toMatchObject({
+    expect(JSON.parse(String((fetchMock.mock.calls[3][1] as RequestInit).body))).toMatchObject({
       sessionId: "session-1",
       stage: "human_review",
       confirmed: true,
     });
+    const draftRequest = JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body)) as Record<string, unknown>;
+    expect(draftRequest).not.toHaveProperty("stepPresetId");
     const exportedBlob = createObjectUrl.mock.calls[0][0] as Blob;
     const exportedText = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();

@@ -82,6 +82,47 @@ the baseline also contains the catalog, graph, memory, and interaction tables.
 
 ## Common migration and schema verification
 
+### Existing migration 002 writing-state recovery
+
+Migration 002 stored only `WritingArtifact.contentHash`; it did not store the
+Markdown and therefore cannot be safely backfilled. Before deploying migration
+003 over a database that already has 002 applied, keep writers stopped, retain
+the verified database backup described above, and record these counts:
+
+```sql
+SELECT COUNT(*) AS legacy_artifacts FROM WritingArtifact;
+SELECT COUNT(*) AS legacy_checkpoints FROM WritingCheckpoint;
+```
+
+Migration 003 deliberately deletes those unrecoverable artifacts and
+checkpoints while preserving `WritingEvidence`. Affected owners must regenerate
+their draft from the retained verified evidence; review/export rejects blank
+legacy content and never produces an empty attachment. Immediately after the
+deploy, and before re-enabling writing routes, both queries below must return
+zero (writers must still be stopped):
+
+```sql
+SELECT COUNT(*) FROM WritingArtifact WHERE trim(content) = '';
+SELECT COUNT(*) FROM WritingCheckpoint
+WHERE artifactId IN (SELECT id FROM WritingArtifact WHERE trim(content) = '');
+```
+
+If an environment applied an earlier pre-acceptance copy of migration 003 that
+left blank artifacts, stop writers and take a new verified backup before the
+following reviewed recovery transaction. Do not alter migration history or
+invent Markdown from `contentHash`:
+
+```sql
+BEGIN IMMEDIATE;
+DELETE FROM WritingCheckpoint
+WHERE artifactId IN (SELECT id FROM WritingArtifact WHERE trim(content) = '');
+DELETE FROM WritingArtifact WHERE trim(content) = '';
+COMMIT;
+```
+
+Record the affected owner/session counts, notify those owners to regenerate,
+and rerun the empty-content and foreign-key checks before enabling routes.
+
 First verify migration history. Exactly these three rows must be finished and
 not rolled back:
 

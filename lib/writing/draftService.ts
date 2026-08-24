@@ -103,10 +103,21 @@ function evidencePrompt(focus: string, evidence: EvidenceItem[]): string {
 function evidenceMarkers(markdown: string, allowedIds: Set<string>): string[] | null {
   const markers = [...markdown.matchAll(/\[([^\]\r\n]+)\]/g)].map((match) => match[1]);
   if (!markers.length || markers.some((id) => !allowedIds.has(id))) return null;
-  const prose = markdown.split(/\r?\n/).filter((line) => !line.trim().startsWith("#")).join(" ");
-  const sentences = prose.match(/[^.!?。！？]+[.!?。！？]+(?:\s*\[[^\]\r\n]+\])?/g) ?? [];
-  if (!sentences.length || sentences.some((sentence) => !/\[[^\]\r\n]+\]\s*$/.test(sentence))) return null;
-  return [...new Set(markers)];
+  const citedIds = new Set<string>();
+  const proseLines = markdown.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  if (!proseLines.length) return null;
+  for (const line of proseLines) {
+    const fragments = line.match(/[^.!?。！？]+(?:[.!?。！？]+(?:\s*\[[^\]\r\n]+\])?|$)/g) ?? [];
+    if (!fragments.length) return null;
+    for (const fragment of fragments) {
+      const citation = fragment.trim().match(/\[([^\]\r\n]+)\]\s*$/);
+      if (!citation || !allowedIds.has(citation[1])) return null;
+      citedIds.add(citation[1]);
+    }
+  }
+  return citedIds.size >= 3 ? [...citedIds] : null;
 }
 
 async function providerMarkdown(input: {
