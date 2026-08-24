@@ -171,6 +171,99 @@ describe("private V3 notes", () => {
     await expect(afterDelete.json()).resolves.toEqual([]);
   });
 
+  it("rejects a client userId query on every V3 notes route", async () => {
+    const owner = "d".repeat(43);
+    const noteId = "not-owned-note";
+    const responses = await Promise.all([
+      notesRoute.GET(guestRequest(owner, "/api/v3/notes?userId=forged-owner")),
+      notesRoute.POST(guestRequest(owner, "/api/v3/notes?userId=forged-owner", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: "Forged", markdown: "no", links: [] }),
+      })),
+      noteRoute.PATCH(guestRequest(owner, `/api/v3/notes/${noteId}?userId=forged-owner`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ expectedVersion: 1, title: "Forged" }),
+      }), { params: Promise.resolve({ noteId }) }),
+      noteRoute.DELETE(guestRequest(owner, `/api/v3/notes/${noteId}?userId=forged-owner`, { method: "DELETE" }), {
+        params: Promise.resolve({ noteId }),
+      }),
+    ]);
+
+    for (const response of responses) {
+      expect(response.status).toBe(400);
+      expectPrivate(response);
+      await expect(response.json()).resolves.toMatchObject({ error: { code: "BAD_REQUEST" } });
+    }
+  });
+
+  it("rejects note inputs beyond declared limits or with malformed links", async () => {
+    const owner = "e".repeat(43);
+    const invalidBodies = [
+      { title: "t".repeat(161), markdown: "valid", links: [] },
+      { title: "valid", markdown: "m".repeat(50_001), links: [] },
+      {
+        title: "valid",
+        markdown: "valid",
+        links: Array.from({ length: 65 }, (_, index) => ({ kind: "resource", targetId: `resource-${index}` })),
+      },
+      { title: "valid", markdown: "valid", links: [{ kind: "resource" }] },
+    ];
+
+    for (const body of invalidBodies) {
+      const response = await notesRoute.POST(guestRequest(owner, "/api/v3/notes", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }));
+      expect(response.status).toBe(400);
+      expectPrivate(response);
+    }
+  });
+
+  it("contains unknown principal failures in a private generic route response", async () => {
+    const noteId = "not-owned-note";
+    vi.doMock("@/lib/auth/requirePrincipal", () => ({
+      requirePrincipal: async () => {
+        throw new Error("unexpected principal failure");
+      },
+    }));
+    vi.resetModules();
+
+    try {
+      const failingNotesRoute = await import("@/app/api/v3/notes/route");
+      const failingNoteRoute = await import("@/app/api/v3/notes/[noteId]/route");
+      const responses = await Promise.all([
+        failingNotesRoute.GET(new Request(`${testOrigin}/api/v3/notes`)),
+        failingNotesRoute.POST(new Request(`${testOrigin}/api/v3/notes`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ title: "Private", markdown: "no", links: [] }),
+        })),
+        failingNoteRoute.PATCH(new Request(`${testOrigin}/api/v3/notes/${noteId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ expectedVersion: 1, title: "Private" }),
+        }), { params: Promise.resolve({ noteId }) }),
+        failingNoteRoute.DELETE(new Request(`${testOrigin}/api/v3/notes/${noteId}`, { method: "DELETE" }), {
+          params: Promise.resolve({ noteId }),
+        }),
+      ]);
+
+      for (const response of responses) {
+        expect(response.status).toBe(500);
+        expectPrivate(response);
+        await expect(response.json()).resolves.toEqual({
+          error: { code: "INTERNAL_ERROR", message: "Unable to resolve note identity" },
+        });
+      }
+    } finally {
+      vi.doUnmock("@/lib/auth/requirePrincipal");
+      vi.resetModules();
+    }
+  });
+
   it("keeps every V3 notes handler response private when its database is unavailable", async () => {
     const owner = "c".repeat(43);
     const { getPrisma } = await import("@/lib/db/prisma");
