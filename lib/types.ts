@@ -319,7 +319,10 @@ export interface ApiError {
       | "BAD_REQUEST"
       | "NOT_FOUND"
       | "CONSENT_REQUIRED"
-      | "INTERNAL_ERROR";
+      | "INTERNAL_ERROR"
+      | "UNAUTHORIZED"
+      | "FORBIDDEN"
+      | "CONFLICT";
     message: string;
   };
 }
