@@ -15,8 +15,7 @@ const defaultPorts: WritingPorts = {
 function ports(): WritingPorts { return { ...defaultPorts, ...testPorts }; }
 
 function factualSentence(excerpt: string, id: string) {
-  const cleaned = excerpt.trim().replace(/\s+/g, " ");
-  return `${cleaned.endsWith(".") ? cleaned.slice(0, -1) : cleaned}. [${id}]`;
+  return excerpt.trim().replace(/\s+/g, " ").split(/(?<=[.!?。！？])\s+/).filter(Boolean).map((sentence) => `${sentence.replace(/[.!?。！？]$/, "")}. [${id}]`).join(" ");
 }
 
 export async function discoverWritingEvidence(input: { principal: CurrentPrincipal; sessionId: string; researchQuestion: string }): Promise<EvidenceItem[]> {
@@ -32,9 +31,14 @@ export async function generateEvidenceDraft(input: { principal: CurrentPrincipal
   if (new Set(input.evidenceIds).size !== input.evidenceIds.length || input.evidenceIds.some((id) => !session.evidenceIds.includes(id))) {
     throw new WritingError("BAD_REQUEST", "Selected evidence must belong to this research session");
   }
-  // The session itself can be unbounded; a single section has an explicit bounded context.
-  const selected = input.evidenceIds.slice(0, 12);
-  const evidence = await Promise.all(selected.map((id) => active.evidence(id)));
+  // A session may hold unlimited references. Rank its verified, caller-selected evidence
+  // for the requested focus, then send only the bounded section context onward.
+  const all = await Promise.all(input.evidenceIds.map((id) => active.evidence(id)));
+  const focusTerms = input.focus.toLowerCase().split(/\W+/).filter(Boolean);
+  const evidence = all.filter((item): item is EvidenceItem => Boolean(item)).sort((a, b) => {
+    const score = (item: EvidenceItem) => focusTerms.reduce((n, term) => n + Number(`${item.title} ${item.excerpt}`.toLowerCase().includes(term)), 0);
+    return score(b) - score(a);
+  }).slice(0, 12);
   if (evidence.some((item) => !item || item.verificationStatus !== "verified" || !item.userConfirmedAt)) {
     throw new WritingError("BAD_REQUEST", "Selected evidence must be verified and user confirmed");
   }
