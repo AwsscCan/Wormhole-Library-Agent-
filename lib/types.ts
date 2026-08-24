@@ -459,16 +459,18 @@ export type CitationResult = {
 export type Feedback = {
   targetType: "paper" | "wormhole" | "citation";
   targetId: string;
-  /** 03-02 补交：新增 too_close / too_far / not_relevant（与 API 层 FeedbackRating 全量对齐） */
   rating:
     | "too_theoretical"
     | "too_empirical"
     | "too_hard"
     | "just_right"
-    | "interesting"
-    | "too_close"
-    | "too_far"
-    | "not_relevant";
+    | "interesting";
+  /**
+   * 03-02 补交（冻结契约合规版）：可选新增字段，承载 API 层距离类反馈。
+   * 交接规则只允许加可选字段，故 rating 联合保持原 5 值不动，
+   * too_close / too_far / not_relevant 走本字段（编译器优先消费）。
+   */
+  distanceRating?: "too_close" | "too_far" | "not_relevant";
   freeText: string | null;
 };
 

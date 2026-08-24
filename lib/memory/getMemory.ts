@@ -244,3 +244,14 @@ export async function saveSnapshot(
     await store.saveEntry(entry);
   }
 }
+
+/**
+ * 责任书 3.4 公开入口：读取用户记忆（签名 getUserMemory(userId)）。
+ * getMemory 的快照形式包装 —— MemorySnapshot 即本模块的用户记忆摘要。
+ */
+export async function getUserMemory(
+  userId: UserId,
+  store?: MemoryStore
+): Promise<MemorySnapshot> {
+  return (await getMemory(userId, store)).memory;
+}

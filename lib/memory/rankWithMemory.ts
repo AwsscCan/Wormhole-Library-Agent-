@@ -26,6 +26,7 @@
  */
 
 import type { PaperCard, MemorySnapshot } from "../types";
+import { applyMemoryCorrection } from "../wormhole/score";
 
 /**
  * Check if a paper is "Chinese" (title contains CJK characters).
@@ -184,4 +185,21 @@ export function rankWithMemory(
   ranked.sort((a, b) => (b._rankScore ?? 0) - (a._rankScore ?? 0));
 
   return ranked;
+}
+
+/* ---------------- 责任书 3.4 公开入口 ---------------- */
+
+
+/**
+ * 责任书 3.4 公开入口：把记忆修正应用到单个候选的排序分数上
+ * （签名 applyMemoryToRanking(score, candidate, memory): number）。
+ * 规则即设计文档 10.7：likedDomain +0.05 / dislikedDomain -0.08 /
+ * 高数学要求且 mathTolerance < 0.4 时 -0.10 / 中文优先且资源为中文 +0.04。
+ */
+export function applyMemoryToRanking(
+  score: number,
+  candidate: PaperCard,
+  memory?: MemorySnapshot
+): number {
+  return applyMemoryCorrection(score, candidate, memory);
 }

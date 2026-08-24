@@ -193,3 +193,44 @@ export function validateRequiredChains(graph: ConceptGraphImpl): boolean {
   }
   return true;
 }
+
+/* ---------------- 责任书 3.2 公开入口 ---------------- */
+
+/** 概念图路径（责任书 findConceptPaths 返回类型） */
+export type ConceptPath = {
+  startId: string;
+  destinationId: string;
+  edges: ConceptEdge[];
+  pathLength: number;
+  avgWeight: number;
+};
+
+/**
+ * 责任书 3.2 公开入口：在概念图上寻找从多个起点到同一终点的路径。
+ * 每个起点经 BFS（findPath）得到一条最短路径；无路径或超过 maxHops
+ * 的起点被跳过。结果按传入起点顺序返回。
+ */
+export function findConceptPaths(
+  startIds: string[],
+  destinationId: string,
+  options?: { graph?: ConceptGraphImpl; maxHops?: number }
+): ConceptPath[] {
+  const graph = options?.graph ?? loadConceptGraph();
+  const maxHops = options?.maxHops ?? 6;
+  const paths: ConceptPath[] = [];
+
+  for (const startId of startIds) {
+    if (startId === destinationId) continue;
+    const edges = graph.findPath(startId, destinationId);
+    if (edges.length === 0 || edges.length > maxHops) continue;
+    paths.push({
+      startId,
+      destinationId,
+      edges,
+      pathLength: edges.length,
+      avgWeight:
+        edges.reduce((sum, e) => sum + (e.weight ?? 0.5), 0) / edges.length,
+    });
+  }
+  return paths;
+}

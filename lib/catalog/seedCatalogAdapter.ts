@@ -23,7 +23,6 @@ import type {
 import { rankResources } from "./ranking";
 
 type SeedResource = (typeof resourcesSeed)["resources"][number];
-type SeedConcept = (typeof conceptsSeed)["concepts"][number];
 
 const resources: SeedResource[] = resourcesSeed.resources;
 const conceptById = new Map(conceptsSeed.concepts.map((c) => [c.id, c]));

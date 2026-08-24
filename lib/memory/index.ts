@@ -24,9 +24,9 @@ import { renderMemoryContext } from "./renderMemoryContext";
 import { toPaperFeedback, lookupPaperByTargetId } from "../wormhole/adapter";
 
 // Re-export individual functions
-export { compileFeedback } from "./compileFeedback";
-export { applyPatch } from "./applyPatch";
-export { rankWithMemory } from "./rankWithMemory";
+export { compileFeedback, compileFeedbackMemory } from "./compileFeedback";
+export { applyPatch, applyMemoryPatch } from "./applyPatch";
+export { rankWithMemory, applyMemoryToRanking } from "./rankWithMemory";
 export {
   renderMemoryContext,
   renderMemoryHistory,
@@ -37,6 +37,8 @@ export {
   getMemoryHistory,
   resetMemory,
   getDefaultMemory,
+  getUserMemory,
+  saveSnapshot,
   InMemoryStore,
   type MemoryStore,
 } from "./getMemory";

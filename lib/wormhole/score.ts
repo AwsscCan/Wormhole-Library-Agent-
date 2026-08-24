@@ -14,7 +14,7 @@
  *   no paper endpoint → discard
  */
 
-import type { PaperCard, ConceptTag, MemorySnapshot } from "../types";
+import type { PaperCard, ConceptTag, MemorySnapshot, PaperWormholeCard } from "../types";
 import {
   computeNovelty,
   computeNoveltyFit,
@@ -239,4 +239,31 @@ export function shouldEliminate(
     return { eliminate: true, reason: "random_not_bridged" };
   }
   return { eliminate: false, reason: "pass" };
+}
+
+/* ---------------- 责任书 3.3 公开入口 ---------------- */
+
+
+/**
+ * 责任书 3.3 公开入口：对虫洞候选重排序。
+ * 在引擎已算出的 final 分数上叠加记忆修正（applyMemoryCorrection，
+ * 即设计文档 10.7 的 ±0.05 / -0.08 / -0.10 / +0.04 规则），按修正后
+ * 分数降序返回新数组（不修改入参）。
+ */
+export function rankWormholes(
+  candidates: PaperWormholeCard[],
+  context: { sliderValue?: number; memory?: MemorySnapshot } = {}
+): PaperWormholeCard[] {
+  void context.sliderValue; // noveltyFit 已在引擎 generate 阶段按 slider 算入 final
+  return candidates
+    .map((card) => ({
+      card,
+      adjusted: applyMemoryCorrection(
+        card.scores.final,
+        card.targetPaper,
+        context.memory
+      ),
+    }))
+    .sort((a, b) => b.adjusted - a.adjusted)
+    .map(({ card }) => card);
 }

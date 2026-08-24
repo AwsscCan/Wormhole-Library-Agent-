@@ -14,7 +14,12 @@ import { WormholeEngineImpl } from "./generate";
 import { toMemorySnapshot, toUiWormholeCards } from "./adapter";
 import { loadPaperLibrary, pickStartPaperId } from "../paperLibrary";
 
-export { WormholeEngineImpl, getDefaultWormholeEngine } from "./generate";
+export {
+  WormholeEngineImpl,
+  getDefaultWormholeEngine,
+  findUnknownUnknowns,
+  type UnknownUnknownCard,
+} from "./generate";
 export {
   findCitationPaths,
   deduplicateByTarget,
@@ -30,6 +35,7 @@ export {
   applyMemoryCorrection,
   computeDiversity,
   shouldEliminate,
+  rankWormholes,
 } from "./score";
 
 // Re-export frozen types for convenience

@@ -243,3 +243,47 @@ export function getDefaultWormholeEngine(): WormholeEngineImpl {
   if (!_default) _default = new WormholeEngineImpl();
   return _default;
 }
+
+/* ---------------- 责任书 3.3 公开入口 ---------------- */
+
+/** unknown-unknown 提示卡（责任书 findUnknownUnknowns 返回类型） */
+export type UnknownUnknownCard = {
+  conceptId: string;
+  conceptName: string;
+  whyItMatters: string;
+  novelty: number;
+};
+
+/**
+ * 责任书 3.3 公开入口：从虫洞结果中提取 unknown unknowns。
+ * 规则（与编排层展示逻辑一致）：取 novelty 中高（>= 0.4）的虫洞终点里，
+ * 用户起点概念中没出现过、且尚未输出过的概念，附上虫洞解释作为
+ * "为什么值得关心"。按虫洞顺序去重输出，最多 maxCards 张（默认 2）。
+ */
+export async function findUnknownUnknowns(input: {
+  wormholes: PaperWormholeCard[];
+  startConceptIds?: string[];
+  maxCards?: number;
+}): Promise<UnknownUnknownCard[]> {
+  const { wormholes, startConceptIds = [], maxCards = 2 } = input;
+  const known = new Set(startConceptIds);
+  const seen = new Set<string>();
+  const cards: UnknownUnknownCard[] = [];
+
+  for (const w of wormholes) {
+    if (cards.length >= maxCards) break;
+    if (w.scores.novelty < 0.4) continue;
+    const target = w.targetConcepts.find(
+      (c) => c.level >= 1 && !known.has(c.id) && !seen.has(c.id)
+    );
+    if (!target) continue;
+    seen.add(target.id);
+    cards.push({
+      conceptId: target.id,
+      conceptName: target.name,
+      whyItMatters: w.explanation,
+      novelty: w.scores.novelty,
+    });
+  }
+  return cards;
+}

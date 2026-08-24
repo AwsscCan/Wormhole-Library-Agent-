@@ -15,7 +15,6 @@ import type {
   ConceptRef,
   Difficulty,
   Language,
-  LanguagePref,
   ResourceCard,
   ResourceType,
 } from "@/lib/types";

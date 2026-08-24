@@ -153,30 +153,49 @@ export function toMemorySnapshot(summary: MemorySummary): MemorySnapshot {
 
 /* ------------------- FeedbackRequest → paper Feedback ------------------- */
 
+/** API 层的距离类 rating（冻结契约合规：走 Feedback.distanceRating 可选字段） */
+const DISTANCE_RATINGS = ["too_close", "too_far", "not_relevant"] as const;
+type DistanceRating = (typeof DISTANCE_RATINGS)[number];
+
+function isDistanceRating(r: FeedbackRequest["rating"]): r is DistanceRating {
+  return (DISTANCE_RATINGS as readonly string[]).includes(r);
+}
+
 /**
  * Map API feedback ratings onto the paper-level compiler's ratings.
- * 03-02 补交：六种 API rating 全量映射（too_close / too_far / not_relevant
- * 的语义已由正式编译器实现），不再有 null 路径，调用方无需回退
- * compileFeedbackFallback。
+ * 03-02 补交：六种 API rating 全量映射，不再有 null 路径，调用方无需
+ * 回退 compileFeedbackFallback。其中距离类 rating（too_close / too_far /
+ * not_relevant）映射到 Feedback.distanceRating 可选字段 —— 冻结契约
+ * 只允许加可选字段，rating 联合保持原 5 值；编译器优先消费
+ * distanceRating，占位的 rating 值不会被消费。
  */
 export function toPaperFeedback(req: FeedbackRequest): Feedback {
-  const ratingMap: Record<FeedbackRequest["rating"], Feedback["rating"]> = {
+  const targetType: Feedback["targetType"] =
+    req.targetType === "wormhole" ? "wormhole" : "paper";
+
+  if (isDistanceRating(req.rating)) {
+    return {
+      targetType,
+      targetId: req.targetId,
+      rating: "just_right", // 中性占位，编译器命中 distanceRating 后提前返回
+      distanceRating: req.rating,
+      freeText: req.freeText ?? null,
+    };
+  }
+
+  const ratingMap: Record<
+    Exclude<FeedbackRequest["rating"], DistanceRating>,
+    Feedback["rating"]
+  > = {
     too_hard: "too_hard",
     just_right: "just_right",
     useful: "interesting",
-    too_close: "too_close",
-    too_far: "too_far",
-    not_relevant: "not_relevant",
   };
-  const rating = ratingMap[req.rating];
-
-  const targetType: Feedback["targetType"] =
-    req.targetType === "wormhole" ? "wormhole" : "paper";
 
   return {
     targetType,
     targetId: req.targetId,
-    rating,
+    rating: ratingMap[req.rating],
     freeText: req.freeText ?? null,
   };
 }

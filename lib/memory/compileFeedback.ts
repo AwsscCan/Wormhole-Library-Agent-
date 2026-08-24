@@ -310,6 +310,59 @@ export function compileFeedback(
 ): MemoryPatch[] {
   const patches: MemoryPatch[] = [];
 
+  // 距离类反馈（too_close / too_far / not_relevant）走可选字段
+  // distanceRating（冻结契约只允许加可选字段，rating 联合保持 5 值）。
+  // 编译器优先消费 distanceRating：命中即产出 patch 并提前返回，
+  // 此时 rating 仅为中性的占位值。
+  if (feedback.distanceRating) {
+    switch (feedback.distanceRating) {
+      case "too_close":
+        patches.push({
+          key: "serendipity.defaultSlider",
+          operation: "increment",
+          value: 10,
+          confidenceDelta: 0.08,
+          reason: "用户觉得太接近已知，抬高默认意外度。",
+        });
+        break;
+
+      case "too_far":
+        patches.push({
+          key: "serendipity.defaultSlider",
+          operation: "decrement",
+          value: 10,
+          confidenceDelta: 0.08,
+          reason: "用户觉得跳得太远，降低默认意外度。",
+        });
+        break;
+
+      case "not_relevant": {
+        const dislikedDomains = new Set<string>();
+        if (paper?.concepts) {
+          for (const d of extractDomainsFromConcepts(paper.concepts)) {
+            dislikedDomains.add(d);
+          }
+        }
+        if (feedback.freeText) {
+          for (const d of extractDomainsFromText(feedback.freeText)) {
+            dislikedDomains.add(d);
+          }
+        }
+        for (const domain of dislikedDomains) {
+          patches.push({
+            key: "serendipity.dislikedDomains",
+            operation: "add_or_increment",
+            value: domain,
+            confidenceDelta: 0.08,
+            reason: `用户认为「${domain}」方向的推荐不相关。`,
+          });
+        }
+        break;
+      }
+    }
+    return patches;
+  }
+
   switch (feedback.rating) {
     case "too_theoretical":
       // User wants more empirical work
@@ -368,53 +421,6 @@ export function compileFeedback(
         }
       }
       break;
-
-    case "too_close":
-      // 03-02 补交：与概念级语义对齐 —— 太接近已知，抬高默认意外度
-      patches.push({
-        key: "serendipity.defaultSlider",
-        operation: "increment",
-        value: 10,
-        confidenceDelta: 0.08,
-        reason: "用户觉得太接近已知，抬高默认意外度。",
-      });
-      break;
-
-    case "too_far":
-      // 03-02 补交：跳得太远，降低默认意外度
-      patches.push({
-        key: "serendipity.defaultSlider",
-        operation: "decrement",
-        value: 10,
-        confidenceDelta: 0.08,
-        reason: "用户觉得跳得太远，降低默认意外度。",
-      });
-      break;
-
-    case "not_relevant": {
-      // 03-02 补交：不相关 → 将相关领域加入 dislikes（论文概念 + 自由文本）
-      const dislikedDomains = new Set<string>();
-      if (paper?.concepts) {
-        for (const d of extractDomainsFromConcepts(paper.concepts)) {
-          dislikedDomains.add(d);
-        }
-      }
-      if (feedback.freeText) {
-        for (const d of extractDomainsFromText(feedback.freeText)) {
-          dislikedDomains.add(d);
-        }
-      }
-      for (const domain of dislikedDomains) {
-        patches.push({
-          key: "serendipity.dislikedDomains",
-          operation: "add_or_increment",
-          value: domain,
-          confidenceDelta: 0.08,
-          reason: `用户认为「${domain}」方向的推荐不相关。`,
-        });
-      }
-      break;
-    }
 
     case "just_right":
       // No major change, but increment confidence of current preferences
@@ -491,4 +497,16 @@ export function compileFeedback(
   }
 
   return patches;
+}
+
+/**
+ * 责任书 3.4 公开入口：把用户反馈编译为记忆补丁
+ * （签名 compileFeedbackMemory(input): MemoryPatch[]）。
+ * compileFeedback 的直通包装，见上方主实现。
+ */
+export function compileFeedbackMemory(
+  feedback: Feedback,
+  paper?: PaperCard
+): MemoryPatch[] {
+  return compileFeedback(feedback, paper);
 }

@@ -14,7 +14,14 @@ import { ConceptExtractorImpl } from "./conceptExtraction";
 import { loadConceptGraph } from "./graph";
 
 export { ConceptExtractorImpl, getDefaultConceptExtractor } from "./conceptExtraction";
-export { ConceptGraphImpl, loadConceptGraph, validateRequiredChains } from "./graph";
+export {
+  ConceptGraphImpl,
+  loadConceptGraph,
+  validateRequiredChains,
+  findConceptPaths,
+  type ConceptPath,
+} from "./graph";
+export { cosine, buildUserVector } from "./vectors";
 export {
   filterMeaningful,
   computeNovelty,

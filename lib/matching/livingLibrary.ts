@@ -8,7 +8,7 @@
  * 供 orchestrator 的 matches 接入点使用。
  */
 import livingBooksSeed from "@/data/seed-living-books.json";
-import type { LivingBookCard, LivingLibraryService, PersonMatchCard, WillingType } from "@/lib/types";
+import type { LivingLibraryService, PersonMatchCard, WillingType } from "@/lib/types";
 import {
   canShowLivingBook,
   toLivingBookCard,

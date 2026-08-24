@@ -112,6 +112,7 @@ describe("03-02 六种 rating 全量走正式 Memory Compiler（不再回退）"
       "not_relevant",
       "useful",
     ] as const;
+    const DISTANCE = ["too_close", "too_far", "not_relevant"] as const;
     for (const rating of ratings) {
       const fb = toPaperFeedback({
         userId: USER,
@@ -121,6 +122,13 @@ describe("03-02 六种 rating 全量走正式 Memory Compiler（不再回退）"
         rating,
       });
       expect(fb.rating).toBeTruthy();
+      if ((DISTANCE as readonly string[]).includes(rating)) {
+        // 冻结契约合规：距离类 rating 走可选字段 distanceRating，
+        // rating 联合保持原 5 值（交接规则只允许加可选字段）。
+        expect(fb.distanceRating).toBe(rating);
+      } else {
+        expect(fb.distanceRating).toBeUndefined();
+      }
     }
   });
 
@@ -213,5 +221,146 @@ describe("03-03 正式 getMemory / applyPatch 接管编排层记忆", () => {
     expect(
       (await fresh.memory(USER_FORMAL)).memory.difficulty.mathTolerance
     ).toBeLessThan(0.5);
+  });
+});
+
+describe("03-04 责任书 11 个公开入口全部从模块导出并可用", () => {
+  it("concepts：extractConcepts / findConceptPaths / cosine / buildUserVector", async () => {
+    const { findConceptPaths, cosine, buildUserVector } = await import(
+      "@/lib/concepts"
+    );
+
+    // findConceptPaths：AI Agent → Mechanism Design 概念链可达
+    const paths = findConceptPaths(["c_ai_agent", "c_nonexistent"], "c_mechanism_design");
+    const viaAgent = paths.find((p) => p.startId === "c_ai_agent");
+    expect(viaAgent).toBeDefined();
+    expect(viaAgent!.pathLength).toBeGreaterThanOrEqual(2);
+    expect(viaAgent!.edges.length).toBe(viaAgent!.pathLength);
+    // 不存在的起点概念被跳过；不存在的终点返回空数组
+    expect(paths.find((p) => p.startId === "c_nonexistent")).toBeUndefined();
+    expect(findConceptPaths(["c_ai_agent"], "c_nonexistent")).toEqual([]);
+
+    // cosine：同向量相似度 1，无关向量 0
+    const va = new Map([["c_ai_agent", 1], ["c_game_theory", 1]]);
+    expect(cosine(va, new Map(va))).toBeCloseTo(1);
+    expect(cosine(va, new Map([["c_forgetting_curve", 1]]))).toBe(0);
+
+    // buildUserVector：词表长度 = 概念图节点数，起点概念位置为 1
+    const { loadConceptGraph } = await import("@/lib/concepts");
+    const graph = loadConceptGraph();
+    const vec = buildUserVector(USER, ["c_ai_agent", "c_game_theory"]);
+    expect(vec.length).toBe(graph.nodes.size);
+    expect(vec.filter((v) => v === 1).length).toBe(2);
+    expect(vec.every((v) => v === 0 || v === 1)).toBe(true);
+  });
+
+  it("wormhole：generateWormholes / rankWormholes / findUnknownUnknowns", async () => {
+    const {
+      getDefaultWormholeEngine,
+      rankWormholes,
+      findUnknownUnknowns,
+    } = await import("@/lib/wormhole");
+    const { loadPaperLibrary, pickStartPaperId } = await import(
+      "@/lib/paperLibrary"
+    );
+
+    // 引擎直出论文级虫洞卡（rankWormholes / findUnknownUnknowns 的输入）
+    const paperLib = loadPaperLibrary();
+    const startPaperId = pickStartPaperId(["c_ai_agent"]);
+    expect(startPaperId).toBeTruthy();
+    const cards = getDefaultWormholeEngine().generate({
+      startPaperId: startPaperId!,
+      sliderValue: 70,
+      maxPaths: 3,
+      papers: paperLib.papers,
+      references: paperLib.references,
+      concepts: paperLib.concepts,
+    });
+    expect(cards.length).toBeGreaterThan(0);
+
+    // rankWormholes：记忆修正参与排序（排序不抛错、候选集合不变）
+    const memory = {
+      reading: {},
+      difficulty: {},
+      citation: {},
+      serendipity: { defaultSlider: 50, likedDomains: [], dislikedDomains: [] },
+    } satisfies Parameters<typeof rankWormholes>[1] extends { memory?: infer M } | undefined ? M : never;
+    const ranked = rankWormholes(cards, { sliderValue: 70, memory });
+    expect(ranked).toHaveLength(cards.length);
+    expect(new Set(ranked.map((c) => c.id))).toEqual(new Set(cards.map((c) => c.id)));
+
+    // findUnknownUnknowns：从虫洞终点提取用户没见过的概念
+    const uu = await findUnknownUnknowns({
+      wormholes: cards,
+      startConceptIds: ["c_ai_agent"],
+    });
+    expect(uu.length).toBeGreaterThan(0);
+    expect(uu.length).toBeLessThanOrEqual(2);
+    for (const card of uu) {
+      expect(card.conceptId).not.toBe("c_ai_agent");
+      expect(card.whyItMatters.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("memory：getUserMemory / compileFeedbackMemory / applyMemoryPatch / applyMemoryToRanking", async () => {
+    const {
+      getUserMemory,
+      compileFeedbackMemory,
+      applyMemoryPatch,
+      applyMemoryToRanking,
+      InMemoryStore,
+    } = await import("@/lib/memory");
+    const { toPaperFeedback } = await import("@/lib/wormhole/adapter");
+
+    const store = new InMemoryStore();
+    const userId = "it_pkg03_entries";
+
+    // getUserMemory：空存储返回默认快照
+    const initial = await getUserMemory(userId, store);
+    expect(initial.serendipity).toBeDefined();
+
+    // compileFeedbackMemory：距离类反馈走 distanceRating 可选字段
+    const patches = compileFeedbackMemory(
+      toPaperFeedback({
+        userId,
+        interactionId: "int_x",
+        targetType: "wormhole",
+        targetId: "any",
+        rating: "too_close",
+      })
+    );
+    expect(patches.some((p) => p.key === "serendipity.defaultSlider")).toBe(true);
+
+    // applyMemoryPatch：应用补丁并持久化，跨 store 读取可见
+    const updated = await applyMemoryPatch(userId, patches, store);
+    expect(updated.serendipity.defaultSlider!).toBeGreaterThan(
+      initial.serendipity.defaultSlider ?? 50
+    );
+    const reread = await getUserMemory(userId, store);
+    expect(reread.serendipity.defaultSlider).toBe(
+      updated.serendipity.defaultSlider
+    );
+
+    // applyMemoryToRanking：likedDomains 命中加 0.05，dislikedDomains 命中减 0.08
+    // （修正规则按概念名 level <= 1 匹配 domain）
+    const paper = {
+      id: "p1",
+      title: "Test",
+      abstract: "",
+      citedByCount: 10,
+      openAccess: false,
+      year: 2024,
+      authors: [],
+      concepts: [{ id: "c_game_theory", name: "Game Theory", level: 1, score: 0.9, domain: "Economics" }],
+    } as unknown as Parameters<typeof applyMemoryToRanking>[1];
+    const mem = {
+      reading: {},
+      difficulty: {},
+      citation: {},
+      serendipity: { defaultSlider: 50, likedDomains: ["Game Theory"], dislikedDomains: [] },
+    } as NonNullable<Parameters<typeof applyMemoryToRanking>[2]>;
+    expect(applyMemoryToRanking(0.5, paper, mem)).toBeCloseTo(0.55);
+    mem.serendipity = { defaultSlider: 50, likedDomains: [], dislikedDomains: ["Game Theory"] };
+    expect(applyMemoryToRanking(0.5, paper, mem)).toBeCloseTo(0.42);
   });
 });

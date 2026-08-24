@@ -19,7 +19,9 @@ import type {
   MemorySnapshot,
   MemoryPatch,
   MemoryHistoryEntry,
+  UserId,
 } from "../types";
+import { getMemory, getDefaultMemory, saveSnapshot, type MemoryStore } from "./getMemory";
 
 /**
  * Deep clone a memory snapshot (to avoid mutation).
@@ -189,4 +191,28 @@ function describePatches(patches: MemoryPatch[]): string {
     }
   }
   return descriptions.join("; ");
+}
+
+/* ---------------- 责任书 3.4 公开入口 ---------------- */
+
+/**
+ * 责任书 3.4 公开入口：读取用户当前记忆 → 应用补丁 → 持久化
+ * （签名 applyMemoryPatch(userId, patches)）。
+ * 传入 store 时与编排层同策略：saveSnapshot 写回快照 + saveHistory 记录
+ * 历史条目；不传 store 则仅在默认记忆上应用（纯函数语义，供测试）。
+ */
+export async function applyMemoryPatch(
+  userId: UserId,
+  patches: MemoryPatch[],
+  store?: MemoryStore
+): Promise<MemorySnapshot> {
+  const current = store
+    ? (await getMemory(userId, store)).memory
+    : getDefaultMemory();
+  const { memory: updated, history } = applyPatch(current, patches);
+  if (store) {
+    await saveSnapshot(store, userId, updated);
+    await store.saveHistory(userId, history);
+  }
+  return updated;
 }

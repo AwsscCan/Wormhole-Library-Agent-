@@ -9,6 +9,7 @@
  */
 
 import type { ConceptTag } from "../types";
+import { loadConceptGraph } from "./graph";
 
 /**
  * Filter concepts to only meaningful ones (level >= 1, score > 0.3).
@@ -122,4 +123,33 @@ export function conceptSimilarity(vecA: Map<string, number>, vecB: Map<string, n
 
   if (normA === 0 || normB === 0) return 0;
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+/* ---------------- 责任书 3.2 公开入口 ---------------- */
+
+/**
+ * 责任书 3.2 公开入口：两个概念向量的余弦相似度。
+ * 即 conceptSimilarity 的别名（签名 cosine(a, b): number）。
+ */
+export function cosine(
+  a: Map<string, number>,
+  b: Map<string, number>
+): number {
+  return conceptSimilarity(a, b);
+}
+
+/**
+ * 责任书 3.2 公开入口：构建用户概念向量（number[] 形式）。
+ * 以当前概念图全部概念 id 排序后作为固定词表，起点概念记 1、其余记 0，
+ * 保证同一词表下向量可比较、可复现（与 cosine/buildUserVector 配合使用）。
+ * userId 当前不影响向量，留作将来按用户记忆加权。
+ */
+export function buildUserVector(
+  userId: string,
+  startConceptIds: string[]
+): number[] {
+  void userId;
+  const vocabulary = [...loadConceptGraph().nodes.keys()].sort();
+  const startSet = new Set(startConceptIds);
+  return vocabulary.map((id) => (startSet.has(id) ? 1 : 0));
 }
