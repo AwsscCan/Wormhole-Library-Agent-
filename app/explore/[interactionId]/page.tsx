@@ -5,7 +5,6 @@
  */
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Landmark, Route, Zap, BrainCircuit, HelpCircle, ArrowLeft,
@@ -26,7 +25,6 @@ export default function ExplorePage({
   params: Promise<{ interactionId: string }>;
 }) {
   const { interactionId } = use(params);
-  const sessionId = useSearchParams().get("sessionId");
   const [search, setSearch] = useState<SearchResponse | null>(null);
   const [slider, setSlider] = useState(60);
   const [wormholes, setWormholes] = useState<WormholesResponse | null>(null);
@@ -68,14 +66,7 @@ export default function ExplorePage({
           maxPaths: 3,
         }),
       });
-      const data = await res.json();
-      setWormholes(data);
-      if (sessionId && res.ok) {
-        await fetch(`/api/research/sessions/${sessionId}/wormholes`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ wormholes: data.wormholes }),
-        });
-      }
+      setWormholes(await res.json());
     } finally {
       setWhBusy(false);
     }
@@ -112,10 +103,10 @@ export default function ExplorePage({
         className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-ink-border bg-ink-panel/80 px-4 py-2.5"
       >
         <Link
-          href={sessionId ? `/research/${sessionId}/map` : `/map/${interactionId}`}
+          href="/"
           className="flex shrink-0 items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-steel hover:text-pulse"
         >
-          <ArrowLeft className="h-3 w-3" /> {sessionId ? "research map" : "upgrade map"}
+          <ArrowLeft className="h-3 w-3" /> console
         </Link>
         <span className="h-4 w-px bg-ink-border" />
         <h1 className="min-w-0 flex-1 truncate font-display text-[15px] text-ivory">

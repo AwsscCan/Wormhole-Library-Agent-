@@ -29,7 +29,7 @@ export class ResearchWorkspace {
           sourceUrl: resource.sourceUrl,
         })),
       });
-      return { action: "search" as const, sessionId, interactionId: response.interactionId, href: `/explore/${response.interactionId}?sessionId=${encodeURIComponent(sessionId)}`, response };
+      return { action: "search" as const, sessionId, interactionId: response.interactionId, href: `/research/${encodeURIComponent(sessionId)}/explore/${encodeURIComponent(response.interactionId)}`, response };
     }
 
     if (input.action === "library") {

@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { getPrisma } from "@/lib/db/prisma";
 import type { CreateResearchSessionInput, GraphUpdateInput } from "./schemas";
 import type { PersonalGraphState, ResearchSession, SessionSearch, SessionWormhole } from "./types";
@@ -8,7 +8,7 @@ type Dependencies = { now: () => string; id: (prefix: string) => string };
 type ResearchRow = {
   id: string; ownerId: string; researchQuestion: string; writingTopic: string | null;
   interactionIdsJson: string; evidenceIdsJson: string; searchesJson: string; wormholesJson: string;
-  personalGraphJson: string; graphVersion: number; revision: number; createdAt: Date; updatedAt: Date;
+  personalGraphJson: string; graphVersion: number; revision: number; createdAt: Date | string; updatedAt: Date | string;
 };
 
 export interface ResearchSessionStore {
@@ -23,6 +23,8 @@ const emptyGraph = (): PersonalGraphState => ({ schemaVersion: 1, version: 0, no
 const parse = <T>(json: string, fallback: T): T => { try { return JSON.parse(json) as T; } catch { return fallback; } };
 
 function decode(row: ResearchRow): ResearchSession {
+  const createdAt = new Date(row.createdAt).toISOString();
+  const updatedAt = new Date(row.updatedAt).toISOString();
   let graph: PersonalGraphState;
   let recoveryWarning: ResearchSession["recoveryWarning"];
   try { graph = JSON.parse(row.personalGraphJson) as PersonalGraphState; }
@@ -34,7 +36,7 @@ function decode(row: ResearchRow): ResearchSession {
     interactionIds: parse(row.interactionIdsJson, []), evidenceIds: parse(row.evidenceIdsJson, []),
     searches: parse(row.searchesJson, []), wormholes: parse(row.wormholesJson, []),
     personalGraph: graph, revision: row.revision, recoveryWarning,
-    createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
+    createdAt, updatedAt,
   };
 }
 
@@ -51,33 +53,48 @@ function encode(session: ResearchSession) {
 
 export class PrismaResearchSessionStore implements ResearchSessionStore {
   constructor(private readonly prisma: PrismaClient) {}
-  async create(session: ResearchSession) { await this.prisma.researchSession.create({ data: encode(session) }); }
+  async create(session: ResearchSession) {
+    const data = encode(session);
+    await this.prisma.$executeRaw(Prisma.sql`
+      INSERT INTO "ResearchSession"
+        ("id", "ownerId", "researchQuestion", "writingTopic", "interactionIdsJson", "evidenceIdsJson",
+         "searchesJson", "wormholesJson", "personalGraphJson", "graphVersion", "revision", "createdAt", "updatedAt")
+      VALUES (${data.id}, ${data.ownerId}, ${data.researchQuestion}, ${data.writingTopic}, ${data.interactionIdsJson},
+        ${data.evidenceIdsJson}, ${data.searchesJson}, ${data.wormholesJson}, ${data.personalGraphJson},
+        ${data.graphVersion}, ${data.revision}, ${data.createdAt}, ${data.updatedAt})
+    `);
+  }
   async list(ownerId: string) {
-    const rows = await this.prisma.researchSession.findMany({ where: { ownerId }, orderBy: { updatedAt: "desc" } });
-    return rows.map((row) => decode(row as ResearchRow));
+    const rows = await this.prisma.$queryRaw<ResearchRow[]>(Prisma.sql`
+      SELECT * FROM "ResearchSession" WHERE "ownerId" = ${ownerId} ORDER BY "updatedAt" DESC
+    `);
+    return rows.map(decode);
   }
   async get(ownerId: string, id: string) {
-    const row = await this.prisma.researchSession.findFirst({ where: { id, ownerId } });
-    return row ? decode(row as ResearchRow) : null;
+    const rows = await this.prisma.$queryRaw<ResearchRow[]>(Prisma.sql`
+      SELECT * FROM "ResearchSession" WHERE "id" = ${id} AND "ownerId" = ${ownerId} LIMIT 1
+    `);
+    return rows[0] ? decode(rows[0]) : null;
   }
   async replace(ownerId: string, expectedRevision: number, session: ResearchSession) {
     const data = encode({ ...session, revision: expectedRevision + 1 });
-    const result = await this.prisma.researchSession.updateMany({
-      where: { id: session.id, ownerId, revision: expectedRevision },
-      data: { researchQuestion: data.researchQuestion, writingTopic: data.writingTopic,
-        interactionIdsJson: data.interactionIdsJson, evidenceIdsJson: data.evidenceIdsJson,
-        searchesJson: data.searchesJson, wormholesJson: data.wormholesJson,
-        personalGraphJson: data.personalGraphJson, graphVersion: data.graphVersion,
-        revision: { increment: 1 }, updatedAt: data.updatedAt },
-    });
-    return result.count === 1;
+    const changed = await this.prisma.$executeRaw(Prisma.sql`
+      UPDATE "ResearchSession" SET "researchQuestion" = ${data.researchQuestion}, "writingTopic" = ${data.writingTopic},
+        "interactionIdsJson" = ${data.interactionIdsJson}, "evidenceIdsJson" = ${data.evidenceIdsJson},
+        "searchesJson" = ${data.searchesJson}, "wormholesJson" = ${data.wormholesJson},
+        "personalGraphJson" = ${data.personalGraphJson}, "graphVersion" = ${data.graphVersion},
+        "revision" = "revision" + 1, "updatedAt" = ${data.updatedAt}
+      WHERE "id" = ${session.id} AND "ownerId" = ${ownerId} AND "revision" = ${expectedRevision}
+    `);
+    return changed === 1;
   }
   async updateGraph(ownerId: string, id: string, expectedVersion: number, graph: PersonalGraphState, updatedAt: string) {
-    const result = await this.prisma.researchSession.updateMany({
-      where: { id, ownerId, graphVersion: expectedVersion },
-      data: { personalGraphJson: JSON.stringify(graph), graphVersion: graph.version, revision: { increment: 1 }, updatedAt: new Date(updatedAt) },
-    });
-    if (result.count === 1) return "updated" as const;
+    const changed = await this.prisma.$executeRaw(Prisma.sql`
+      UPDATE "ResearchSession" SET "personalGraphJson" = ${JSON.stringify(graph)}, "graphVersion" = ${graph.version},
+        "revision" = "revision" + 1, "updatedAt" = ${new Date(updatedAt)}
+      WHERE "id" = ${id} AND "ownerId" = ${ownerId} AND "graphVersion" = ${expectedVersion}
+    `);
+    if (changed === 1) return "updated" as const;
     return await this.get(ownerId, id) ? "conflict" as const : "not_found" as const;
   }
 }

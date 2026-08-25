@@ -30,6 +30,7 @@ describe("ResearchWorkspace closed loop", () => {
 
     expect(search).toHaveBeenCalledWith(expect.objectContaining({ userId: "member:alice", query: "hybrid retrieval — Evaluate RAG" }));
     expect(result).toMatchObject({ action: "search", sessionId: session.id, interactionId: "int-42" });
+    expect(result.href).toBe(`/research/${session.id}/explore/int-42`);
     const restored = await sessions.get("member:alice", session.id);
     expect(restored.interactionIds).toEqual(["int-42"]);
     expect(restored.searches[0].resources[0].id).toBe("paper-1");

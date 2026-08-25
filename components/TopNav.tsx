@@ -1,12 +1,11 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Telescope, Brain, BookUser, Landmark, ScrollText, Map } from "lucide-react";
+import { Telescope, Brain, BookUser, Landmark, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/", label: "探索台", en: "EXPLORE", icon: Telescope },
-  { href: "/research", label: "研究星图", en: "RESEARCH", icon: Map },
   { href: "/memory", label: "记忆核心", en: "MEMORY", icon: Brain },
   { href: "/review", label: "文献综述", en: "REVIEW", icon: ScrollText },
   { href: "/living-library", label: "活馆藏", en: "LIVING LIB", icon: BookUser },

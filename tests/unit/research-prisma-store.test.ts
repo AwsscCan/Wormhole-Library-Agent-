@@ -73,7 +73,7 @@ describe("PrismaResearchSessionStore", () => {
     const { prisma } = await database();
     const service = new ResearchSessionService(new PrismaResearchSessionStore(prisma));
     const session = await service.create("member:alice", { researchQuestion: "Corrupt recovery" });
-    await prisma.researchSession.update({ where: { id: session.id }, data: { personalGraphJson: "{private-corrupt-json" } });
+    await prisma.$executeRawUnsafe('UPDATE "ResearchSession" SET "personalGraphJson" = ? WHERE "id" = ?', "{private-corrupt-json", session.id);
     await expect(service.get("member:alice", session.id)).resolves.toMatchObject({
       recoveryWarning: "CORRUPT_PERSONAL_GRAPH",
       personalGraph: { schemaVersion: 1, version: 0, nodeOverrides: {} },
