@@ -1,0 +1,14 @@
+{
+  "memory": {
+    "status": "unavailable",
+    "summary": null,
+    "message": "Memory summary port is not integrated"
+  },
+  "sourceFailure": {
+    "sourceStatus": "unavailable",
+    "degraded": true,
+    "resources": [],
+    "message": "Source-transparent catalog port is not integrated"
+  },
+  "ui": "来源或记忆端口未接入时显式显示降级，不把外部失败呈现为正常零结果。"
+}

@@ -1,0 +1,1037 @@
+[
+  {
+    "id": "direct-01",
+    "resourceId": "direct-resource-1",
+    "title": "direct evidence 1",
+    "band": "direct",
+    "relevance": 0.99,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-02",
+    "resourceId": "direct-resource-2",
+    "title": "direct evidence 2",
+    "band": "direct",
+    "relevance": 0.978,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-03",
+    "resourceId": "direct-resource-3",
+    "title": "direct evidence 3",
+    "band": "direct",
+    "relevance": 0.966,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-04",
+    "resourceId": "direct-resource-4",
+    "title": "direct evidence 4",
+    "band": "direct",
+    "relevance": 0.954,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-05",
+    "resourceId": "direct-resource-5",
+    "title": "direct evidence 5",
+    "band": "direct",
+    "relevance": 0.942,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-06",
+    "resourceId": "direct-resource-6",
+    "title": "direct evidence 6",
+    "band": "direct",
+    "relevance": 0.9299999999999999,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-07",
+    "resourceId": "direct-resource-7",
+    "title": "direct evidence 7",
+    "band": "direct",
+    "relevance": 0.9179999999999999,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-08",
+    "resourceId": "direct-resource-8",
+    "title": "direct evidence 8",
+    "band": "direct",
+    "relevance": 0.906,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-09",
+    "resourceId": "direct-resource-9",
+    "title": "direct evidence 9",
+    "band": "direct",
+    "relevance": 0.894,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-10",
+    "resourceId": "direct-resource-10",
+    "title": "direct evidence 10",
+    "band": "direct",
+    "relevance": 0.882,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-11",
+    "resourceId": "direct-resource-11",
+    "title": "direct evidence 11",
+    "band": "direct",
+    "relevance": 0.87,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-12",
+    "resourceId": "direct-resource-12",
+    "title": "direct evidence 12",
+    "band": "direct",
+    "relevance": 0.858,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "repeated-retrieval"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-13",
+    "resourceId": "direct-resource-13",
+    "title": "direct evidence 13",
+    "band": "direct",
+    "relevance": 0.846,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-0"
+    ],
+    "citationIds": [],
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-14",
+    "resourceId": "direct-resource-14",
+    "title": "direct evidence 14",
+    "band": "direct",
+    "relevance": 0.834,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-1"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-15",
+    "resourceId": "direct-resource-15",
+    "title": "direct evidence 15",
+    "band": "direct",
+    "relevance": 0.822,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-2"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-16",
+    "resourceId": "direct-resource-16",
+    "title": "direct evidence 16",
+    "band": "direct",
+    "relevance": 0.81,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-3"
+    ],
+    "citationIds": [],
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-17",
+    "resourceId": "direct-resource-17",
+    "title": "direct evidence 17",
+    "band": "direct",
+    "relevance": 0.798,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-4"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-18",
+    "resourceId": "direct-resource-18",
+    "title": "direct evidence 18",
+    "band": "direct",
+    "relevance": 0.786,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-5"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-19",
+    "resourceId": "direct-resource-19",
+    "title": "direct evidence 19",
+    "band": "direct",
+    "relevance": 0.774,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-0"
+    ],
+    "citationIds": [],
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-20",
+    "resourceId": "direct-resource-20",
+    "title": "direct evidence 20",
+    "band": "direct",
+    "relevance": 0.762,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-1"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-21",
+    "resourceId": "direct-resource-21",
+    "title": "direct evidence 21",
+    "band": "direct",
+    "relevance": 0.75,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-2"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-22",
+    "resourceId": "direct-resource-22",
+    "title": "direct evidence 22",
+    "band": "direct",
+    "relevance": 0.738,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-3"
+    ],
+    "citationIds": [],
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-23",
+    "resourceId": "direct-resource-23",
+    "title": "direct evidence 23",
+    "band": "direct",
+    "relevance": 0.726,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-4"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "direct-24",
+    "resourceId": "direct-resource-24",
+    "title": "direct evidence 24",
+    "band": "direct",
+    "relevance": 0.714,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "direct-5"
+    ],
+    "citationIds": [],
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-01",
+    "resourceId": "adjacent-resource-1",
+    "title": "adjacent evidence 1",
+    "band": "adjacent",
+    "relevance": 0.99,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-0"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-0",
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-02",
+    "resourceId": "adjacent-resource-2",
+    "title": "adjacent evidence 2",
+    "band": "adjacent",
+    "relevance": 0.978,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-1"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-1",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-03",
+    "resourceId": "adjacent-resource-3",
+    "title": "adjacent evidence 3",
+    "band": "adjacent",
+    "relevance": 0.966,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-2"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-2",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-04",
+    "resourceId": "adjacent-resource-4",
+    "title": "adjacent evidence 4",
+    "band": "adjacent",
+    "relevance": 0.954,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-3"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-3",
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-05",
+    "resourceId": "adjacent-resource-5",
+    "title": "adjacent evidence 5",
+    "band": "adjacent",
+    "relevance": 0.942,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-4"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-4",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-06",
+    "resourceId": "adjacent-resource-6",
+    "title": "adjacent evidence 6",
+    "band": "adjacent",
+    "relevance": 0.9299999999999999,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-5"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-5",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-07",
+    "resourceId": "adjacent-resource-7",
+    "title": "adjacent evidence 7",
+    "band": "adjacent",
+    "relevance": 0.9179999999999999,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-6"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-6",
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-08",
+    "resourceId": "adjacent-resource-8",
+    "title": "adjacent evidence 8",
+    "band": "adjacent",
+    "relevance": 0.906,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-0"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-0",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-09",
+    "resourceId": "adjacent-resource-9",
+    "title": "adjacent evidence 9",
+    "band": "adjacent",
+    "relevance": 0.894,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-1"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-1",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-10",
+    "resourceId": "adjacent-resource-10",
+    "title": "adjacent evidence 10",
+    "band": "adjacent",
+    "relevance": 0.882,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-2"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-2",
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-11",
+    "resourceId": "adjacent-resource-11",
+    "title": "adjacent evidence 11",
+    "band": "adjacent",
+    "relevance": 0.87,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-3"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-3",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-12",
+    "resourceId": "adjacent-resource-12",
+    "title": "adjacent evidence 12",
+    "band": "adjacent",
+    "relevance": 0.858,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-4"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-4",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-13",
+    "resourceId": "adjacent-resource-13",
+    "title": "adjacent evidence 13",
+    "band": "adjacent",
+    "relevance": 0.846,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-5"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-5",
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-14",
+    "resourceId": "adjacent-resource-14",
+    "title": "adjacent evidence 14",
+    "band": "adjacent",
+    "relevance": 0.834,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-6"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-6",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "adjacent-15",
+    "resourceId": "adjacent-resource-15",
+    "title": "adjacent evidence 15",
+    "band": "adjacent",
+    "relevance": 0.822,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-0"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → adjacent-0",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-01",
+    "resourceId": "distant-resource-1",
+    "title": "distant evidence 1",
+    "band": "distant",
+    "relevance": 0.99,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-0"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-0",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-02",
+    "resourceId": "distant-resource-2",
+    "title": "distant evidence 2",
+    "band": "distant",
+    "relevance": 0.978,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-1"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-1",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-03",
+    "resourceId": "distant-resource-3",
+    "title": "distant evidence 3",
+    "band": "distant",
+    "relevance": 0.966,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-2"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-2",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-04",
+    "resourceId": "distant-resource-4",
+    "title": "distant evidence 4",
+    "band": "distant",
+    "relevance": 0.954,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-3"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-3",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-05",
+    "resourceId": "distant-resource-5",
+    "title": "distant evidence 5",
+    "band": "distant",
+    "relevance": 0.942,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-4"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-4",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-06",
+    "resourceId": "distant-resource-6",
+    "title": "distant evidence 6",
+    "band": "distant",
+    "relevance": 0.9299999999999999,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-5"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-5",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-07",
+    "resourceId": "distant-resource-7",
+    "title": "distant evidence 7",
+    "band": "distant",
+    "relevance": 0.9179999999999999,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-6"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-6",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-08",
+    "resourceId": "distant-resource-8",
+    "title": "distant evidence 8",
+    "band": "distant",
+    "relevance": 0.906,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-0"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-0",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 25,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-09",
+    "resourceId": "distant-resource-9",
+    "title": "distant evidence 9",
+    "band": "distant",
+    "relevance": 0.894,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-1"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-1",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "intermediate",
+    "estimatedMinutes": 30,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "distant-10",
+    "resourceId": "distant-resource-10",
+    "title": "distant evidence 10",
+    "band": "distant",
+    "relevance": 0.882,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "distant-2"
+    ],
+    "citationIds": [],
+    "bridge": "Evidence concept → distant-2",
+    "taskValue": "Provides a contrasting method for the active evidence question",
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  },
+  {
+    "id": "invalid-no-bridge",
+    "resourceId": "invalid-no-bridge",
+    "title": "adjacent evidence 1",
+    "band": "adjacent",
+    "relevance": 0.99,
+    "trust": 0.92,
+    "accessible": true,
+    "conceptIds": [
+      "adjacent-0"
+    ],
+    "citationIds": [],
+    "difficulty": "research",
+    "estimatedMinutes": 20,
+    "provenance": {
+      "sourceKind": "openalex",
+      "sourceLabel": "OpenAlex experiment fixture",
+      "retrievedAt": "2026-08-25T00:00:00.000Z"
+    }
+  }
+]

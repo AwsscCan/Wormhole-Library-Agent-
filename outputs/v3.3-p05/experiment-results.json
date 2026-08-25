@@ -1,0 +1,157 @@
+{
+  "packageVersion": "v3.3-p05-schema-1",
+  "recordedAt": "2026-08-25T00:00:00.000Z",
+  "candidateSeed": "deterministic-indexed-fixture-v1 (no random source)",
+  "quotaResults": [
+    {
+      "level": "low",
+      "total": 20,
+      "direct": 16,
+      "adjacent": 4,
+      "distant": 0,
+      "invalidSelected": false,
+      "allHaveFourReasons": true
+    },
+    {
+      "level": "medium",
+      "total": 20,
+      "direct": 12,
+      "adjacent": 6,
+      "distant": 2,
+      "invalidSelected": false,
+      "allHaveFourReasons": true
+    },
+    {
+      "level": "high",
+      "total": 20,
+      "direct": 8,
+      "adjacent": 7,
+      "distant": 5,
+      "invalidSelected": false,
+      "allHaveFourReasons": true
+    }
+  ],
+  "diversityResult": {
+    "rawRelevance": {
+      "repeatedTopicCount": 6,
+      "uniqueConcepts": 14
+    },
+    "greedyMmr": {
+      "repeatedTopicCount": 2,
+      "uniqueConcepts": 19
+    },
+    "forwardIds": [
+      "direct-01",
+      "direct-13",
+      "direct-14",
+      "direct-15",
+      "direct-16",
+      "direct-17",
+      "direct-18",
+      "direct-02",
+      "adjacent-01",
+      "adjacent-02",
+      "adjacent-03",
+      "adjacent-04",
+      "adjacent-05",
+      "adjacent-06",
+      "adjacent-07",
+      "distant-01",
+      "distant-02",
+      "distant-03",
+      "distant-04",
+      "distant-05"
+    ],
+    "reverseIds": [
+      "direct-01",
+      "direct-13",
+      "direct-14",
+      "direct-15",
+      "direct-16",
+      "direct-17",
+      "direct-18",
+      "direct-02",
+      "adjacent-01",
+      "adjacent-02",
+      "adjacent-03",
+      "adjacent-04",
+      "adjacent-05",
+      "adjacent-06",
+      "adjacent-07",
+      "distant-01",
+      "distant-02",
+      "distant-03",
+      "distant-04",
+      "distant-05"
+    ]
+  },
+  "explanationAndFeedback": {
+    "allSelectedHaveFourReasons": true,
+    "feedback": [
+      {
+        "accepted": true,
+        "status": "recorded"
+      },
+      {
+        "accepted": true,
+        "status": "recorded"
+      },
+      {
+        "accepted": true,
+        "status": "recorded"
+      }
+    ],
+    "eventCount": 3,
+    "eventsContainPreferencePatch": false
+  },
+  "recoveryResults": [
+    {
+      "sessionId": "research-p05-1",
+      "topic": "RAG evidence quality",
+      "version": 1,
+      "readingPlanRestored": true,
+      "allViewsRestored": true,
+      "resourceJump": "/research/research-p05-1/map?sessionId=research-p05-1&resourceId=resource-0",
+      "backlinkRestored": true,
+      "researchGraphUnchanged": true
+    },
+    {
+      "sessionId": "research-p05-2",
+      "topic": "Scheduling fairness",
+      "version": 1,
+      "readingPlanRestored": true,
+      "allViewsRestored": true,
+      "resourceJump": "/research/research-p05-2/map?sessionId=research-p05-2&resourceId=resource-1",
+      "backlinkRestored": true,
+      "researchGraphUnchanged": true
+    },
+    {
+      "sessionId": "research-p05-3",
+      "topic": "Graph library discovery",
+      "version": 1,
+      "readingPlanRestored": true,
+      "allViewsRestored": true,
+      "resourceJump": "/research/research-p05-3/map?sessionId=research-p05-3&resourceId=resource-2",
+      "backlinkRestored": true,
+      "researchGraphUnchanged": true
+    }
+  ],
+  "publicProtection": {
+    "before": {
+      "data/seed-concepts.json": "8a0812dc3c792dad91b14294888dc2d7264bb31e6b675a740de7cb44937b075c",
+      "data/seed-edges.json": "c9d7965a26e59578d03c28001aa9ac420c911691fbc3930a9a7b0768cd58476b",
+      "data/seed-living-books.json": "1cc3a39ced08a348d5250757130ab7954aa0518575ab6256f5bb6beeda77312d"
+    },
+    "after": {
+      "data/seed-concepts.json": "8a0812dc3c792dad91b14294888dc2d7264bb31e6b675a740de7cb44937b075c",
+      "data/seed-edges.json": "c9d7965a26e59578d03c28001aa9ac420c911691fbc3930a9a7b0768cd58476b",
+      "data/seed-living-books.json": "1cc3a39ced08a348d5250757130ab7954aa0518575ab6256f5bb6beeda77312d"
+    },
+    "unchanged": true
+  },
+  "memoryDegradation": {
+    "status": "unavailable",
+    "summary": null,
+    "message": "Memory summary port is not integrated"
+  }
+}
