@@ -1,127 +1,144 @@
-import fs from "node:fs";
-import path from "node:path";
+import type { PrismaClient } from "@prisma/client";
+import { getPrisma } from "@/lib/db/prisma";
 import type { CreateResearchSessionInput, GraphUpdateInput } from "./schemas";
 import type { PersonalGraphState, ResearchSession, SessionSearch, SessionWormhole } from "./types";
 import { ResearchError } from "./types";
 
-type DiskState = { schemaVersion: 1; sessions: ResearchSession[] };
 type Dependencies = { now: () => string; id: (prefix: string) => string };
+type ResearchRow = {
+  id: string; ownerId: string; researchQuestion: string; writingTopic: string | null;
+  interactionIdsJson: string; evidenceIdsJson: string; searchesJson: string; wormholesJson: string;
+  personalGraphJson: string; graphVersion: number; revision: number; createdAt: Date; updatedAt: Date;
+};
 
 export interface ResearchSessionStore {
-  readAll(): Promise<ResearchSession[]>;
-  writeAll(sessions: ResearchSession[]): Promise<void>;
+  create(session: ResearchSession): Promise<void>;
+  list(ownerId: string): Promise<ResearchSession[]>;
+  get(ownerId: string, id: string): Promise<ResearchSession | null>;
+  replace(ownerId: string, expectedRevision: number, session: ResearchSession): Promise<boolean>;
+  updateGraph(ownerId: string, id: string, expectedVersion: number, graph: PersonalGraphState, updatedAt: string): Promise<"updated" | "conflict" | "not_found">;
 }
 
-export class FileResearchSessionStore implements ResearchSessionStore {
-  constructor(private readonly file = path.join(process.cwd(), ".data", "research-sessions.json")) {}
+const emptyGraph = (): PersonalGraphState => ({ schemaVersion: 1, version: 0, nodeOverrides: {}, hiddenSystemEdgeIds: [], personalEdges: [] });
+const parse = <T>(json: string, fallback: T): T => { try { return JSON.parse(json) as T; } catch { return fallback; } };
 
-  async readAll(): Promise<ResearchSession[]> {
-    if (!fs.existsSync(this.file)) return [];
-    try {
-      const parsed = JSON.parse(fs.readFileSync(this.file, "utf8")) as DiskState;
-      if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.sessions)) throw new Error("unsupported research store");
-      return parsed.sessions;
-    } catch {
-      const corrupt = `${this.file}.corrupt`;
-      if (fs.existsSync(corrupt)) fs.rmSync(corrupt);
-      fs.renameSync(this.file, corrupt);
-      return [];
-    }
+function decode(row: ResearchRow): ResearchSession {
+  let graph: PersonalGraphState;
+  let recoveryWarning: ResearchSession["recoveryWarning"];
+  try { graph = JSON.parse(row.personalGraphJson) as PersonalGraphState; }
+  catch { graph = emptyGraph(); recoveryWarning = "CORRUPT_PERSONAL_GRAPH"; }
+  graph = { ...graph, version: row.graphVersion };
+  return {
+    id: row.id, ownerId: row.ownerId, researchQuestion: row.researchQuestion,
+    writingTopic: row.writingTopic ?? undefined,
+    interactionIds: parse(row.interactionIdsJson, []), evidenceIds: parse(row.evidenceIdsJson, []),
+    searches: parse(row.searchesJson, []), wormholes: parse(row.wormholesJson, []),
+    personalGraph: graph, revision: row.revision, recoveryWarning,
+    createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function encode(session: ResearchSession) {
+  return {
+    id: session.id, ownerId: session.ownerId, researchQuestion: session.researchQuestion,
+    writingTopic: session.writingTopic ?? null,
+    interactionIdsJson: JSON.stringify(session.interactionIds), evidenceIdsJson: JSON.stringify(session.evidenceIds),
+    searchesJson: JSON.stringify(session.searches), wormholesJson: JSON.stringify(session.wormholes),
+    personalGraphJson: JSON.stringify(session.personalGraph), graphVersion: session.personalGraph.version,
+    revision: session.revision, createdAt: new Date(session.createdAt), updatedAt: new Date(session.updatedAt),
+  };
+}
+
+export class PrismaResearchSessionStore implements ResearchSessionStore {
+  constructor(private readonly prisma: PrismaClient) {}
+  async create(session: ResearchSession) { await this.prisma.researchSession.create({ data: encode(session) }); }
+  async list(ownerId: string) {
+    const rows = await this.prisma.researchSession.findMany({ where: { ownerId }, orderBy: { updatedAt: "desc" } });
+    return rows.map((row) => decode(row as ResearchRow));
   }
-
-  async writeAll(sessions: ResearchSession[]): Promise<void> {
-    const directory = path.dirname(this.file);
-    fs.mkdirSync(directory, { recursive: true });
-    const temporary = `${this.file}.${process.pid}.tmp`;
-    fs.writeFileSync(temporary, JSON.stringify({ schemaVersion: 1, sessions } satisfies DiskState, null, 2), "utf8");
-    fs.renameSync(temporary, this.file);
+  async get(ownerId: string, id: string) {
+    const row = await this.prisma.researchSession.findFirst({ where: { id, ownerId } });
+    return row ? decode(row as ResearchRow) : null;
+  }
+  async replace(ownerId: string, expectedRevision: number, session: ResearchSession) {
+    const data = encode({ ...session, revision: expectedRevision + 1 });
+    const result = await this.prisma.researchSession.updateMany({
+      where: { id: session.id, ownerId, revision: expectedRevision },
+      data: { researchQuestion: data.researchQuestion, writingTopic: data.writingTopic,
+        interactionIdsJson: data.interactionIdsJson, evidenceIdsJson: data.evidenceIdsJson,
+        searchesJson: data.searchesJson, wormholesJson: data.wormholesJson,
+        personalGraphJson: data.personalGraphJson, graphVersion: data.graphVersion,
+        revision: { increment: 1 }, updatedAt: data.updatedAt },
+    });
+    return result.count === 1;
+  }
+  async updateGraph(ownerId: string, id: string, expectedVersion: number, graph: PersonalGraphState, updatedAt: string) {
+    const result = await this.prisma.researchSession.updateMany({
+      where: { id, ownerId, graphVersion: expectedVersion },
+      data: { personalGraphJson: JSON.stringify(graph), graphVersion: graph.version, revision: { increment: 1 }, updatedAt: new Date(updatedAt) },
+    });
+    if (result.count === 1) return "updated" as const;
+    return await this.get(ownerId, id) ? "conflict" as const : "not_found" as const;
   }
 }
 
 export class InMemoryResearchSessionStore implements ResearchSessionStore {
   private sessions: ResearchSession[] = [];
-  async readAll() { return structuredClone(this.sessions); }
-  async writeAll(sessions: ResearchSession[]) { this.sessions = structuredClone(sessions); }
+  async create(session: ResearchSession) { this.sessions.push(structuredClone(session)); }
+  async list(ownerId: string) { return structuredClone(this.sessions.filter((item) => item.ownerId === ownerId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))); }
+  async get(ownerId: string, id: string) { return structuredClone(this.sessions.find((item) => item.ownerId === ownerId && item.id === id) ?? null); }
+  async replace(ownerId: string, expectedRevision: number, session: ResearchSession) {
+    const index = this.sessions.findIndex((item) => item.id === session.id && item.ownerId === ownerId && item.revision === expectedRevision);
+    if (index < 0) return false;
+    this.sessions[index] = structuredClone({ ...session, revision: expectedRevision + 1 }); return true;
+  }
+  async updateGraph(ownerId: string, id: string, expectedVersion: number, graph: PersonalGraphState, updatedAt: string) {
+    const index = this.sessions.findIndex((item) => item.id === id && item.ownerId === ownerId);
+    if (index < 0) return "not_found" as const;
+    if (this.sessions[index].personalGraph.version !== expectedVersion) return "conflict" as const;
+    this.sessions[index] = structuredClone({ ...this.sessions[index], personalGraph: graph, revision: this.sessions[index].revision + 1, updatedAt });
+    return "updated" as const;
+  }
 }
 
-const defaults: Dependencies = {
-  now: () => new Date().toISOString(),
-  id: (prefix) => `${prefix}-${crypto.randomUUID()}`,
-};
-
+const defaults: Dependencies = { now: () => new Date().toISOString(), id: (prefix) => `${prefix}-${crypto.randomUUID()}` };
 export class ResearchSessionService {
   constructor(private readonly store: ResearchSessionStore, private readonly deps: Dependencies = defaults) {}
-
-  async create(ownerId: string, input: CreateResearchSessionInput): Promise<ResearchSession> {
+  async create(ownerId: string, input: CreateResearchSessionInput) {
     const now = this.deps.now();
-    const session: ResearchSession = {
-      id: this.deps.id("research"), ownerId, researchQuestion: input.researchQuestion,
+    const session: ResearchSession = { id: this.deps.id("research"), ownerId, researchQuestion: input.researchQuestion,
       writingTopic: input.writingTopic, interactionIds: [], evidenceIds: [], searches: [], wormholes: [],
-      personalGraph: { schemaVersion: 1, version: 0, nodeOverrides: {}, hiddenSystemEdgeIds: [], personalEdges: [] },
-      createdAt: now, updatedAt: now,
-    };
-    const sessions = await this.store.readAll();
-    sessions.push(session);
-    await this.store.writeAll(sessions);
-    return session;
+      personalGraph: emptyGraph(), revision: 0, createdAt: now, updatedAt: now };
+    await this.store.create(session); return session;
   }
-
-  async list(ownerId: string): Promise<ResearchSession[]> {
-    return (await this.store.readAll()).filter((session) => session.ownerId === ownerId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  async list(ownerId: string) { return this.store.list(ownerId); }
+  async get(ownerId: string, id: string) {
+    const session = await this.store.get(ownerId, id);
+    if (!session) throw new ResearchError("NOT_FOUND", "Research session not found"); return session;
   }
-
-  async get(ownerId: string, id: string): Promise<ResearchSession> {
-    const session = (await this.store.readAll()).find((item) => item.id === id && item.ownerId === ownerId);
-    if (!session) throw new ResearchError("NOT_FOUND", "Research session not found");
-    return session;
+  async updateGraph(ownerId: string, id: string, input: GraphUpdateInput) {
+    const graph: PersonalGraphState = { schemaVersion: 1, version: input.expectedVersion + 1, nodeOverrides: input.nodeOverrides, hiddenSystemEdgeIds: input.hiddenSystemEdgeIds, personalEdges: input.personalEdges };
+    const result = await this.store.updateGraph(ownerId, id, input.expectedVersion, graph, this.deps.now());
+    if (result === "not_found") throw new ResearchError("NOT_FOUND", "Research session not found");
+    if (result === "conflict") throw new ResearchError("CONFLICT", "Graph changed in another tab; reload before saving");
+    return this.get(ownerId, id);
   }
-
-  async updateGraph(ownerId: string, id: string, input: GraphUpdateInput): Promise<ResearchSession> {
-    return this.mutate(ownerId, id, (session) => {
-      if (session.personalGraph.version !== input.expectedVersion) throw new ResearchError("CONFLICT", "Graph changed in another tab; reload before saving");
-      const personalGraph: PersonalGraphState = {
-        schemaVersion: 1, version: session.personalGraph.version + 1,
-        nodeOverrides: input.nodeOverrides, hiddenSystemEdgeIds: input.hiddenSystemEdgeIds,
-        personalEdges: input.personalEdges,
-      };
-      return { ...session, personalGraph, updatedAt: this.deps.now() };
-    });
-  }
-
-  async recordSearch(ownerId: string, id: string, search: SessionSearch): Promise<ResearchSession> {
-    return this.mutate(ownerId, id, (session) => ({
-      ...session,
-      interactionIds: [...new Set([...session.interactionIds, search.interactionId])],
-      searches: [...session.searches.filter((item) => item.interactionId !== search.interactionId), search].slice(-20),
-      updatedAt: this.deps.now(),
-    }));
-  }
-
-  async addEvidence(ownerId: string, id: string, resourceId: string): Promise<ResearchSession> {
-    return this.mutate(ownerId, id, (session) => ({ ...session, evidenceIds: [...new Set([...session.evidenceIds, resourceId])], updatedAt: this.deps.now() }));
-  }
-
-  async recordWormholes(ownerId: string, id: string, wormholes: SessionWormhole[]): Promise<ResearchSession> {
-    return this.mutate(ownerId, id, (session) => ({ ...session, wormholes, updatedAt: this.deps.now() }));
-  }
-
+  async recordSearch(ownerId: string, id: string, search: SessionSearch) { return this.mutate(ownerId, id, (session) => ({ ...session, interactionIds: [...new Set([...session.interactionIds, search.interactionId])], searches: [...session.searches.filter((item) => item.interactionId !== search.interactionId), search].slice(-20), updatedAt: this.deps.now() })); }
+  async addEvidence(ownerId: string, id: string, resourceId: string) { return this.mutate(ownerId, id, (session) => ({ ...session, evidenceIds: [...new Set([...session.evidenceIds, resourceId])], updatedAt: this.deps.now() })); }
+  async recordWormholes(ownerId: string, id: string, wormholes: SessionWormhole[]) { return this.mutate(ownerId, id, (session) => ({ ...session, wormholes, updatedAt: this.deps.now() })); }
   private async mutate(ownerId: string, id: string, update: (session: ResearchSession) => ResearchSession) {
-    const sessions = await this.store.readAll();
-    const index = sessions.findIndex((session) => session.id === id && session.ownerId === ownerId);
-    if (index < 0) throw new ResearchError("NOT_FOUND", "Research session not found");
-    const next = update(sessions[index]);
-    sessions[index] = next;
-    await this.store.writeAll(sessions);
-    return next;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const session = await this.get(ownerId, id); const next = update(session);
+      if (await this.store.replace(ownerId, session.revision, next)) return { ...next, revision: session.revision + 1 };
+    }
+    throw new ResearchError("CONFLICT", "Session changed concurrently; retry the operation");
   }
 }
 
 const globalStore = globalThis as unknown as { __researchSessionService?: ResearchSessionService };
 export function getResearchSessionService() {
   if (!globalStore.__researchSessionService) {
-    const store = process.env.VITEST === "true" || process.env.NODE_ENV === "test"
-      ? new InMemoryResearchSessionStore()
-      : new FileResearchSessionStore();
+    const store = process.env.VITEST === "true" || process.env.NODE_ENV === "test" ? new InMemoryResearchSessionStore() : new PrismaResearchSessionStore(getPrisma());
     globalStore.__researchSessionService = new ResearchSessionService(store);
   }
   return globalStore.__researchSessionService;

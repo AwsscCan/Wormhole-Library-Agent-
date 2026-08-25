@@ -1,5 +1,5 @@
 import { getOrchestrator } from "@/lib/agent/orchestrator";
-import { catalogAdapter } from "@/lib/catalog/adapter";
+import { queryTopicLibrary } from "./catalogPort";
 import { getResearchSessionService } from "./sessionStore";
 import { ResearchWorkspace } from "./workspace";
 
@@ -9,7 +9,7 @@ export function getResearchWorkspace() {
   if (!runtime.__researchWorkspace) {
     runtime.__researchWorkspace = new ResearchWorkspace(getResearchSessionService(), {
       search: (input) => getOrchestrator().search(input),
-      library: ({ query, limit }) => catalogAdapter.searchCatalog({ query, limit }),
+      library: queryTopicLibrary,
     });
   }
   return runtime.__researchWorkspace;

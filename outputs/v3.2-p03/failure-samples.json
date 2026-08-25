@@ -22,6 +22,6 @@
   },
   {
     "code": "CORRUPT_RECOVERY",
-    "recovery": "rename to .corrupt and start empty"
+    "recovery": "restore a schema-v1 empty user layer and surface a warning"
   }
 ]

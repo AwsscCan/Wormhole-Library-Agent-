@@ -26,6 +26,7 @@ const session: ResearchSession = {
   }],
   wormholes: [{ id: "wormhole-1", label: "Knowledge graphs", conceptIds: ["concept-kg"] }],
   personalGraph: { schemaVersion: 1, version: 0, nodeOverrides: {}, hiddenSystemEdgeIds: [], personalEdges: [] },
+  revision: 0,
   createdAt: "2026-08-24T12:00:00.000Z",
   updatedAt: "2026-08-24T12:00:00.000Z",
 };

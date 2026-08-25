@@ -1,8 +1,9 @@
 # V3.2 责任包 03 对照实验
 
-版本：v3.2-p03-schema-1  
-布局种子：deterministic-radial-v1（无随机源）  
+版本：v3.2-p03-schema-2
+布局种子：deterministic-radial-v1（无随机源）
 固定时间：2026-08-24T12:00:00.000Z
+持久化：Prisma/SQLite migration 202608250001
 
 | 主题 | 搜索 | 证据 | 图版本 | 重启恢复 | 公共图 |
 |---|---:|---:|---:|---|---|
@@ -13,13 +14,13 @@
 ## 四组对照结论
 
 1. 个性化图：首页 `StarMap` 未修改；三张会话图均包含主题、搜索、概念和两条资源证据。
-2. 可编辑持久化：位置、固定、隐藏系统边、个人标签、注释和 `personal_note` 边在重新实例化 store 后一致。
+2. 可编辑持久化：位置、固定、隐藏系统边、个人标签、注释和 `personal_note` 边在新 PrismaClient 恢复后一致。
 3. 图谱保护：系统图哈希编辑前后相同，三个 seed/consent 文件 SHA-256 前后相同。
 4. 节点行动：`research-workflow.test.ts` 验证 search/library 均保留 sessionId；search interaction 写回会话，资源可加入证据篮子。
 
-## 可重复 UI / API 闭环
+## 可重复 API 闭环
 
-运行 `npx vitest run tests/unit/research-api-e2e.test.ts --pool forks --poolOptions.forks.singleFork`。测试覆盖创建 → 编辑 → 保存 → 重新 GET 恢复 → 跨所有者 404。
+运行 `npx vitest run tests/unit/research-api-e2e.test.ts tests/unit/research-prisma-store.test.ts --pool forks --poolOptions.forks.singleFork`。覆盖包01身份端口注入、创建、原子编辑、重启恢复、跨所有者 404、并发冲突和数据库迁移。
 
 ## 技术说明
 

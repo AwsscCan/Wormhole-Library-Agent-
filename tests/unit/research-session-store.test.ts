@@ -1,24 +1,19 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { FileResearchSessionStore, ResearchSessionService } from "@/lib/research/sessionStore";
+import { InMemoryResearchSessionStore, ResearchSessionService } from "@/lib/research/sessionStore";
 
 function fixture() {
-  const directory = mkdtempSync(path.join(tmpdir(), "wormhole-research-"));
-  const file = path.join(directory, "sessions.json");
   let sequence = 0;
-  const store = new FileResearchSessionStore(file);
+  const store = new InMemoryResearchSessionStore();
   const service = new ResearchSessionService(store, {
     now: () => "2026-08-24T12:00:00.000Z",
     id: (prefix) => `${prefix}-${++sequence}`,
   });
-  return { file, service };
+  return { store, service };
 }
 
 describe("ResearchSessionStore", () => {
   it("persists a session and restores the same private graph after restart", async () => {
-    const { file, service } = fixture();
+    const { store, service } = fixture();
     const session = await service.create("member:alice", {
       researchQuestion: "How do vector databases support RAG?",
       writingTopic: "RAG retrieval quality",
@@ -47,7 +42,7 @@ describe("ResearchSessionStore", () => {
       }],
     });
 
-    const restarted = new ResearchSessionService(new FileResearchSessionStore(file));
+    const restarted = new ResearchSessionService(store);
     const restored = await restarted.get("member:alice", session.id);
     expect(restored.personalGraph.version).toBe(1);
     expect(restored.personalGraph.nodeOverrides.topic.pinned).toBe(true);
@@ -78,13 +73,4 @@ describe("ResearchSessionStore", () => {
     })).rejects.toMatchObject({ code: "CONFLICT" });
   });
 
-  it("quarantines corrupt state and recovers an empty store", async () => {
-    const { file, service } = fixture();
-    await service.create("guest:one", { researchQuestion: "Before corruption" });
-    writeFileSync(file, "{not-json", "utf8");
-
-    const recovered = new ResearchSessionService(new FileResearchSessionStore(file));
-    await expect(recovered.list("guest:one")).resolves.toEqual([]);
-    expect(readFileSync(`${file}.corrupt`, "utf8")).toBe("{not-json");
-  });
 });

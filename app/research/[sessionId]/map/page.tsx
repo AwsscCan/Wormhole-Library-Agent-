@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { ArrowLeft, Map } from "lucide-react";
 import { PersonalGraphWorkspace } from "@/components/PersonalGraphWorkspace";
 import { buildSystemGraph, hashPublicGraph, mergePersonalGraph } from "@/lib/research/personalGraph";
-import { getCurrentPrincipal, principalOwnerKey } from "@/lib/research/principal";
+import { requireCurrentPrincipal, principalOwnerKey } from "@/lib/research/principal";
 import { getResearchSessionService } from "@/lib/research/sessionStore";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,8 @@ export const dynamic = "force-dynamic";
 export default async function ResearchMapPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
   try {
-    const principal = await getCurrentPrincipal(new Request("http://local/research"));
+    const requestHeaders = await headers();
+    const principal = await requireCurrentPrincipal(new Request("http://local/research", { headers: requestHeaders }));
     const session = await getResearchSessionService().get(principalOwnerKey(principal), sessionId);
     const systemGraph = buildSystemGraph(session);
     return <div className="space-y-3">

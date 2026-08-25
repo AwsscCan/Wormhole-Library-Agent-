@@ -206,3 +206,23 @@ model ContactRequest {
   status          String   @default("pending")
   createdAt       DateTime @default(now())
 }
+
+/// Owner-scoped V3.2 research workspace. Personal graph data is JSON because
+/// its schema is versioned independently; graphVersion is used for atomic CAS.
+model ResearchSession {
+  id                 String   @id
+  ownerId            String
+  researchQuestion   String
+  writingTopic       String?
+  interactionIdsJson String   @default("[]")
+  evidenceIdsJson    String   @default("[]")
+  searchesJson       String   @default("[]")
+  wormholesJson      String   @default("[]")
+  personalGraphJson  String
+  graphVersion       Int      @default(0)
+  revision           Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([ownerId, updatedAt])
+}

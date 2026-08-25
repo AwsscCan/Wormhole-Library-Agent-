@@ -8,8 +8,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Eye, EyeOff, Library, Link2, LockKeyhole, Pin, PinOff, Save, Search, Trash2 } from "lucide-react";
-import type { MergedGraph, ResearchSession, SystemGraphNodeKind } from "@/lib/research/types";
-import type { ResourceCard } from "@/lib/types";
+import type { MergedGraph, ResearchSession, SourceTransparentResource, SystemGraphNodeKind } from "@/lib/research/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -54,7 +53,7 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
   const [saving, setSaving] = useState(false);
   const [acting, setActing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [libraryResults, setLibraryResults] = useState<ResourceCard[]>([]);
+  const [libraryResults, setLibraryResults] = useState<SourceTransparentResource[]>([]);
   const selected = nodes.find((node) => node.id === selectedNodeId);
   const selectedEdge = edges.find((edge) => edge.id === selectedEdgeId);
 
@@ -101,7 +100,7 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.code === "SOURCE_FAILURE" ? "来源暂时不可用；这不是‘无结果’，你的图已保留。" : data.error?.message ?? "操作失败");
       if (action === "search") router.push(data.href);
-      else if (action === "library") { setLibraryResults(data.resources); setMessage(data.empty ? "这个主题暂时没有找到资源，可以换词重试。" : `找到 ${data.resources.length} 条主题馆藏。`); }
+      else if (action === "library") { setLibraryResults(data.resources); setMessage(data.degraded ? "来源透明馆藏端口尚未接入；这不是‘无结果’，你的会话已保留。" : data.empty ? "这个主题暂时没有找到资源，可以换词重试。" : `找到 ${data.resources.length} 条主题馆藏。`); }
       else { setSession((current) => ({ ...current, evidenceIds: data.evidenceIds })); setMessage("已加入当前会话的证据篮子。"); router.refresh(); }
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "操作失败"); } finally { setActing(false); }
   }
@@ -149,7 +148,7 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
 
       {nodes.some((node) => node.hidden) && <div className="rounded-lg border border-ink-border bg-ink-panel p-3"><div className="mb-2 flex items-center gap-1 font-mono text-[9px] uppercase text-steel-dim"><Eye className="h-3 w-3" />hidden nodes</div>{nodes.filter((node) => node.hidden).map((node) => <button key={node.id} className="block w-full truncate py-1 text-left text-xs text-steel hover:text-pulse" onClick={() => { setSelectedNodeId(node.id); setNodes((items) => items.map((item) => item.id === node.id ? { ...item, hidden: false } : item)); setDirty(true); }}>恢复 · {node.data.label}</button>)}</div>}
 
-      {libraryResults.length > 0 && <div className="space-y-2 rounded-lg border border-copper/30 bg-ink-panel p-3"><div className="font-mono text-[9px] uppercase text-copper">topic holdings</div>{libraryResults.map((resource) => <div key={resource.id} className="rounded border border-ink-border p-2"><div className="text-xs text-ivory">{resource.title}</div><div className="mt-1 flex items-center justify-between"><span className="text-[9px] text-steel-dim">{resource.type} · {resource.availability}</span><Button size="sm" onClick={() => act("add_evidence", resource.id, resource.title)} disabled={session.evidenceIds.includes(resource.id)}>{session.evidenceIds.includes(resource.id) ? "已选择" : "选为证据"}</Button></div></div>)}</div>}
+      {libraryResults.length > 0 && <div className="space-y-2 rounded-lg border border-copper/30 bg-ink-panel p-3"><div className="font-mono text-[9px] uppercase text-copper">topic holdings</div>{libraryResults.map((resource) => <div key={resource.id} className="rounded border border-ink-border p-2"><div className="text-xs text-ivory">{resource.title}</div><div className="mt-1 flex items-center justify-between"><span className="text-[9px] text-steel-dim">{resource.provenance.sourceLabel} · {resource.availability}</span><Button size="sm" onClick={() => act("add_evidence", resource.id, resource.title)} disabled={session.evidenceIds.includes(resource.id)}>{session.evidenceIds.includes(resource.id) ? "已选择" : "选为证据"}</Button></div></div>)}</div>}
     </aside>
   </div>;
 }

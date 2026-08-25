@@ -1,6 +1,19 @@
-import type { ConceptRef } from "@/lib/types";
+import type { ConceptRef, ResourceCard } from "@/lib/types";
 
 export type CurrentPrincipal = { id: string; mode: "member" | "guest" };
+export type SourceProvenance = {
+  sourceKind: "openalex" | "openlibrary" | "library" | "seed";
+  sourceLabel: string;
+  retrievedAt: string;
+  externalId?: string;
+};
+export type SourceTransparentResource = ResourceCard & { provenance: SourceProvenance };
+export type TopicLibraryResult = {
+  resources: SourceTransparentResource[];
+  sourceStatus: "live" | "partial" | "unavailable";
+  degraded: boolean;
+  message?: string;
+};
 
 export type GraphPosition = { x: number; y: number };
 export type NodeOverride = {
@@ -61,6 +74,9 @@ export type ResearchSession = {
   searches: SessionSearch[];
   wormholes: SessionWormhole[];
   personalGraph: PersonalGraphState;
+  /** Internal compare-and-swap revision; clients must not submit it. */
+  revision: number;
+  recoveryWarning?: "CORRUPT_PERSONAL_GRAPH";
   createdAt: string;
   updatedAt: string;
 };
@@ -101,7 +117,7 @@ export type MergedGraph = { nodes: MergedGraphNode[]; edges: MergedGraphEdge[] }
 
 export class ResearchError extends Error {
   constructor(
-    public readonly code: "NOT_FOUND" | "CONFLICT" | "BAD_REQUEST" | "EXPIRED_INTERACTION" | "SOURCE_FAILURE",
+    public readonly code: "NOT_FOUND" | "CONFLICT" | "BAD_REQUEST" | "EXPIRED_INTERACTION" | "SOURCE_FAILURE" | "AUTH_REQUIRED" | "PRINCIPAL_UNAVAILABLE",
     message: string,
   ) {
     super(message);

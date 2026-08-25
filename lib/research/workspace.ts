@@ -1,12 +1,13 @@
-import type { ResourceCard, SearchRequest, SearchResponse } from "@/lib/types";
+import type { SearchRequest, SearchResponse } from "@/lib/types";
 import type { StoredInteraction } from "@/lib/mock/store";
 import type { NodeActionInput } from "./schemas";
 import type { ResearchSessionService } from "./sessionStore";
 import { ResearchError } from "./types";
+import type { TopicLibraryResult } from "./types";
 
 type WorkspaceDependencies = {
   search(input: SearchRequest): Promise<SearchResponse>;
-  library(input: { query: string; limit?: number }): Promise<ResourceCard[]>;
+  library(input: { query: string; limit?: number }): Promise<TopicLibraryResult>;
 };
 
 export class ResearchWorkspace {
@@ -33,8 +34,8 @@ export class ResearchWorkspace {
 
     if (input.action === "library") {
       try {
-        const resources = await this.deps.library({ query: input.topic, limit: 12 });
-        return { action: "library" as const, sessionId, topic: input.topic, resources, empty: resources.length === 0 };
+        const result = await this.deps.library({ query: input.topic, limit: 12 });
+        return { action: "library" as const, sessionId, topic: input.topic, ...result, empty: result.resources.length === 0 };
       } catch (error) {
         throw new ResearchError("SOURCE_FAILURE", error instanceof Error ? error.message : "Catalog source unavailable");
       }

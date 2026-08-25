@@ -8,8 +8,8 @@ import { explainResearchFailure } from "@/lib/research/failures";
 
 describe("research workspace contracts", () => {
   it("does not accept an owner identity from request bodies", () => {
-    expect(createResearchSessionSchema.parse({ researchQuestion: "Graph RAG", ownerId: "attacker" }))
-      .toEqual({ researchQuestion: "Graph RAG" });
+    expect(createResearchSessionSchema.safeParse({ researchQuestion: "Graph RAG", ownerId: "attacker" }).success).toBe(false);
+    expect(createResearchSessionSchema.safeParse({ researchQuestion: "Graph RAG", userId: "attacker" }).success).toBe(false);
   });
 
   it("validates editable graph state and node actions", () => {

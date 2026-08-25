@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { privateJson } from "@/lib/research/api";
 import { z } from "zod";
 import { researchError } from "@/lib/research/api";
-import { getCurrentPrincipal, principalOwnerKey } from "@/lib/research/principal";
+import { requireCurrentPrincipal, principalOwnerKey } from "@/lib/research/principal";
 import { getResearchSessionService } from "@/lib/research/sessionStore";
 
 const schema = z.object({ wormholes: z.array(z.object({
@@ -11,10 +11,10 @@ const schema = z.object({ wormholes: z.array(z.object({
 export async function POST(request: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   try {
     const body = schema.safeParse(await request.json());
-    if (!body.success) return NextResponse.json({ error: { code: "BAD_REQUEST", message: body.error.message } }, { status: 400 });
+    if (!body.success) return privateJson({ error: { code: "BAD_REQUEST", message: "Invalid research workspace request" } }, 400);
     const { sessionId } = await params;
-    const ownerId = principalOwnerKey(await getCurrentPrincipal(request));
+    const ownerId = principalOwnerKey(await requireCurrentPrincipal(request));
     const session = await getResearchSessionService().recordWormholes(ownerId, sessionId, body.data.wormholes.map((wormhole) => ({ id: wormhole.id, label: wormhole.destination, conceptIds: wormhole.pathConceptIds })));
-    return NextResponse.json({ sessionId, wormholes: session.wormholes });
+    return privateJson({ sessionId, wormholes: session.wormholes });
   } catch (error) { return researchError(error); }
 }

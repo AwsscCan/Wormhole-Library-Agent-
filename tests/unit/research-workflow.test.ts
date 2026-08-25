@@ -17,7 +17,7 @@ function setup() {
     }],
     readingPath: ["RAG"], memoryUsed: [`owner:${userId}`],
   }));
-  const library = vi.fn(async () => []);
+  const library = vi.fn(async () => ({ resources: [], sourceStatus: "live" as const, degraded: false }));
   const workspace = new ResearchWorkspace(sessions, { search, library });
   return { sessions, workspace, search, library };
 }

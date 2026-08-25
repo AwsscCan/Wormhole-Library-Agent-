@@ -21,7 +21,7 @@ const personalEdgeSchema = z.object({
 export const createResearchSessionSchema = z.object({
   researchQuestion: z.string().trim().min(1).max(500),
   writingTopic: z.string().trim().min(1).max(500).optional(),
-}).strip();
+}).strict();
 
 export const graphUpdateSchema = z.object({
   expectedVersion: z.number().int().nonnegative(),
