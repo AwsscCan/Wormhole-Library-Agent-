@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryResearchSessionStore, ResearchSessionService } from "@/lib/research/sessionStore";
 import { InMemoryWorkbenchStore, WorkbenchService } from "@/lib/workbench/store";
+import { projectWorkbenchResources, resolveFocusedResource } from "@/lib/workbench/projection";
 
 async function fixture() {
   let id = 0;
@@ -53,5 +54,16 @@ describe("owner-scoped exploration workbench", () => {
     await service.update("member:alice", session.id, { ...state, expectedVersion: state.version,
       views: { ...state.views, concept: { ...state.views.concept, personalEdges: [{ id: "mine", source: "a", target: "b", label: "private" }] } } });
     expect(JSON.stringify((await research.get("member:alice", session.id)).personalGraph)).toBe(graphBefore);
+  });
+
+  it("persists a recommendation projection that the graph can actually focus after restart", async () => {
+    const { research, store, service, session } = await fixture();
+    await service.projectResources("member:alice", session.id, [{ resourceId: "paper/42", recommendationId: "rec-42",
+      title: "Projected paper", conceptIds: ["c1"], conceptLabels: ["Concept"], sourceLabel: "OpenAlex",
+      provenance: { sourceKind: "openalex", sourceLabel: "OpenAlex", retrievedAt: "2026-08-25T00:00:00.000Z" }, projectedAt: "2026-08-25T00:00:00.000Z" }]);
+    const restarted = new WorkbenchService(store, research);
+    const restored = await restarted.get("member:alice", session.id);
+    const graph = projectWorkbenchResources({ nodes: [{ id: "topic", label: "Topic", kind: "topic", position: { x: 0, y: 0 } }], edges: [] }, restored.resourceProjections);
+    expect(resolveFocusedResource(graph, "paper/42")).toEqual({ nodeId: "resource:paper%2F42", status: "focused" });
   });
 });

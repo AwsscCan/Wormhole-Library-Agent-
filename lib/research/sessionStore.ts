@@ -160,3 +160,7 @@ export function getResearchSessionService() {
   }
   return globalStore.__researchSessionService;
 }
+
+export function clearResearchSessionServiceForTests() {
+  delete globalStore.__researchSessionService;
+}

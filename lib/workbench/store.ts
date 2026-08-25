@@ -4,7 +4,7 @@ import type { ResearchSessionService } from "@/lib/research/sessionStore";
 import { getResearchSessionService } from "@/lib/research/sessionStore";
 import { ResearchError } from "@/lib/research/types";
 import { validateEvidenceGraph } from "./links";
-import type { WorkbenchState, WorkbenchUpdateInput } from "./types";
+import type { WorkbenchResourceProjection, WorkbenchState, WorkbenchUpdateInput } from "./types";
 
 type WorkbenchRow = {
   sessionId: string; ownerId: string; stateJson: string; version: number; createdAt: Date | string; updatedAt: Date | string;
@@ -23,7 +23,7 @@ function initialState(ownerId: string, sessionId: string, researchQuestion: stri
     readingPlan: { goal: researchQuestion, orderedResourceIds: [], estimatedMinutes: 0,
       completionDefinition: "Summarize the evidence and unresolved questions", nextAction: "Generate an exploration set", completedResourceIds: [] },
     views: { reading: emptyView(), concept: emptyView(), evidence: emptyView() },
-    resourceStates: {}, evidenceGraph: { claims: [], evidence: [], links: [], draftParagraphs: [] },
+    resourceStates: {}, resourceProjections: {}, evidenceGraph: { claims: [], evidence: [], links: [], draftParagraphs: [] },
     createdAt: now, updatedAt: now,
   };
 }
@@ -32,7 +32,8 @@ function decode(row: WorkbenchRow): WorkbenchState {
   const createdAt = new Date(row.createdAt).toISOString();
   const updatedAt = new Date(row.updatedAt).toISOString();
   try {
-    return { ...(JSON.parse(row.stateJson) as WorkbenchState), ownerId: row.ownerId, sessionId: row.sessionId,
+    const parsed = JSON.parse(row.stateJson) as WorkbenchState;
+    return { ...parsed, resourceProjections: parsed.resourceProjections ?? {}, ownerId: row.ownerId, sessionId: row.sessionId,
       version: row.version, createdAt, updatedAt };
   } catch {
     return { ...initialState(row.ownerId, row.sessionId, "Recover the workbench", createdAt),
@@ -124,6 +125,17 @@ export class WorkbenchService {
     if (result === "conflict") throw new ResearchError("CONFLICT", "Workbench changed in another tab");
     return next;
   }
+  async projectResources(ownerId: string, sessionId: string, projections: WorkbenchResourceProjection[]) {
+    await this.research.get(ownerId, sessionId);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const current = await this.get(ownerId, sessionId);
+      const resourceProjections = { ...current.resourceProjections,
+        ...Object.fromEntries(projections.map((projection) => [projection.resourceId, projection])) };
+      const next = { ...current, resourceProjections, version: current.version + 1, updatedAt: this.deps.now() };
+      if (await this.store.update(ownerId, sessionId, current.version, next) === "updated") return next;
+    }
+    throw new ResearchError("CONFLICT", "Workbench changed while projecting recommendation resources");
+  }
 }
 
 const runtime = globalThis as unknown as { __workbenchService?: WorkbenchService };
@@ -134,4 +146,8 @@ export function getWorkbenchService() {
     runtime.__workbenchService = new WorkbenchService(store, getResearchSessionService());
   }
   return runtime.__workbenchService;
+}
+
+export function clearWorkbenchServiceForTests() {
+  delete runtime.__workbenchService;
 }

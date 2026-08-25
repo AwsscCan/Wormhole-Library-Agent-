@@ -18,7 +18,9 @@ function candidates(): ExplorationCandidate[] {
     conceptIds: band === "direct" ? [`core-${index % 3}`] : [`explore-${index % 5}`],
     citationIds: [],
     bridge: band === "direct" ? undefined : `Connects through bridge-${index % 4}`,
+    bridgeEvidence: band === "direct" ? undefined : { kind: "shared_concept" as const, sourceId: `core-${index % 3}`, targetId: `explore-${index % 5}`, label: `Verified concept bridge ${index % 4}` },
     taskValue: band === "distant" ? "Offers a contrasting method for the current question" : undefined,
+    taskValueEvidence: band === "distant" ? { sourceId: `source-${index}`, label: "Source-provided task value" } : undefined,
     difficulty: "intermediate" as const,
     estimatedMinutes: 20,
     provenance: { sourceKind: "openalex" as const, sourceLabel: "OpenAlex", retrievedAt: "2026-08-25T00:00:00.000Z" },
@@ -32,12 +34,17 @@ describe("explainable exploration selection", () => {
       { ...candidates()[0], id: "irrelevant", relevance: 0.1 },
       { ...candidates()[0], id: "untrusted", trust: 0.1 },
       { ...candidates()[0], id: "blocked", accessible: false },
-      { ...candidates()[20], id: "adjacent-no-bridge", bridge: undefined },
+      { ...candidates()[20], id: "adjacent-no-bridge", bridge: undefined, bridgeEvidence: undefined },
       { ...candidates()[32], id: "distant-no-value", taskValue: undefined },
     ];
     expect(filterEligibleCandidates([...candidates(), ...invalid]).map((item) => item.id)).not.toEqual(
       expect.arrayContaining(invalid.map((item) => item.id)),
     );
+  });
+
+  it("rejects a text-only bridge without concept or citation evidence", () => {
+    const textOnly = { ...candidates()[20], id: "text-only", bridge: "plausible sounding bridge", bridgeEvidence: undefined };
+    expect(filterEligibleCandidates([textOnly])).toEqual([]);
   });
 
   it.each([

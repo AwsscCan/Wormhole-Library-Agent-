@@ -15,9 +15,9 @@ const BAND_ORDER: CandidateBand[] = ["direct", "adjacent", "distant"];
 
 export function filterEligibleCandidates(candidates: ExplorationCandidate[]) {
   return candidates.filter((candidate) => {
-    if (!candidate.accessible || candidate.relevance < 0.35 || candidate.trust < 0.5) return false;
-    if (candidate.band === "adjacent" && !candidate.bridge?.trim()) return false;
-    if (candidate.band === "distant" && (!candidate.bridge?.trim() || !candidate.taskValue?.trim())) return false;
+    if (!candidate.accessible || (candidate.effectiveRelevance ?? candidate.relevance) < 0.35 || candidate.trust < 0.5) return false;
+    if (candidate.band === "adjacent" && !candidate.bridgeEvidence) return false;
+    if (candidate.band === "distant" && (!candidate.bridgeEvidence || !candidate.taskValue?.trim() || !candidate.taskValueEvidence)) return false;
     return true;
   });
 }
@@ -47,15 +47,21 @@ function quotaCounts(level: SurpriseLevel, limit: number) {
 }
 
 export function explainCandidate(candidate: ExplorationCandidate): RecommendationExplanation {
+  const trace = candidate.decisionTrace;
+  const evidenceTrace = trace?.sessionEvidenceIds.length ? ` Confirmed evidence: ${trace.sessionEvidenceIds.join(", ")}.` : " No confirmed evidence boost.";
+  const contextTraceIds = [...(trace?.sessionContextIds ?? []), ...(trace?.personalGraphNodeIds ?? [])];
+  const contextTrace = contextTraceIds.length ? ` Session context: ${contextTraceIds.join(", ")}.` : "";
+  const memoryTraceIds = [...(trace?.memorySnippetIds ?? []), ...(trace?.preferenceIds ?? [])];
+  const memoryTrace = memoryTraceIds.length ? ` Memory features: ${memoryTraceIds.join(", ")}.` : " No memory feature boost.";
   const relationship = candidate.band === "direct"
-    ? `Directly addresses the current research question with relevance ${candidate.relevance.toFixed(2)}.`
-    : `Provides a ${candidate.band} perspective related to the current research question.`;
-  const bridge = candidate.bridge?.trim()
-    ? `Bridge: ${candidate.bridge.trim()}.`
+    ? `Directly addresses the current research question with traced relevance ${(candidate.effectiveRelevance ?? candidate.relevance).toFixed(2)}.${evidenceTrace}${contextTrace}${memoryTrace}`
+    : `Provides a ${candidate.band} perspective with traced relevance ${(candidate.effectiveRelevance ?? candidate.relevance).toFixed(2)}.${evidenceTrace}${contextTrace}${memoryTrace}`;
+  const bridge = candidate.bridgeEvidence
+    ? `Bridge (${candidate.bridgeEvidence.kind}): ${candidate.bridgeEvidence.label}.`
     : "Bridge: shares the central concepts already present in this research session.";
   const difficulty = `Difficulty is ${candidate.difficulty}; allow about ${candidate.estimatedMinutes} minutes for a first pass.`;
   const newValue = candidate.taskValue?.trim()
-    ? `New value: ${candidate.taskValue.trim()}.`
+    ? `New value: ${candidate.taskValue.trim()} (source: ${candidate.taskValueEvidence?.sourceId ?? candidate.provenance.sourceLabel}).`
     : `New value: adds ${candidate.conceptIds.length || 1} traceable concept connection(s) from ${candidate.provenance.sourceLabel}.`;
   return { relationship, bridge, difficulty, newValue };
 }
@@ -75,7 +81,7 @@ export function selectExplorationCandidates(
     while (pool.length && selected.filter((item) => item.band === band).length < counts[band]) {
       const scored = pool.map((candidate) => ({
         candidate,
-        score: lambda * candidate.relevance - (1 - lambda) * noveltyPenalty(candidate, selected),
+        score: lambda * (candidate.effectiveRelevance ?? candidate.relevance) - (1 - lambda) * noveltyPenalty(candidate, selected),
       })).sort((a, b) => b.score - a.score || a.candidate.id.localeCompare(b.candidate.id));
       const choice = scored[0];
       selected.push({ ...choice.candidate, explanation: explainCandidate(choice.candidate), mmrScore: choice.score });

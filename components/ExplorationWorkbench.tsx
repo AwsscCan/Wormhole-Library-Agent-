@@ -8,13 +8,14 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { ExplorationFeedback, ExplorationRecommendation, WorkbenchState } from "@/lib/workbench/types";
 import { buildWorkbenchViewModel, type WorkbenchView } from "@/lib/workbench/viewModel";
+import { workbenchResourceLinks } from "@/lib/workbench/projection";
 
 type SourceState = { status: string; degraded: boolean; message?: string; labels: string[] };
-type MemoryState = { status: string; summary: string | null; message?: string };
+type MemoryState = { status: string; snippets: Array<{ sourceId: string }>; preferences: Array<{ id: string }>; message?: string };
 
-export function ExplorationWorkbench({ initialState }: { initialState: WorkbenchState }) {
+export function ExplorationWorkbench({ initialState, initialView = "reading", focusedResourceId }: { initialState: WorkbenchState; initialView?: WorkbenchView; focusedResourceId?: string }) {
   const [state, setState] = useState(initialState);
-  const [activeView, setActiveView] = useState<WorkbenchView>("reading");
+  const [activeView, setActiveView] = useState<WorkbenchView>(initialView);
   const [recommendations, setRecommendations] = useState<ExplorationRecommendation[]>([]);
   const [source, setSource] = useState<SourceState | null>(null);
   const [memory, setMemory] = useState<MemoryState | null>(null);
@@ -25,6 +26,8 @@ export function ExplorationWorkbench({ initialState }: { initialState: Workbench
   const [claimDraft, setClaimDraft] = useState("");
   const [paragraphDraft, setParagraphDraft] = useState("");
   const viewModel = useMemo(() => buildWorkbenchViewModel(state, recommendations), [state, recommendations]);
+  const focusedProjection = focusedResourceId ? state.resourceProjections[focusedResourceId] : undefined;
+  const focusedLinks = focusedProjection ? workbenchResourceLinks(state.sessionId, focusedProjection) : undefined;
 
   function change(patch: Partial<WorkbenchState>) { setState((current) => ({ ...current, ...patch })); setDirty(true); }
   function changePlan(patch: Partial<WorkbenchState["readingPlan"]>) {
@@ -41,6 +44,8 @@ export function ExplorationWorkbench({ initialState }: { initialState: Workbench
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.message ?? "推荐生成失败");
       setRecommendations(data.recommendations); setSource(data.source); setMemory(data.memory);
+      setState((current) => ({ ...current, version: data.workbenchVersion ?? current.version,
+        resourceProjections: data.resourceProjections ?? current.resourceProjections }));
       setMessage(data.source.degraded ? "来源端口当前降级；没有把外部失败伪装成零结果。" : `已生成 ${data.recommendations.length} 条可解释探索项。`);
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "推荐生成失败"); }
     finally { setBusy(false); }
@@ -68,6 +73,19 @@ export function ExplorationWorkbench({ initialState }: { initialState: Workbench
     const data = await response.json();
     setMessage(response.ok ? "反馈已写入事件端口，没有直接修改长期偏好。" : data.status === "unavailable"
       ? "反馈事件端口未接入；没有静默写入偏好。" : data.error?.message ?? "反馈失败");
+  }
+
+  async function continueSearch(item: ExplorationRecommendation) {
+    setBusy(true); setMessage(null);
+    try {
+      const response = await fetch(`/api/research/sessions/${encodeURIComponent(state.sessionId)}/actions`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "search", nodeId: `resource:${encodeURIComponent(item.resourceId)}`, topic: item.title }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message ?? "继续搜索失败");
+      window.location.href = data.href;
+    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "继续搜索失败"); setBusy(false); }
   }
 
   function queue(resourceId: string) {
@@ -132,10 +150,13 @@ export function ExplorationWorkbench({ initialState }: { initialState: Workbench
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-steel-dim">
         <span>来源：{source ? source.degraded ? "显式降级" : source.labels.join(" / ") || source.status : "尚未请求"}</span>
-        <span>记忆：{memory?.status === "available" ? "受限摘要已用" : "无历史记忆模式"}</span>
+        <span>记忆：{memory?.status === "available" && memory.snippets.length + memory.preferences.length > 0 ? `已用 ${memory.snippets.length + memory.preferences.length} 条带来源特征` : "无历史记忆模式"}</span>
         <span>版本：v{state.version}</span>
       </div>
       {message && <p role="status" className="mt-2 text-xs text-steel">{message}</p>}
+      {focusedResourceId && (focusedProjection && focusedLinks
+        ? <div role="status" className="mt-3 flex flex-wrap items-center gap-2 rounded border border-pulse/30 bg-pulse-faint px-3 py-2 text-xs text-steel"><span>当前定位：<strong className="text-ivory">{focusedProjection.title}</strong></span><Link href={focusedLinks.map} className="text-pulse">在星图重新聚焦</Link>{focusedLinks.catalog && <a href={focusedLinks.catalog} rel="noreferrer" className="text-copper">打开来源馆藏</a>}</div>
+        : <p role="alert" className="mt-3 rounded border border-copper/40 px-3 py-2 text-xs text-copper">目标资源 {focusedResourceId} 已失效；请重新生成探索项以恢复投影。</p>)}
     </section>
 
     <nav className="grid grid-cols-3 gap-2">{viewModel.tabs.map((tab) => <button key={tab.id} onClick={() => setActiveView(tab.id)} className={cn("rounded border px-3 py-2 text-xs", activeView === tab.id ? "border-pulse bg-pulse-faint text-pulse" : "border-ink-border bg-ink-panel text-steel")}>{tab.label} · {tab.count}</button>)}</nav>
@@ -150,9 +171,9 @@ export function ExplorationWorkbench({ initialState }: { initialState: Workbench
         <ol className="space-y-1 text-xs text-steel">{state.readingPlan.orderedResourceIds.map((id, index) => <li key={id}>{index + 1}. {recommendations.find((item) => item.resourceId === id)?.title ?? id}</li>)}</ol>
       </section>
       <section className="space-y-3">{recommendations.map((item) => <article key={item.id} className="rounded-lg border border-ink-border bg-ink-panel p-4">
-        <div className="flex gap-3"><div className="min-w-0 flex-1"><div className="font-mono text-[9px] uppercase text-copper">{item.band} · {item.provenance.sourceLabel}</div><h3 className="text-sm text-ivory">{item.title}</h3></div><Link href={viewModel.resources.find((resource) => resource.id === item.resourceId)?.href ?? "#"} className="text-pulse" aria-label="在会话星图打开"><ExternalLink className="h-4 w-4" /></Link></div>
+        <div className={cn("flex gap-3 rounded", focusedResourceId === item.resourceId && "ring-1 ring-pulse")}><div className="min-w-0 flex-1"><div className="font-mono text-[9px] uppercase text-copper">{item.band} · {item.provenance.sourceLabel}</div><h3 className="text-sm text-ivory">{item.title}</h3></div><Link href={viewModel.resources.find((resource) => resource.id === item.resourceId)?.href ?? "#"} className="text-pulse" aria-label="在会话星图打开"><ExternalLink className="h-4 w-4" /></Link></div>
         <dl className="mt-2 grid gap-1 text-[11px] text-steel"><div><dt className="inline text-pulse">关系：</dt><dd className="inline">{item.explanation.relationship}</dd></div><div><dt className="inline text-pulse">桥梁：</dt><dd className="inline">{item.explanation.bridge}</dd></div><div><dt className="inline text-pulse">难度：</dt><dd className="inline">{item.explanation.difficulty}</dd></div><div><dt className="inline text-pulse">新增价值：</dt><dd className="inline">{item.explanation.newValue}</dd></div></dl>
-        <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={() => queue(item.resourceId)}><Plus className="h-3 w-3" />加入计划</Button><Button size="sm" onClick={() => setResourceStatus(item.resourceId, "complete")}><Check className="h-3 w-3" />完成</Button>{(["useful", "too_far", "too_hard"] as const).map((value) => <button key={value} onClick={() => feedback(item.id, value)} className="rounded border border-ink-border px-2 py-1 text-[10px] text-steel hover:text-pulse">{value === "useful" ? "有用" : value === "too_far" ? "太远" : "太难"}</button>)}</div>
+        <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={() => queue(item.resourceId)}><Plus className="h-3 w-3" />加入计划</Button><Button size="sm" onClick={() => setResourceStatus(item.resourceId, "complete")}><Check className="h-3 w-3" />完成</Button>{state.resourceProjections[item.resourceId] && (() => { const links = workbenchResourceLinks(state.sessionId, state.resourceProjections[item.resourceId]); return <><button className="text-[10px] text-pulse" onClick={() => continueSearch(item)}>继续搜索</button><Link className="text-[10px] text-pulse" href={links.note}>笔记入口</Link><Link className="text-[10px] text-pulse" href={links.draft}>草稿入口</Link>{links.catalog && <a className="text-[10px] text-copper" href={links.catalog} rel="noreferrer">来源馆藏</a>}</>; })()}{(["useful", "too_far", "too_hard"] as const).map((value) => <button key={value} onClick={() => feedback(item.id, value)} className="rounded border border-ink-border px-2 py-1 text-[10px] text-steel hover:text-pulse">{value === "useful" ? "有用" : value === "too_far" ? "太远" : "太难"}</button>)}</div>
       </article>)}</section>
     </div>}
 

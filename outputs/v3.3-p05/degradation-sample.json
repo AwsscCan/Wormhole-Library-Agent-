@@ -1,8 +1,9 @@
 {
   "memory": {
     "status": "unavailable",
-    "summary": null,
-    "message": "Memory summary port is not integrated"
+    "snippets": [],
+    "preferences": [],
+    "message": "Package 04 MemoryReadPort is not integrated"
   },
   "sourceFailure": {
     "sourceStatus": "unavailable",

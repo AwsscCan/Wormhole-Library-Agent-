@@ -1,0 +1,22 @@
+DATABASE_URL=file:./p05-experiment-23276.db npx prisma migrate deploy
+
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": SQLite database "p05-experiment-23276.db" at "file:./p05-experiment-23276.db"
+
+3 migrations found in prisma/migrations
+
+Applying migration `202608200000_initial_schema`
+Applying migration `202608250001_research_workspace`
+Applying migration `202608250002_exploration_workbench`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 202608200000_initial_schema/
+    └─ migration.sql
+  └─ 202608250001_research_workspace/
+    └─ migration.sql
+  └─ 202608250002_exploration_workbench/
+    └─ migration.sql
+
+All migrations have been successfully applied.

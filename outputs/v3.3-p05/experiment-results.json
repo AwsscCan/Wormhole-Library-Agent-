@@ -1,5 +1,5 @@
 {
-  "packageVersion": "v3.3-p05-schema-1",
+  "packageVersion": "v3.3-p05-schema-2",
   "recordedAt": "2026-08-25T00:00:00.000Z",
   "candidateSeed": "deterministic-indexed-fixture-v1 (no random source)",
   "quotaResults": [
@@ -104,34 +104,42 @@
     "eventCount": 3,
     "eventsContainPreferencePatch": false
   },
+  "migrationDeploy": {
+    "command": "DATABASE_URL=file:./<empty.db> npx prisma migrate deploy",
+    "success": true,
+    "schemaDiffClean": true
+  },
   "recoveryResults": [
     {
       "sessionId": "research-p05-1",
       "topic": "RAG evidence quality",
-      "version": 1,
+      "version": 2,
       "readingPlanRestored": true,
       "allViewsRestored": true,
       "resourceJump": "/research/research-p05-1/map?sessionId=research-p05-1&resourceId=resource-0",
+      "projectedResourceRestored": true,
       "backlinkRestored": true,
       "researchGraphUnchanged": true
     },
     {
       "sessionId": "research-p05-2",
       "topic": "Scheduling fairness",
-      "version": 1,
+      "version": 2,
       "readingPlanRestored": true,
       "allViewsRestored": true,
       "resourceJump": "/research/research-p05-2/map?sessionId=research-p05-2&resourceId=resource-1",
+      "projectedResourceRestored": true,
       "backlinkRestored": true,
       "researchGraphUnchanged": true
     },
     {
       "sessionId": "research-p05-3",
       "topic": "Graph library discovery",
-      "version": 1,
+      "version": 2,
       "readingPlanRestored": true,
       "allViewsRestored": true,
       "resourceJump": "/research/research-p05-3/map?sessionId=research-p05-3&resourceId=resource-2",
+      "projectedResourceRestored": true,
       "backlinkRestored": true,
       "researchGraphUnchanged": true
     }
@@ -151,7 +159,8 @@
   },
   "memoryDegradation": {
     "status": "unavailable",
-    "summary": null,
-    "message": "Memory summary port is not integrated"
+    "snippets": [],
+    "preferences": [],
+    "message": "Package 04 MemoryReadPort is not integrated"
   }
 }

@@ -206,3 +206,36 @@ model ContactRequest {
   status          String   @default("pending")
   createdAt       DateTime @default(now())
 }
+
+/// V3.2 package 03 owner-scoped research workspace. The graph JSON has its
+/// own schema version; graphVersion and revision provide atomic CAS updates.
+model ResearchSession {
+  id                 String   @id
+  ownerId            String
+  researchQuestion   String
+  writingTopic       String?
+  interactionIdsJson String   @default("[]")
+  evidenceIdsJson    String   @default("[]")
+  searchesJson       String   @default("[]")
+  wormholesJson      String   @default("[]")
+  personalGraphJson  String
+  graphVersion       Int      @default(0)
+  revision           Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([ownerId, updatedAt])
+}
+
+/// V3.3 package 05 private exploration user layer. Public concepts,
+/// Living Library consent, and long-term preferences are never stored here.
+model ExplorationWorkbench {
+  sessionId String   @id
+  ownerId   String
+  stateJson String
+  version   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, updatedAt])
+}

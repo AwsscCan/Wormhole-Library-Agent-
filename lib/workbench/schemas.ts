@@ -10,19 +10,19 @@ const view = z.object({
   personalEdges: z.array(personalEdge).max(1000),
 }).strict();
 const readingPlan = z.object({
-  goal: z.string().trim().min(1).max(1000), orderedResourceIds: z.array(z.string().min(1)).max(5000),
+  goal: z.string().trim().min(1).max(1000), orderedResourceIds: z.array(z.string().min(1)),
   estimatedMinutes: z.number().int().nonnegative().max(100000),
   completionDefinition: z.string().trim().min(1).max(2000), nextAction: z.string().trim().min(1).max(2000),
-  completedResourceIds: z.array(z.string().min(1)).max(5000),
+  completedResourceIds: z.array(z.string().min(1)),
 }).strict();
 const evidenceGraph = z.object({
-  claims: z.array(z.object({ id: z.string().min(1), text: z.string().trim().min(1).max(4000) }).strict()).max(5000),
-  evidence: z.array(z.object({ id: z.string().min(1), resourceId: z.string().min(1), noteId: z.string().min(1).optional(), label: z.string().trim().min(1).max(1000) }).strict()).max(10000),
-  links: z.array(z.object({ id: z.string().min(1), claimId: z.string().min(1), evidenceId: z.string().min(1), role: z.enum(["supports", "refutes", "background", "to_verify"]) }).strict()).max(20000),
+  claims: z.array(z.object({ id: z.string().min(1), text: z.string().trim().min(1).max(4000) }).strict()),
+  evidence: z.array(z.object({ id: z.string().min(1), resourceId: z.string().min(1), noteId: z.string().min(1).optional(), label: z.string().trim().min(1).max(1000) }).strict()),
+  links: z.array(z.object({ id: z.string().min(1), claimId: z.string().min(1), evidenceId: z.string().min(1), role: z.enum(["supports", "refutes", "background", "to_verify"]) }).strict()),
   draftParagraphs: z.array(z.object({
     id: z.string().min(1), text: z.string().max(20000),
-    sourceRefs: z.array(z.object({ resourceId: z.string().min(1), noteId: z.string().min(1).optional() }).strict()).max(1000),
-  }).strict()).max(5000),
+    sourceRefs: z.array(z.object({ resourceId: z.string().min(1), noteId: z.string().min(1).optional() }).strict()),
+  }).strict()),
 }).strict();
 
 export const workbenchUpdateSchema = z.object({

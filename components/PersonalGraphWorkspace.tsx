@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  addEdge, applyEdgeChanges, applyNodeChanges, Background, BackgroundVariant, Controls, Handle, Position, ReactFlow,
+  addEdge, applyEdgeChanges, applyNodeChanges, Background, BackgroundVariant, Controls, Handle, Position, ReactFlow, useReactFlow,
   type Connection, type Edge, type EdgeChange, type Node, type NodeChange, type NodeProps, type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -27,6 +27,16 @@ function PersonalNode({ data, selected }: NodeProps<FlowNode>) {
 }
 const nodeTypes: NodeTypes = { personal: PersonalNode };
 
+function FocusController({ nodeId }: { nodeId?: string }) {
+  const { getNode, setCenter } = useReactFlow();
+  useEffect(() => {
+    if (!nodeId) return;
+    const node = getNode(nodeId);
+    if (node) void setCenter(node.position.x, node.position.y, { zoom: 1.25, duration: 450 });
+  }, [getNode, nodeId, setCenter]);
+  return null;
+}
+
 function toFlow(graph: MergedGraph) {
   const nodes: FlowNode[] = graph.nodes.map((node) => ({
     id: node.id, type: "personal", position: node.position, hidden: node.hidden, draggable: !node.pinned,
@@ -41,13 +51,16 @@ function toFlow(graph: MergedGraph) {
   return { nodes, edges };
 }
 
-export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGraphHash }: { initialSession: ResearchSession; initialGraph: MergedGraph; publicGraphHash: string }) {
+export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGraphHash, focusedNodeId, focusUnavailable }: { initialSession: ResearchSession; initialGraph: MergedGraph; publicGraphHash: string; focusedNodeId?: string; focusUnavailable?: string }) {
   const router = useRouter();
-  const initial = useMemo(() => toFlow(initialGraph), [initialGraph]);
+  const initial = useMemo(() => {
+    const flow = toFlow(initialGraph);
+    return { ...flow, nodes: flow.nodes.map((node) => ({ ...node, selected: node.id === focusedNodeId })) };
+  }, [focusedNodeId, initialGraph]);
   const [session, setSession] = useState(initialSession);
-  const [nodes, setNodes] = useState(initial.nodes);
-  const [edges, setEdges] = useState(initial.edges);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>("topic");
+  const [nodes, setNodes] = useState<FlowNode[]>(initial.nodes);
+  const [edges, setEdges] = useState<Edge[]>(initial.edges);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(focusedNodeId ?? "topic");
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -119,7 +132,9 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
   return <div className="grid gap-3 xl:grid-cols-[1fr_330px]">
     <div className="relative rf-cockpit h-[calc(100vh-10rem)] min-h-[560px] overflow-hidden rounded-lg border border-ink-border bg-ink-panel/60">
       <div className="absolute left-3 top-3 z-10 rounded border border-ink-border bg-ink/90 px-2 py-1 font-mono text-[9px] text-steel-dim">PUBLIC SHA-256 {publicGraphHash.slice(0, 12)}… · PRIVATE v{session.personalGraph.version}</div>
+      {focusUnavailable && <div role="alert" className="absolute left-3 top-10 z-10 rounded border border-copper/40 bg-ink/95 px-3 py-2 text-xs text-copper">目标资源 {focusUnavailable} 已失效或尚未投影；请回工作台重新生成。</div>}
       <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onNodeClick={(_, node) => { setSelectedNodeId(node.id); setSelectedEdgeId(null); }} onEdgeClick={(_, edge) => { setSelectedEdgeId(edge.id); setSelectedNodeId(null); }} fitView minZoom={0.2} maxZoom={2} deleteKeyCode={null} nodesConnectable panOnDrag>
+        <FocusController nodeId={focusedNodeId} />
         <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="#1C2740" /><Controls />
       </ReactFlow>
     </div>
@@ -140,6 +155,7 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
           <Button size="sm" variant="outline" loading={acting} onClick={() => act("search")}><Search className="h-3 w-3" />搜索此主题</Button>
           <Button size="sm" variant="copper" loading={acting} onClick={() => act("library")}><Library className="h-3 w-3" />查看主题馆藏</Button>
           {selected.data.resourceId && <Button size="sm" className="col-span-2" loading={acting} onClick={() => act("add_evidence", selected.data.resourceId)}><Link2 className="h-3 w-3" />加入证据篮子</Button>}
+          {selected.data.resourceId && <Button size="sm" className="col-span-2" onClick={() => router.push(`/research/${encodeURIComponent(session.id)}/workbench?resourceId=${encodeURIComponent(selected.data.resourceId!)}&view=evidence`)}><Link2 className="h-3 w-3" />返回工作台证据/草稿</Button>}
         </div>
         <p className="text-[10px] leading-relaxed text-steel-dim">从节点右侧连接点拖到另一节点可创建 personal_note 边。系统节点与系统边只会在你的工作层隐藏。</p>
       </div>}

@@ -12,6 +12,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
     const ownerId = principalOwnerKey(await requireCurrentPrincipal(request));
     await getResearchSessionService().get(ownerId, sessionId);
     const result = await appendExplorationFeedback({ ownerId, sessionId, ...parsed.data, occurredAt: new Date().toISOString() });
-    return privateJson(result, result.status === "unavailable" ? 503 : 202);
+    return privateJson(result, result.status === "recorded" ? 202 : 503);
   } catch (error) { return researchError(error); }
 }

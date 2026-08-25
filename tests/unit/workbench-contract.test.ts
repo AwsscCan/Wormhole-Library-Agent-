@@ -21,7 +21,7 @@ function state(): WorkbenchState {
   return { schemaVersion: 1, sessionId: session.id, ownerId: session.ownerId, version: 0, surpriseLevel: "medium",
     readingPlan: { goal: session.researchQuestion, orderedResourceIds: [], estimatedMinutes: 0, completionDefinition: "Done", nextAction: "Read", completedResourceIds: [] },
     views: { reading: { nodePositions: {}, hiddenNodeIds: [], personalEdges: [] }, concept: { nodePositions: {}, hiddenNodeIds: [], personalEdges: [] }, evidence: { nodePositions: {}, hiddenNodeIds: [], personalEdges: [] } },
-    resourceStates: {}, evidenceGraph: { claims: [], evidence: [], links: [], draftParagraphs: [] },
+    resourceStates: {}, resourceProjections: {}, evidenceGraph: { claims: [], evidence: [], links: [], draftParagraphs: [] },
     createdAt: session.createdAt, updatedAt: session.updatedAt };
 }
 
@@ -33,6 +33,16 @@ describe("workbench API and UI contracts", () => {
     expect(workbenchUpdateSchema.safeParse({ ...input, ownerId: "member:bob" }).success).toBe(false);
     expect(recommendationRequestSchema.safeParse({ surpriseLevel: "low", userId: "bob" }).success).toBe(false);
     expect(feedbackSchema.safeParse({ recommendationId: "r1", feedback: "useful", ownerId: "bob" }).success).toBe(false);
+  });
+
+  it("does not impose a total bibliography limit in the state contract", () => {
+    const current = state();
+    const ids = Array.from({ length: 10_001 }, (_, index) => `resource-${index}`);
+    const parsed = workbenchUpdateSchema.safeParse({ expectedVersion: 0, surpriseLevel: current.surpriseLevel,
+      readingPlan: { ...current.readingPlan, orderedResourceIds: ids }, views: current.views,
+      resourceStates: current.resourceStates, evidenceGraph: { ...current.evidenceGraph,
+        evidence: ids.map((resourceId) => ({ id: `e-${resourceId}`, resourceId, label: resourceId })) } });
+    expect(parsed.success).toBe(true);
   });
 
   it("marks unauthenticated private responses no-store", async () => {
@@ -48,7 +58,7 @@ describe("workbench API and UI contracts", () => {
       provenance: { sourceKind: "openalex", sourceLabel: "OpenAlex", retrievedAt: "2026-08-25T00:00:00.000Z" },
     }));
     const result = buildRecommendationResult(session, { resources, sourceStatus: "live", degraded: false },
-      { status: "unavailable", summary: null, message: "Memory summary port is not integrated" }, { surpriseLevel: "medium", limit: 10 });
+      { status: "unavailable", snippets: [], preferences: [], message: "Package 04 MemoryReadPort is not integrated" }, { surpriseLevel: "medium", limit: 10 });
     expect(result.source.labels).toEqual(["OpenAlex"]);
     expect(result.memory.status).toBe("unavailable");
     expect(result.recommendations.every((item) => item.provenance.sourceLabel === "OpenAlex")).toBe(true);
