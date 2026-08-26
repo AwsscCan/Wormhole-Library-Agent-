@@ -11,7 +11,9 @@ const projection: WorkbenchResourceProjection = { resourceId: "paper/42", recomm
 describe("workbench resource deep-link projection", () => {
   it("projects a recommendation as a focusable private graph resource", () => {
     const graph = projectWorkbenchResources(base, { [projection.resourceId]: projection });
-    expect(graph.nodes).toContainEqual(expect.objectContaining({ id: "resource:paper%2F42", resourceId: "paper/42", label: "Projected paper" }));
+    expect(graph.nodes).toContainEqual(expect.objectContaining({ id: "resource:paper%2F42", resourceId: "paper/42", label: "Projected paper",
+      recommendationProjection: true }));
+    expect(graph.edges).toEqual([]);
     expect(resolveFocusedResource(graph, "paper/42")).toEqual({ nodeId: "resource:paper%2F42", status: "focused" });
   });
 
@@ -20,8 +22,16 @@ describe("workbench resource deep-link projection", () => {
     const links = workbenchResourceLinks("session / 1", projection);
     expect(links.map).toContain("resourceId=paper%2F42");
     expect(links.workbench).toContain("resourceId=paper%2F42");
-    expect(links.note).toContain("view=concept");
+    expect(links.note).toContain("view=reading");
+    expect(links.note).toContain("noteId=workbench-note%3Apaper%2F42");
     expect(links.draft).toContain("view=evidence");
     expect(links.catalog).toBe(projection.sourceUrl);
+  });
+
+  it("links a projected resource only to a real matching concept node", () => {
+    const graph = projectWorkbenchResources({ nodes: [...base.nodes,
+      { id: "concept:concept-1", label: "Concept One", kind: "concept", position: { x: 1, y: 1 } }], edges: [] },
+    { [projection.resourceId]: projection });
+    expect(graph.edges).toEqual([expect.objectContaining({ source: "concept:concept-1", target: "resource:paper%2F42", type: "concept_resource" })]);
   });
 });

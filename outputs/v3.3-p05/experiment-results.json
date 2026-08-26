@@ -33,8 +33,8 @@
   ],
   "diversityResult": {
     "rawRelevance": {
-      "repeatedTopicCount": 6,
-      "uniqueConcepts": 14
+      "repeatedTopicCount": 8,
+      "uniqueConcepts": 13
     },
     "greedyMmr": {
       "repeatedTopicCount": 2,
@@ -117,6 +117,8 @@
       "readingPlanRestored": true,
       "allViewsRestored": true,
       "resourceJump": "/research/research-p05-1/map?sessionId=research-p05-1&resourceId=resource-0",
+      "noteJump": "/research/research-p05-1/workbench?view=reading&resourceId=resource-0&noteId=workbench-note%3Aresource-0#workbench-note%3Aresource-0",
+      "resourceFocusResolved": true,
       "projectedResourceRestored": true,
       "backlinkRestored": true,
       "researchGraphUnchanged": true
@@ -128,6 +130,8 @@
       "readingPlanRestored": true,
       "allViewsRestored": true,
       "resourceJump": "/research/research-p05-2/map?sessionId=research-p05-2&resourceId=resource-1",
+      "noteJump": "/research/research-p05-2/workbench?view=reading&resourceId=resource-1&noteId=workbench-note%3Aresource-1#workbench-note%3Aresource-1",
+      "resourceFocusResolved": true,
       "projectedResourceRestored": true,
       "backlinkRestored": true,
       "researchGraphUnchanged": true
@@ -139,6 +143,8 @@
       "readingPlanRestored": true,
       "allViewsRestored": true,
       "resourceJump": "/research/research-p05-3/map?sessionId=research-p05-3&resourceId=resource-2",
+      "noteJump": "/research/research-p05-3/workbench?view=reading&resourceId=resource-2&noteId=workbench-note%3Aresource-2#workbench-note%3Aresource-2",
+      "resourceFocusResolved": true,
       "projectedResourceRestored": true,
       "backlinkRestored": true,
       "researchGraphUnchanged": true
@@ -162,5 +168,17 @@
     "snippets": [],
     "preferences": [],
     "message": "Package 04 MemoryReadPort is not integrated"
+  },
+  "acceptanceChecks": {
+    "quotasExact": true,
+    "invalidExcluded": true,
+    "fairDiversityBaseline": true,
+    "diversityImproved": true,
+    "orderInvariant": true,
+    "feedbackEventOnly": true,
+    "realRestartRestored": true,
+    "publicDataUnchanged": true,
+    "migrationDeployable": true,
+    "memoryDegradationExplicit": true
   }
 }

@@ -1,7 +1,7 @@
-DATABASE_URL=file:./p05-experiment-23276.db npx prisma migrate deploy
+DATABASE_URL=file:./p05-experiment-27308.db npx prisma migrate deploy
 
 Prisma schema loaded from prisma\schema.prisma
-Datasource "db": SQLite database "p05-experiment-23276.db" at "file:./p05-experiment-23276.db"
+Datasource "db": SQLite database "p05-experiment-27308.db" at "file:./p05-experiment-27308.db"
 
 3 migrations found in prisma/migrations
 

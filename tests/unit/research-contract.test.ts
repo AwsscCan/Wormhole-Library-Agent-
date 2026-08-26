@@ -4,7 +4,8 @@ import {
   graphUpdateSchema,
   nodeActionSchema,
 } from "@/lib/research/schemas";
-import { explainResearchFailure } from "@/lib/research/failures";
+import { explainPrivateWorkspaceError, explainResearchFailure } from "@/lib/research/failures";
+import { ResearchError } from "@/lib/research/types";
 
 describe("research workspace contracts", () => {
   it("does not accept an owner identity from request bodies", () => {
@@ -23,5 +24,12 @@ describe("research workspace contracts", () => {
     expect(explainResearchFailure("NO_RESOURCES")).toContain("没有找到资源");
     expect(explainResearchFailure("SOURCE_FAILURE")).toContain("来源暂时不可用");
     expect(explainResearchFailure("CORRUPT_RECOVERY")).toContain("安全恢复");
+  });
+
+  it("does not disguise identity or source outages as a missing workspace", () => {
+    expect(explainPrivateWorkspaceError(new ResearchError("NOT_FOUND", "missing"))).toContain("找不到");
+    expect(explainPrivateWorkspaceError(new ResearchError("PRINCIPAL_UNAVAILABLE", "identity down"))).toContain("身份服务暂时不可用");
+    expect(explainPrivateWorkspaceError(new ResearchError("SOURCE_FAILURE", "database down"))).toContain("服务暂时不可用");
+    expect(explainPrivateWorkspaceError(new Error("unexpected"))).toContain("意外错误");
   });
 });

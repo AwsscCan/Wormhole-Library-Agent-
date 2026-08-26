@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEvidenceBacklinks, sessionResourceHref, validateEvidenceGraph } from "@/lib/workbench/links";
+import { buildDraftSourceRefs, buildEvidenceBacklinks, sessionResourceHref, validateEvidenceGraph } from "@/lib/workbench/links";
 
 describe("workbench navigation and evidence traceability", () => {
   it("keeps the research session id on catalog and continued-search jumps", () => {
@@ -24,5 +24,29 @@ describe("workbench navigation and evidence traceability", () => {
       claims: [], evidence: [], links: [{ id: "bad", claimId: "missing", evidenceId: "also-missing", role: "to_verify" }], draftParagraphs: [],
     });
     expect(errors).toEqual(expect.arrayContaining([expect.stringContaining("missing claim"), expect.stringContaining("missing evidence")]));
+  });
+
+  it("rejects duplicate identities and draft backlinks without matching evidence", () => {
+    const errors = validateEvidenceGraph({
+      claims: [{ id: "duplicate", text: "one" }, { id: "duplicate", text: "two" }],
+      evidence: [{ id: "evidence", resourceId: "paper-1", noteId: "note-1", label: "Source" },
+        { id: "evidence", resourceId: "paper-2", label: "Other" }],
+      links: [],
+      draftParagraphs: [{ id: "draft", text: "Claim", sourceRefs: [{ resourceId: "missing", noteId: "missing-note" }] },
+        { id: "draft", text: "Duplicate", sourceRefs: [] }],
+    });
+    expect(errors).toEqual(expect.arrayContaining([
+      expect.stringContaining("Duplicate claim id"), expect.stringContaining("Duplicate evidence id"),
+      expect.stringContaining("Duplicate draft id"), expect.stringContaining("missing source"),
+    ]));
+  });
+
+  it("builds a bounded draft citation subset chosen by the user", () => {
+    const evidence = Array.from({ length: 100 }, (_, index) => ({ id: `e-${index}`, resourceId: `r-${index}`, label: `Resource ${index}` }));
+    const selected = new Set(Array.from({ length: 70 }, (_, index) => `e-${index}`));
+    const refs = buildDraftSourceRefs(evidence, selected, 50);
+    expect(refs).toHaveLength(50);
+    expect(refs[0]).toEqual({ resourceId: "r-0", noteId: undefined });
+    expect(refs.at(-1)).toEqual({ resourceId: "r-49", noteId: undefined });
   });
 });

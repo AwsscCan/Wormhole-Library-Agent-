@@ -4,6 +4,13 @@ import type { ExplorationRecommendation, WorkbenchState } from "./types";
 export const WORKBENCH_VIEWS = ["reading", "concept", "evidence"] as const;
 export type WorkbenchView = typeof WORKBENCH_VIEWS[number];
 
+export function paginateWorkbenchItems<T>(items: T[], requestedPage: number, pageSize = 25) {
+  const safeSize = Math.max(1, Math.floor(pageSize));
+  const pageCount = Math.max(1, Math.ceil(items.length / safeSize));
+  const page = Math.min(Math.max(0, Math.floor(requestedPage)), pageCount - 1);
+  return { items: items.slice(page * safeSize, page * safeSize + safeSize), page, pageCount, total: items.length };
+}
+
 export function buildWorkbenchViewModel(state: WorkbenchState, recommendations: ExplorationRecommendation[]) {
   return {
     sessionId: state.sessionId,

@@ -4,19 +4,23 @@ import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
+import { buildSystemGraph } from "../lib/research/personalGraph";
 import { PrismaResearchSessionStore, ResearchSessionService } from "../lib/research/sessionStore";
 import { appendExplorationFeedback, bindExplorationEventPort, clearWorkbenchPortsForTests, readMemorySummary } from "../lib/workbench/ports";
-import { selectExplorationCandidates } from "../lib/workbench/recommendation";
+import { selectExplorationCandidates, selectRelevanceBaseline } from "../lib/workbench/recommendation";
+import { projectWorkbenchResources, resolveFocusedResource, workbenchNoteId, workbenchResourceLinks } from "../lib/workbench/projection";
 import { PrismaWorkbenchStore, WorkbenchService } from "../lib/workbench/store";
 import type { CandidateBand, ExplorationCandidate, SurpriseLevel } from "../lib/workbench/types";
 
 const root = process.cwd();
 const output = path.join(root, "outputs", "v3.3-p05");
 fs.mkdirSync(output, { recursive: true });
+const canonicalUiAcceptance = fs.readFileSync(path.join(output, "UI-ACCEPTANCE.md"), "utf8");
 const fixedAt = "2026-08-25T00:00:00.000Z";
 const publicFiles = ["data/seed-concepts.json", "data/seed-edges.json", "data/seed-living-books.json"];
 const hash = (file: string) => createHash("sha256").update(fs.readFileSync(path.join(root, file))).digest("hex");
 const beforeHashes = Object.fromEntries(publicFiles.map((file) => [file, hash(file)]));
+const cleanupPaths: string[] = [];
 
 function makeCandidates(): ExplorationCandidate[] {
   const build = (band: CandidateBand, count: number) => Array.from({ length: count }, (_, index): ExplorationCandidate => ({
@@ -49,7 +53,7 @@ const quotaResults = levels.map((level) => {
   };
 });
 
-const raw = [...candidates].filter((item) => item.accessible && item.trust >= 0.5).sort((a, b) => b.relevance - a.relevance || a.id.localeCompare(b.id)).slice(0, 20);
+const raw = selectRelevanceBaseline(candidates, { surpriseLevel: "high", limit: 20 });
 const mmr = selectExplorationCandidates(candidates, { surpriseLevel: "high", limit: 20, lambda: 0.55 });
 const repeatedTopicCount = (items: ExplorationCandidate[]) => items.filter((item) => item.conceptIds.includes("repeated-retrieval")).length;
 const diversityResult = {
@@ -70,15 +74,18 @@ async function main() {
 
   const databaseFilename = `p05-experiment-${process.pid}.db`;
   const databasePath = path.join(root, "prisma", databaseFilename);
+  cleanupPaths.push(databasePath);
   fs.writeFileSync(databasePath, "");
   const databaseUrl = `file:${databasePath.replace(/\\/g, "/")}`;
   const prismaCli = createRequire(import.meta.url).resolve("prisma/build/index.js");
   const migrationDeploy = execFileSync(process.execPath, [prismaCli, "migrate", "deploy"], {
     cwd: root, env: { ...process.env, DATABASE_URL: `file:./${databaseFilename}` }, encoding: "utf8",
   });
-  fs.writeFileSync(path.join(output, "MIGRATION-DEPLOY.txt"), `DATABASE_URL=file:./${databaseFilename} npx prisma migrate deploy\n\n${migrationDeploy.trimEnd()}\n`);
+  const cleanMigrationDeploy = migrationDeploy.replace(/[ \t]+$/gm, "").trimEnd();
+  fs.writeFileSync(path.join(output, "MIGRATION-DEPLOY.txt"), `DATABASE_URL=file:./${databaseFilename} npx prisma migrate deploy\n\n${cleanMigrationDeploy}\n`);
   const shadowFilename = `p05-shadow-${process.pid}.db`;
   const shadowPath = path.join(root, shadowFilename);
+  cleanupPaths.push(shadowPath);
   fs.writeFileSync(shadowPath, "");
   const migrationDiff = execFileSync(process.execPath, [prismaCli, "migrate", "diff", "--from-migrations", "prisma/migrations",
     "--to-schema-datamodel", "prisma/schema.prisma", "--shadow-database-url", `file:./${shadowFilename}`, "--exit-code"], {
@@ -107,9 +114,9 @@ async function main() {
       }, resourceStates: { [`resource-${index}`]: { status: "reading", tags: ["experiment"], note: "Private note" } },
       evidenceGraph: {
         claims: [{ id: `claim-${index}`, text: `Claim for ${topic}` }],
-        evidence: [{ id: `evidence-${index}`, resourceId: `resource-${index}`, noteId: `note-${index}`, label: "Experiment evidence" }],
+        evidence: [{ id: `evidence-${index}`, resourceId: `resource-${index}`, noteId: workbenchNoteId(`resource-${index}`), label: "Experiment evidence" }],
         links: [{ id: `link-${index}`, claimId: `claim-${index}`, evidenceId: `evidence-${index}`, role: "to_verify" }],
-        draftParagraphs: [{ id: `draft-${index}`, text: "Draft with explicit uncertainty", sourceRefs: [{ resourceId: `resource-${index}`, noteId: `note-${index}` }] }],
+        draftParagraphs: [{ id: `draft-${index}`, text: "Draft with explicit uncertainty", sourceRefs: [{ resourceId: `resource-${index}`, noteId: workbenchNoteId(`resource-${index}`) }] }],
       },
     });
     await service.projectResources("guest:experiment", session.id, [{ resourceId: `resource-${index}`, recommendationId: `rec-${index}`,
@@ -125,13 +132,17 @@ async function main() {
     const restartedResearch = new ResearchSessionService(new PrismaResearchSessionStore(restartedClient));
     const restarted = new WorkbenchService(new PrismaWorkbenchStore(restartedClient), restartedResearch);
     const restored = await restarted.get("guest:experiment", item.sessionId);
-    const graphAfter = JSON.stringify((await restartedResearch.get("guest:experiment", item.sessionId)).personalGraph);
+    const restoredSession = await restartedResearch.get("guest:experiment", item.sessionId);
+    const graphAfter = JSON.stringify(restoredSession.personalGraph);
+    const displayGraph = projectWorkbenchResources(buildSystemGraph(restoredSession), restored.resourceProjections);
+    const focus = resolveFocusedResource(displayGraph, `resource-${item.index}`);
+    const resourceLinks = workbenchResourceLinks(item.sessionId, restored.resourceProjections[`resource-${item.index}`]);
     recoveryResults.push({ sessionId: item.sessionId, topic: item.topic, version: restored.version,
       readingPlanRestored: restored.readingPlan.nextAction === "Draft one traceable paragraph",
       allViewsRestored: Object.values(restored.views).every((view) => Object.keys(view.nodePositions).length === 1),
-      resourceJump: `/research/${item.sessionId}/map?sessionId=${item.sessionId}&resourceId=resource-${item.index}`,
+      resourceJump: resourceLinks.map, noteJump: resourceLinks.note, resourceFocusResolved: focus.status === "focused",
       projectedResourceRestored: restored.resourceProjections[`resource-${item.index}`]?.title === `${item.topic} source`,
-      backlinkRestored: restored.evidenceGraph.draftParagraphs[0].sourceRefs[0].noteId === `note-${item.index}`,
+      backlinkRestored: restored.evidenceGraph.draftParagraphs[0].sourceRefs[0].noteId === workbenchNoteId(`resource-${item.index}`),
       researchGraphUnchanged: item.graphBefore === graphAfter,
     });
     await restartedClient.$disconnect();
@@ -147,8 +158,29 @@ async function main() {
       schemaDiffClean: migrationDiff.includes("No difference detected") },
     recoveryResults, publicProtection: hashes, memoryDegradation,
   };
+  const expectedQuotas = [{ direct: 16, adjacent: 4, distant: 0 }, { direct: 12, adjacent: 6, distant: 2 }, { direct: 8, adjacent: 7, distant: 5 }];
+  const sameComposition = (left: ExplorationCandidate[], right: ExplorationCandidate[]) => ["direct", "adjacent", "distant"]
+    .every((band) => left.filter((item) => item.band === band).length === right.filter((item) => item.band === band).length);
+  const acceptanceChecks = {
+    quotasExact: quotaResults.every((item, index) => item.direct === expectedQuotas[index].direct
+      && item.adjacent === expectedQuotas[index].adjacent && item.distant === expectedQuotas[index].distant),
+    invalidExcluded: quotaResults.every((item) => !item.invalidSelected && item.allHaveFourReasons),
+    fairDiversityBaseline: sameComposition(raw, mmr),
+    diversityImproved: diversityResult.greedyMmr.repeatedTopicCount < diversityResult.rawRelevance.repeatedTopicCount,
+    orderInvariant: JSON.stringify(diversityResult.forwardIds) === JSON.stringify(diversityResult.reverseIds),
+    feedbackEventOnly: feedback.every((item) => item.accepted && item.status === "recorded")
+      && events.length === 3 && !JSON.stringify(events).includes("memoryPatch") && !JSON.stringify(events).includes("preference"),
+    realRestartRestored: recoveryResults.every((item) => item.readingPlanRestored && item.allViewsRestored
+      && item.projectedResourceRestored && item.resourceFocusResolved && item.backlinkRestored && item.researchGraphUnchanged),
+    publicDataUnchanged: hashes.unchanged,
+    migrationDeployable: results.migrationDeploy.success && results.migrationDeploy.schemaDiffClean,
+    memoryDegradationExplicit: memoryDegradation.status === "unavailable",
+  };
+  if (Object.values(acceptanceChecks).some((passed) => !passed)) {
+    throw new Error(`P05 experiment acceptance failed: ${JSON.stringify(acceptanceChecks)}`);
+  }
   fs.writeFileSync(path.join(output, "candidates.json"), JSON.stringify(candidates, null, 2));
-  fs.writeFileSync(path.join(output, "experiment-results.json"), JSON.stringify(results, null, 2));
+  fs.writeFileSync(path.join(output, "experiment-results.json"), JSON.stringify({ ...results, acceptanceChecks }, null, 2));
   fs.writeFileSync(path.join(output, "public-graph-hashes.json"), JSON.stringify(hashes, null, 2));
   fs.writeFileSync(path.join(output, "degradation-sample.json"), JSON.stringify({
     memory: memoryDegradation,
@@ -158,13 +190,15 @@ async function main() {
   const quotaRows = quotaResults.map((item) => `| ${item.level} | ${item.direct}/${item.adjacent}/${item.distant} | ${item.invalidSelected ? "失败" : "通过"} | ${item.allHaveFourReasons ? "通过" : "失败"} |`).join("\n");
   fs.writeFileSync(path.join(output, "EXPERIMENT-REPORT.md"), `# V3.3 责任包 05 对照实验\n\n版本：v3.3-p05-schema-2\n候选种子：deterministic-indexed-fixture-v1（无随机源）\n固定时间：${fixedAt}\n标准迁移部署：${migrationDeploy.includes("All migrations have been successfully applied") ? "通过" : "失败"}\n迁移历史/schema diff：${migrationDiff.includes("No difference detected") ? "无漂移" : "失败"}\n\n| 意外度 | 直接/邻近/远距 | 不可解释候选排除 | 四类理由 |\n|---|---:|---|---|\n${quotaRows}\n\n## 多样性\n\n- 原始相关度：重复主题 ${diversityResult.rawRelevance.repeatedTopicCount}，独立概念 ${diversityResult.rawRelevance.uniqueConcepts}。\n- 贪心 MMR：重复主题 ${diversityResult.greedyMmr.repeatedTopicCount}，独立概念 ${diversityResult.greedyMmr.uniqueConcepts}。\n- 正序/逆序候选结果一致：${JSON.stringify(diversityResult.forwardIds) === JSON.stringify(diversityResult.reverseIds) ? "通过" : "失败"}。MMR 惩罚只读取已选集合。\n\n## 解释、证据、记忆与反馈\n\n候选分档来自已确认会话证据、个人图概念或可追溯概念/引用桥，不再按目录返回顺序。P04 受限片段与偏好只形成带来源 ID 的推荐特征，不作为外部事实。每项均包含关系、桥梁、难度、新增价值。三类反馈共写入事件端口 ${events.length} 条，未生成偏好或 memory patch。\n\n## 真实 SQLite 三主题恢复与公共保护\n\n工作台先通过标准 \`prisma migrate deploy\` 创建空库，再保存三个主题；首次 PrismaClient 完全断开后，三个主题分别由新 PrismaClient、新 ResearchSessionService 和新 WorkbenchService 复读。阅读计划、三视图用户层、资源投影、证据—草稿反链和 sessionId 跳转均恢复。ResearchSession 图层未变；公共概念、边和 Living Library consent seed 哈希前后相同：${hashes.unchanged ? "通过" : "失败"}。\n\n## 技术说明\n\n探索工作台把来源透明候选与 P03 会话证据/个人图、P04 受限召回转换为可追溯决策特征，再做资格筛选、固定意外度配额和 selected-only 贪心 MMR。推荐资源以私有投影进入星图，深链会真实聚焦节点，并为失效目标提供恢复提示。三种视图只保存 owner 隔离的用户层；反馈经事件端口发送，不直接写长期偏好。\n`);
   fs.writeFileSync(path.join(output, "UI-ACCEPTANCE.md"), `# 可重复 UI 验收\n\n1. 绑定包01身份端口、包02来源透明端口和包04 \`MemoryReadPort.search/listInferredPreferences\`；运行 \`npm run dev\`。\n2. 打开 \`/research/<sessionId>/workbench\`，改变会话证据或记忆召回后生成，核对候选分档、分数、来源 ID 和四类理由随输入改变。\n3. 点击推荐的星图入口，星图必须出现并聚焦该私有资源投影；点击星图“返回工作台证据/草稿”应回到同一资源。失效 resourceId 必须显示恢复提示。\n4. 填写阅读计划，在概念图添加个人边；在证据图添加主张、四类证据关系和草稿反链。参考文献可分批持续添加，不设总量上限。\n5. 保存后重启服务并重新打开；三视图、投影与阅读状态应恢复。用另一个 owner 访问应为 404。\n6. 断开 P04 或来源端口，界面必须显示“无历史记忆模式”或“显式降级”；事件端口拒绝反馈时必须提示未记录。\n\n自动化对应：\`workbench-context.test.ts\`、\`workbench-projection.test.ts\`、\`workbench-migration-deploy.test.ts\`、\`workbench-prisma-store.test.ts\`。\n`);
+  fs.writeFileSync(path.join(output, "UI-ACCEPTANCE.md"), canonicalUiAcceptance);
+  fs.appendFileSync(path.join(output, "EXPERIMENT-REPORT.md"), `\n## 自动验收判定\n\n- 相关度基线与 MMR 使用相同资格和高意外度配额：${acceptanceChecks.fairDiversityBaseline ? "通过" : "失败"}\n- 所有机器判定：${Object.values(acceptanceChecks).every(Boolean) ? "通过" : "失败"}\n- 详细布尔结果见 \`experiment-results.json.acceptanceChecks\`。\n`);
   console.log(JSON.stringify({ quotas: quotaResults.map(({ level, direct, adjacent, distant }) => ({ level, direct, adjacent, distant })),
-    diversityImproved: diversityResult.greedyMmr.repeatedTopicCount < diversityResult.rawRelevance.repeatedTopicCount,
-    orderInvariant: JSON.stringify(diversityResult.forwardIds) === JSON.stringify(diversityResult.reverseIds),
+    acceptanceChecks,
     sessionsRestored: recoveryResults.filter((item) => item.readingPlanRestored && item.allViewsRestored && item.backlinkRestored).length,
     publicGraphAndConsentUnchanged: hashes.unchanged,
   }, null, 2));
   fs.rmSync(databasePath, { force: true });
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+main().catch((error) => { console.error(error); process.exitCode = 1; })
+  .finally(() => cleanupPaths.forEach((target) => fs.rmSync(target, { force: true })));

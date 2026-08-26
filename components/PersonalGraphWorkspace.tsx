@@ -13,13 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type GraphData = { label: string; kind: SystemGraphNodeKind; note?: string; pinned: boolean; resourceId?: string };
+type GraphData = { label: string; kind: SystemGraphNodeKind; note?: string; pinned: boolean; resourceId?: string; recommendationProjection?: true };
 type FlowNode = Node<GraphData, "personal">;
 
 function PersonalNode({ data, selected }: NodeProps<FlowNode>) {
-  return <div className={cn("max-w-[210px] rounded-md border bg-ink-panel px-3 py-2 shadow-hair", selected ? "border-pulse shadow-glow-cyan-sm" : "border-ink-edge", data.kind === "resource" && "border-copper/60", data.kind === "wormhole" && "border-rosewood/60")}>
+  return <div className={cn("max-w-[210px] rounded-md border bg-ink-panel px-3 py-2 shadow-hair", selected ? "border-pulse shadow-glow-cyan-sm" : "border-ink-edge", data.kind === "resource" && "border-copper/60", data.kind === "wormhole" && "border-rosewood/60", data.recommendationProjection && "border-dashed border-pulse/70")}>
     <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-ink !bg-pulse" />
-    <div className="flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider text-steel-dim"><span>{data.kind.replace("_", " ")}</span>{data.pinned && <Pin className="h-2.5 w-2.5 text-copper" />}</div>
+    <div className="flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider text-steel-dim"><span>{data.recommendationProjection ? "private suggestion" : data.kind.replace("_", " ")}</span>{data.pinned && <Pin className="h-2.5 w-2.5 text-copper" />}</div>
     <div className="truncate text-xs text-ivory">{data.label}</div>
     {data.note && <div className="mt-1 line-clamp-2 text-[9px] text-steel">{data.note}</div>}
     <Handle type="source" position={Position.Right} className="!h-2 !w-2 !border-ink !bg-pulse" />
@@ -40,13 +40,14 @@ function FocusController({ nodeId }: { nodeId?: string }) {
 function toFlow(graph: MergedGraph) {
   const nodes: FlowNode[] = graph.nodes.map((node) => ({
     id: node.id, type: "personal", position: node.position, hidden: node.hidden, draggable: !node.pinned,
-    data: { label: node.label, kind: node.kind, note: node.note, pinned: node.pinned, resourceId: node.resourceId },
+    data: { label: node.label, kind: node.kind, note: node.note, pinned: node.pinned, resourceId: node.resourceId, recommendationProjection: node.recommendationProjection },
   }));
   const edges: Edge[] = graph.edges.map((edge) => ({
     id: edge.id, source: edge.source, target: edge.target,
-    data: { system: "system" in edge }, label: "label" in edge ? edge.label : undefined,
+    data: { system: "system" in edge, recommendationProjection: "recommendationProjection" in edge && edge.recommendationProjection }, label: "label" in edge ? edge.label : undefined,
     animated: "system" in edge ? edge.type === "wormhole" : false,
-    style: { stroke: "system" in edge ? "#2A3A5C" : "#D9A050", strokeWidth: "system" in edge ? 1.2 : 2 },
+    style: { stroke: "system" in edge ? "#2A3A5C" : "#D9A050", strokeWidth: "system" in edge ? 1.2 : 2,
+      strokeDasharray: "recommendationProjection" in edge && edge.recommendationProjection ? "5 4" : undefined },
   }));
   return { nodes, edges };
 }

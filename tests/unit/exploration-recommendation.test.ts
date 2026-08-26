@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   explainCandidate,
   filterEligibleCandidates,
+  selectRelevanceBaseline,
   selectExplorationCandidates,
 } from "@/lib/workbench/recommendation";
 import type { ExplorationCandidate } from "@/lib/workbench/types";
@@ -66,11 +67,28 @@ describe("explainable exploration selection", () => {
     expect(new Set(forward.slice(0, 8).flatMap((item) => item.conceptIds)).size).toBeGreaterThan(2);
   });
 
+  it("compares MMR against a relevance-only baseline with identical eligibility and quotas", () => {
+    const input = [...candidates(), { ...candidates()[20], id: "invalid-baseline", bridgeEvidence: undefined }];
+    const baseline = selectRelevanceBaseline(input, { surpriseLevel: "high", limit: 20 });
+    const mmr = selectExplorationCandidates(input, { surpriseLevel: "high", limit: 20, lambda: 0.55 });
+    const composition = (items: ExplorationCandidate[]) => ["direct", "adjacent", "distant"].map((band) => items.filter((item) => item.band === band).length);
+    expect(composition(baseline)).toEqual(composition(mmr));
+    expect(baseline.some((item) => item.id === "invalid-baseline")).toBe(false);
+  });
+
   it("renders four readable reasons for every selected item", () => {
     const explanation = explainCandidate(candidates()[32]);
     expect(explanation).toEqual(expect.objectContaining({
       relationship: expect.any(String), bridge: expect.any(String), difficulty: expect.any(String), newValue: expect.any(String),
     }));
     expect(Object.values(explanation).every((value) => value.trim().length > 8)).toBe(true);
+  });
+
+  it("does not invent a concept bridge or concept count for a direct item", () => {
+    const direct = { ...candidates()[0], conceptIds: [], bridge: undefined, bridgeEvidence: undefined };
+    const explanation = explainCandidate(direct);
+    expect(explanation.bridge).toContain("no exploratory bridge is asserted");
+    expect(explanation.bridge).not.toContain("shares the central concepts");
+    expect(explanation.newValue).not.toContain("1 traceable concept");
   });
 });

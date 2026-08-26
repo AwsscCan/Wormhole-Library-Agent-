@@ -27,6 +27,17 @@ describe("bounded package 04 and event ports", () => {
     expect(listInferredPreferences).toHaveBeenCalledWith({ ownerId: "member:alice" });
   });
 
+  it("degrades explicitly when an integrated memory port fails", async () => {
+    bindPackage04MemoryReadPort({
+      search: async () => { throw new Error("private backend detail"); },
+      listInferredPreferences: async () => [],
+    });
+    await expect(readMemorySummary("member:alice", "session-1", "RAG evidence")).resolves.toEqual({
+      status: "unavailable", snippets: [], preferences: [],
+      message: "Package 04 MemoryReadPort failed; continuing without historical memory",
+    });
+  });
+
   it("writes feedback to the event port without emitting preference patches", async () => {
     const append = vi.fn(async () => ({ accepted: true }));
     bindExplorationEventPort({ append });

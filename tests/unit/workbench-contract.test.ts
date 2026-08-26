@@ -4,7 +4,7 @@ import { clearCurrentPrincipalPortForTests } from "@/lib/research/principal";
 import type { ResearchSession, SourceTransparentResource } from "@/lib/research/types";
 import { feedbackSchema, recommendationRequestSchema, workbenchUpdateSchema } from "@/lib/workbench/schemas";
 import { buildRecommendationResult } from "@/lib/workbench/runtime";
-import { buildWorkbenchViewModel } from "@/lib/workbench/viewModel";
+import { buildWorkbenchViewModel, paginateWorkbenchItems } from "@/lib/workbench/viewModel";
 import type { WorkbenchState } from "@/lib/workbench/types";
 
 afterEach(() => clearCurrentPrincipalPortForTests());
@@ -43,6 +43,12 @@ describe("workbench API and UI contracts", () => {
       resourceStates: current.resourceStates, evidenceGraph: { ...current.evidenceGraph,
         evidence: ids.map((resourceId) => ({ id: `e-${resourceId}`, resourceId, label: resourceId })) } });
     expect(parsed.success).toBe(true);
+  });
+
+  it("renders a bounded page without imposing a total collection limit", () => {
+    const items = Array.from({ length: 10_001 }, (_, index) => `resource-${index}`);
+    expect(paginateWorkbenchItems(items, 0, 25)).toEqual({ items: items.slice(0, 25), page: 0, pageCount: 401, total: 10_001 });
+    expect(paginateWorkbenchItems(items, 999, 25)).toEqual({ items: items.slice(10_000), page: 400, pageCount: 401, total: 10_001 });
   });
 
   it("marks unauthenticated private responses no-store", async () => {

@@ -95,6 +95,7 @@ export type SystemGraphNode = {
   kind: SystemGraphNodeKind;
   position: GraphPosition;
   resourceId?: string;
+  recommendationProjection?: true;
 };
 
 export type SystemGraphEdge = {
@@ -103,6 +104,7 @@ export type SystemGraphEdge = {
   target: string;
   type: "topic_search" | "search_concept" | "concept_resource" | "wormhole";
   system: true;
+  recommendationProjection?: true;
 };
 
 export type SystemGraph = { nodes: SystemGraphNode[]; edges: SystemGraphEdge[] };

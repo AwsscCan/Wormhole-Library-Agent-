@@ -90,7 +90,10 @@ export function buildRecommendationResult(
 export async function recommendForSession(ownerId: string, sessionId: string, options: { surpriseLevel: SurpriseLevel; limit: number }) {
   const session = await getResearchSessionService().get(ownerId, sessionId);
   const [catalog, memory] = await Promise.all([
-    queryTopicLibrary({ query: session.researchQuestion, limit: Math.max(options.limit * 3, 30) }),
+    queryTopicLibrary({ query: session.researchQuestion, limit: Math.max(options.limit * 3, 30) }).catch((): TopicLibraryResult => ({
+      resources: [], sourceStatus: "unavailable", degraded: true,
+      message: "Source-transparent catalog failed; no external results were used",
+    })),
     readMemorySummary(ownerId, sessionId, session.researchQuestion),
   ]);
   const result = buildRecommendationResult(session, catalog, memory, options);

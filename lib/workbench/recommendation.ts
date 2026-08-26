@@ -54,15 +54,19 @@ export function explainCandidate(candidate: ExplorationCandidate): Recommendatio
   const memoryTraceIds = [...(trace?.memorySnippetIds ?? []), ...(trace?.preferenceIds ?? [])];
   const memoryTrace = memoryTraceIds.length ? ` Memory features: ${memoryTraceIds.join(", ")}.` : " No memory feature boost.";
   const relationship = candidate.band === "direct"
-    ? `Directly addresses the current research question with traced relevance ${(candidate.effectiveRelevance ?? candidate.relevance).toFixed(2)}.${evidenceTrace}${contextTrace}${memoryTrace}`
-    : `Provides a ${candidate.band} perspective with traced relevance ${(candidate.effectiveRelevance ?? candidate.relevance).toFixed(2)}.${evidenceTrace}${contextTrace}${memoryTrace}`;
+    ? `Assigned to the direct band from traced session evidence with effective relevance ${(candidate.effectiveRelevance ?? candidate.relevance).toFixed(2)}.${evidenceTrace}${contextTrace}${memoryTrace}`
+    : `Assigned to the ${candidate.band} band with effective relevance ${(candidate.effectiveRelevance ?? candidate.relevance).toFixed(2)}.${evidenceTrace}${contextTrace}${memoryTrace}`;
   const bridge = candidate.bridgeEvidence
     ? `Bridge (${candidate.bridgeEvidence.kind}): ${candidate.bridgeEvidence.label}.`
-    : "Bridge: shares the central concepts already present in this research session.";
+    : candidate.band === "direct"
+      ? "This is a direct-band item, so no exploratory bridge is asserted."
+      : "No verified exploratory bridge is available.";
   const difficulty = `Difficulty is ${candidate.difficulty}; allow about ${candidate.estimatedMinutes} minutes for a first pass.`;
   const newValue = candidate.taskValue?.trim()
     ? `New value: ${candidate.taskValue.trim()} (source: ${candidate.taskValueEvidence?.sourceId ?? candidate.provenance.sourceLabel}).`
-    : `New value: adds ${candidate.conceptIds.length || 1} traceable concept connection(s) from ${candidate.provenance.sourceLabel}.`;
+    : candidate.conceptIds.length
+      ? `New value: adds ${candidate.conceptIds.length} source-labelled concept connection(s) from ${candidate.provenance.sourceLabel}.`
+      : `New value: provides a provenance-labelled resource from ${candidate.provenance.sourceLabel}; no concept connection is asserted.`;
   return { relationship, bridge, difficulty, newValue };
 }
 
@@ -89,6 +93,13 @@ export function selectExplorationCandidates(
     }
   }
   return selected;
+}
+
+export function selectRelevanceBaseline(
+  candidates: ExplorationCandidate[],
+  options: { surpriseLevel: SurpriseLevel; limit?: number },
+) {
+  return selectExplorationCandidates(candidates, { ...options, lambda: 1 });
 }
 
 export const surpriseQuotas = QUOTAS;

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as recommend } from "@/app/api/research/sessions/[sessionId]/recommendations/route";
 import { POST as feedback } from "@/app/api/research/sessions/[sessionId]/recommendations/feedback/route";
 import { bindPackage02SourceCatalogPort, clearPackage02SourceCatalogPortForTests } from "@/lib/research/catalogPort";
@@ -41,10 +41,33 @@ describe("recommendation API integration", () => {
   it("returns a retryable failure when the event port rejects feedback", async () => {
     installCurrentPrincipalPortForTests({ read: async () => ({ id: "feedback-user", mode: "member" }) });
     const session = await getResearchSessionService().create("member:feedback-user", { researchQuestion: "feedback rejection" });
+    await getWorkbenchService().projectResources("member:feedback-user", session.id, [{ resourceId: "resource-1", recommendationId: "rec-1",
+      title: "Feedback target", conceptIds: [], conceptLabels: [], sourceLabel: "OpenAlex",
+      provenance: { sourceKind: "openalex", sourceLabel: "OpenAlex", retrievedAt: session.createdAt }, projectedAt: session.createdAt }]);
     bindExplorationEventPort({ append: async () => ({ accepted: false }) });
     const response = await feedback(new Request("http://local/feedback", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ recommendationId: "rec-1", feedback: "too_far" }) }), { params: Promise.resolve({ sessionId: session.id }) });
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ accepted: false, status: "rejected" });
+  });
+
+  it("rejects feedback for an id that was never recommended in this session", async () => {
+    installCurrentPrincipalPortForTests({ read: async () => ({ id: "forged-feedback", mode: "member" }) });
+    const session = await getResearchSessionService().create("member:forged-feedback", { researchQuestion: "feedback integrity" });
+    const append = vi.fn(async () => ({ accepted: true })); bindExplorationEventPort({ append });
+    const response = await feedback(new Request("http://local/feedback", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recommendationId: "forged", feedback: "useful" }) }), { params: Promise.resolve({ sessionId: session.id }) });
+    expect(response.status).toBe(400); expect(append).not.toHaveBeenCalled();
+  });
+
+  it("reports a source-port exception as explicit degradation instead of a generic 500", async () => {
+    installCurrentPrincipalPortForTests({ read: async () => ({ id: "source-failure", mode: "member" }) });
+    const session = await getResearchSessionService().create("member:source-failure", { researchQuestion: "source failure" });
+    bindPackage02SourceCatalogPort({ searchTopic: async () => { throw new Error("upstream secret detail"); } });
+    const response = await recommend(new Request("http://local/recommend", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ surpriseLevel: "medium", limit: 20 }) }), { params: Promise.resolve({ sessionId: session.id }) });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ recommendations: [], source: { status: "unavailable", degraded: true,
+      message: "Source-transparent catalog failed; no external results were used" } });
   });
 });

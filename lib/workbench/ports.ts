@@ -43,11 +43,16 @@ export async function readMemorySummary(ownerId: string, sessionId: string, quer
   if (!runtime.__package04MemoryReadPort) return {
     status: "unavailable", snippets: [], preferences: [], message: "Package 04 MemoryReadPort is not integrated",
   };
-  const [snippets, preferences] = await Promise.all([
-    runtime.__package04MemoryReadPort.search({ ownerId, sessionId, query, limit: 8 }),
-    runtime.__package04MemoryReadPort.listInferredPreferences({ ownerId }),
-  ]);
-  return { status: "available", snippets, preferences };
+  try {
+    const [snippets, preferences] = await Promise.all([
+      runtime.__package04MemoryReadPort.search({ ownerId, sessionId, query, limit: 8 }),
+      runtime.__package04MemoryReadPort.listInferredPreferences({ ownerId }),
+    ]);
+    return { status: "available", snippets, preferences };
+  } catch {
+    return { status: "unavailable", snippets: [], preferences: [],
+      message: "Package 04 MemoryReadPort failed; continuing without historical memory" };
+  }
 }
 
 export async function appendExplorationFeedback(input: Omit<ExplorationFeedbackEvent, "type"> & { feedback: ExplorationFeedback }) {
