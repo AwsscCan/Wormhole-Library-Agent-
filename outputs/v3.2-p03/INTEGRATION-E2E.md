@@ -18,3 +18,10 @@ Remove-Item Env:CIRCLE_NODE_TOTAL
 4. member/guest 和两个 member 之间跨 owner 读取均返回 404。
 5. 所有 `app/api/research/**` 响应，包括错误响应，均带 `Cache-Control: private, no-store`。
 6. 未绑定包01端口返回 503；未绑定包02来源透明端口返回显式 degraded 状态，不伪装为“无结果”。
+7. 主题馆藏结果写入同一会话的资源快照；选择证据后完全重启服务，证据 ID、来源标签和资源图节点仍可恢复。
+
+馆藏证据重启复测：启用来源透明验收端口后创建会话，调用
+`/api/research/sessions/{sessionId}/actions` 执行 `library` 和
+`add_evidence`，重启同一 SQLite 数据库上的服务，再读取
+`/api/research/sessions/{sessionId}`。期望 `evidenceIds`、
+`session.searches[].resources` 与 `graph.nodes` 同时包含所选资源。

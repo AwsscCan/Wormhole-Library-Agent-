@@ -136,6 +136,7 @@ export class ResearchSessionService {
     return this.get(ownerId, id);
   }
   async recordSearch(ownerId: string, id: string, search: SessionSearch) { return this.mutate(ownerId, id, (session) => ({ ...session, interactionIds: [...new Set([...session.interactionIds, search.interactionId])], searches: [...session.searches.filter((item) => item.interactionId !== search.interactionId), search].slice(-20), updatedAt: this.deps.now() })); }
+  async recordLibrarySearch(ownerId: string, id: string, search: SessionSearch) { return this.mutate(ownerId, id, (session) => ({ ...session, searches: [...session.searches.filter((item) => item.interactionId !== search.interactionId), search].slice(-20), updatedAt: this.deps.now() })); }
   async addEvidence(ownerId: string, id: string, resourceId: string) { return this.mutate(ownerId, id, (session) => ({ ...session, evidenceIds: [...new Set([...session.evidenceIds, resourceId])], updatedAt: this.deps.now() })); }
   async recordWormholes(ownerId: string, id: string, wormholes: SessionWormhole[]) { return this.mutate(ownerId, id, (session) => ({ ...session, wormholes, updatedAt: this.deps.now() })); }
   private async mutate(ownerId: string, id: string, update: (session: ResearchSession) => ResearchSession) {

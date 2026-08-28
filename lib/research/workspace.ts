@@ -33,12 +33,23 @@ export class ResearchWorkspace {
     }
 
     if (input.action === "library") {
-      try {
-        const result = await this.deps.library({ query: input.topic, limit: 12 });
-        return { action: "library" as const, sessionId, topic: input.topic, ...result, empty: result.resources.length === 0 };
-      } catch (error) {
-        throw new ResearchError("SOURCE_FAILURE", error instanceof Error ? error.message : "Catalog source unavailable");
+      let result: TopicLibraryResult;
+      try { result = await this.deps.library({ query: input.topic, limit: 12 }); }
+      catch (error) { throw new ResearchError("SOURCE_FAILURE", error instanceof Error ? error.message : "Catalog source unavailable"); }
+      if (result.resources.length > 0) {
+        const concepts = [...new Map(result.resources.flatMap((resource) => resource.concepts).map((concept) => [concept.id, concept])).values()];
+        await this.sessions.recordLibrarySearch(ownerId, sessionId, {
+          interactionId: `library-${crypto.randomUUID()}`,
+          query: input.topic,
+          at: new Date().toISOString(),
+          concepts,
+          resources: result.resources.map((resource) => ({
+            id: resource.id, title: resource.title, concepts: resource.concepts,
+            sourceLabel: resource.provenance.sourceLabel, sourceUrl: resource.sourceUrl,
+          })),
+        });
       }
+      return { action: "library" as const, sessionId, topic: input.topic, ...result, empty: result.resources.length === 0 };
     }
 
     if (!input.resourceId) throw new ResearchError("BAD_REQUEST", "resourceId is required for add_evidence");

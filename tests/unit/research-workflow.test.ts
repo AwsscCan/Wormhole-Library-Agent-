@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { InMemoryResearchSessionStore, ResearchSessionService } from "@/lib/research/sessionStore";
+import { buildSystemGraph } from "@/lib/research/personalGraph";
+import type { TopicLibraryResult } from "@/lib/research/types";
 import { ResearchWorkspace } from "@/lib/research/workspace";
 
 function setup() {
   let n = 0;
-  const sessions = new ResearchSessionService(new InMemoryResearchSessionStore(), {
+  const store = new InMemoryResearchSessionStore();
+  const sessions = new ResearchSessionService(store, {
     now: () => "2026-08-24T12:00:00.000Z",
     id: (prefix) => `${prefix}-${++n}`,
   });
@@ -17,9 +20,9 @@ function setup() {
     }],
     readingPath: ["RAG"], memoryUsed: [`owner:${userId}`],
   }));
-  const library = vi.fn(async () => ({ resources: [], sourceStatus: "live" as const, degraded: false }));
+  const library = vi.fn(async (): Promise<TopicLibraryResult> => ({ resources: [], sourceStatus: "live", degraded: false }));
   const workspace = new ResearchWorkspace(sessions, { search, library });
-  return { sessions, workspace, search, library };
+  return { store, sessions, workspace, search, library };
 }
 
 describe("ResearchWorkspace closed loop", () => {
@@ -44,11 +47,30 @@ describe("ResearchWorkspace closed loop", () => {
       .rejects.toMatchObject({ code: "SOURCE_FAILURE" });
   });
 
-  it("adds a resource to the evidence basket without accepting another owner", async () => {
-    const { sessions, workspace } = setup();
+  it("persists library resources so selected evidence survives a service restart", async () => {
+    const { store, sessions, workspace, library } = setup();
     const session = await sessions.create("member:alice", { researchQuestion: "Evidence" });
-    await workspace.act("member:alice", session.id, { action: "add_evidence", nodeId: "resource:paper-1", topic: "RAG", resourceId: "paper-1" });
-    expect((await sessions.get("member:alice", session.id)).evidenceIds).toEqual(["paper-1"]);
+    library.mockResolvedValueOnce({
+      resources: [{
+        id: "library-paper-1", type: "paper", title: "Library RAG Survey", authors: [], language: "en",
+        why: "source-backed evidence", availability: "online", difficulty: "research",
+        concepts: [{ id: "rag", name: "RAG" }], qualityScore: 0.9,
+        provenance: { sourceKind: "openalex", sourceLabel: "OpenAlex", retrievedAt: "2026-08-24T12:00:00.000Z" },
+      }],
+      sourceStatus: "live", degraded: false,
+    });
+
+    await workspace.act("member:alice", session.id, { action: "library", nodeId: "topic", topic: "RAG" });
+    await workspace.act("member:alice", session.id, {
+      action: "add_evidence", nodeId: "resource:library-paper-1", topic: "RAG", resourceId: "library-paper-1",
+    });
+
+    const restarted = new ResearchSessionService(store);
+    const restored = await restarted.get("member:alice", session.id);
+    expect(restored.interactionIds).toEqual([]);
+    expect(restored.searches[0].resources[0]).toMatchObject({ id: "library-paper-1", sourceLabel: "OpenAlex" });
+    expect(restored.evidenceIds).toEqual(["library-paper-1"]);
+    expect(buildSystemGraph(restored).nodes).toContainEqual(expect.objectContaining({ id: "resource:library-paper-1" }));
     await expect(workspace.act("member:bob", session.id, { action: "search", nodeId: "topic", topic: "RAG" }))
       .rejects.toMatchObject({ code: "NOT_FOUND" });
   });

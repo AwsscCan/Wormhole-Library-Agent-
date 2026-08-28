@@ -1,19 +1,24 @@
-import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
 
 /**
- * Windows sandbox shim (genie-safe-delete.cjs) intercepts all fs.rmSync /
- * fs.unlinkSync calls and routes them through the OS trash API, which fails
- * when the target is a temporary file in a non-standard location.  Spawning a
- * separate cmd.exe process bypasses the shim entirely and gives us a plain
- * synchronous delete that works in every environment.
+ * Validate every generated path before best-effort cleanup. A managed sandbox
+ * may refuse deletion after all migration assertions pass; that must not turn
+ * a valid deployment result into a false negative or bypass its safety shim.
  */
 function deleteFile(filePath: string): void {
-  spawnSync("cmd", ["/c", "del", "/f", "/q", filePath], { windowsVerbatimArguments: true });
+  const root = path.resolve(process.cwd());
+  const resolved = path.resolve(filePath);
+  const parent = path.dirname(resolved);
+  const filename = path.basename(resolved);
+  const allowed = (parent === root && filename.startsWith("shadow-") && filename.endsWith(".db"))
+    || (parent === path.join(root, "prisma") && /^(deploy|upgrade)-.+\.db$/.test(filename));
+  if (!allowed) throw new Error(`Refusing to clean unexpected migration test path: ${resolved}`);
+  try { rmSync(resolved, { force: true }); } catch { /* sandbox cleanup is best-effort */ }
 }
 
 describe("standard Prisma deployment chain", () => {

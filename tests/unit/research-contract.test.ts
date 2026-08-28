@@ -22,6 +22,12 @@ describe("research workspace contracts", () => {
     expect(page).not.toContain("/api/search?interactionId=");
   });
 
+  it("does not let temporary database cleanup turn a completed P03 experiment into a failure", () => {
+    const experiment = readFileSync(path.join(process.cwd(), "scripts/experiment-personal-graph.ts"), "utf8");
+    expect(experiment).not.toContain("fs.rmSync(databaseDirectory");
+    expect(experiment).toContain("await cleanupExperimentDirectory(databaseDirectory)");
+  });
+
   it("does not accept an owner identity from request bodies", () => {
     expect(createResearchSessionSchema.safeParse({ researchQuestion: "Graph RAG", ownerId: "attacker" }).success).toBe(false);
     expect(createResearchSessionSchema.safeParse({ researchQuestion: "Graph RAG", userId: "attacker" }).success).toBe(false);

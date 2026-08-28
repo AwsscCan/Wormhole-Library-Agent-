@@ -16,7 +16,7 @@
 1. 个性化图：首页 `StarMap` 未修改；三张会话图均包含主题、搜索、概念和两条资源证据。
 2. 可编辑持久化：位置、固定、隐藏系统边、个人标签、注释和 `personal_note` 边在新 PrismaClient 恢复后一致。
 3. 图谱保护：系统图哈希编辑前后相同，三个 seed/consent 文件 SHA-256 前后相同。
-4. 节点行动：`research-workflow.test.ts` 验证 search/library 均保留 sessionId；search interaction 写回会话，资源可加入证据篮子。
+4. 节点行动：`research-workflow.test.ts` 验证 search/library 均保留 sessionId；search interaction 与馆藏资源快照均写回会话，馆藏证据和资源节点在服务重启后可恢复。
 
 ## 可重复 API 闭环
 
