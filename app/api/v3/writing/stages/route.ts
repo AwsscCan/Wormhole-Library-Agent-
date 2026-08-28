@@ -4,6 +4,7 @@ import {
   WritingDependencyUnavailableError,
   WritingError,
 } from "@/lib/writing/draftService";
+import { principalOwnerKey } from "@/lib/research/principal";
 import { persistStage, resumeWriting } from "@/lib/writing/repository";
 import { WritingStateError } from "@/lib/writing/stateMachine";
 import { apiError, parseBody } from "@/lib/validation/api";
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
   if (!sessionId) return privateWritingResponse(apiError("BAD_REQUEST", "sessionId is required", 400), principal);
   try {
     await requireOwnedResearchSession(principal, sessionId);
-    return privateWritingResponse(NextResponse.json(await resumeWriting(principal.id, sessionId)), principal);
+    return privateWritingResponse(NextResponse.json(await resumeWriting(principalOwnerKey(principal), sessionId)), principal);
   } catch (error) {
     return failure(error, principal);
   }
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
     if (["draft", "evidence_link", "human_review", "export"].includes(body.data.stage)) {
       throw new WritingError("BAD_REQUEST", "Protected artifact stages require their dedicated server operation");
     }
-    const checkpoint = await persistStage(principal.id, body.data.sessionId, body.data.stage, body.data.content);
+    const checkpoint = await persistStage(principalOwnerKey(principal), body.data.sessionId, body.data.stage, body.data.content);
     return privateWritingResponse(NextResponse.json(checkpoint, { status: 201 }), principal);
   } catch (error) {
     return failure(error, principal);

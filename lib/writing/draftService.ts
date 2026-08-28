@@ -4,6 +4,7 @@ import {
   getOwnedProviderSecret,
   resolveModelForWriting,
 } from "@/lib/llm/providerRepository";
+import { principalOwnerKey } from "@/lib/research/principal";
 import {
   requireWritingPorts,
   WritingPortsUnavailableError,
@@ -44,7 +45,7 @@ export async function requireOwnedResearchSession(
 ): Promise<ResearchSessionReadPort> {
   const session = await requireWritingPorts().session({ principal, sessionId });
   if (!session) throw new WritingError("NOT_FOUND", "Research session was not found");
-  if (session.ownerId !== principal.id) {
+  if (session.ownerId !== principalOwnerKey(principal)) {
     throw new WritingError("FORBIDDEN", "Research session is not available");
   }
   return session;
@@ -152,7 +153,8 @@ export async function discoverWritingEvidence(input: {
 }): Promise<WritingCandidateDto[]> {
   await requireOwnedResearchSession(input.principal, input.sessionId);
   const discovered = await requireWritingPorts().discover(input);
-  return Promise.all(discovered.map((item) => persistCandidate(input.principal.id, input.sessionId, {
+  const ownerId = principalOwnerKey(input.principal);
+  return Promise.all(discovered.map((item) => persistCandidate(ownerId, input.sessionId, {
     ...item,
     verificationStatus: "needs_review",
     userConfirmedAt: undefined,
@@ -166,19 +168,20 @@ async function advanceToDraft(
   focus: string,
   markdown: string,
 ): Promise<WritingCheckpoint> {
+  const ownerId = principalOwnerKey(principal);
   const stages: Array<{ stage: WritingStage; content: string }> = [
     { stage: "evidence", content: JSON.stringify(evidenceIds) },
     { stage: "verified_sources", content: JSON.stringify(evidenceIds) },
     { stage: "outline", content: `## ${focus}` },
     { stage: "draft", content: markdown },
   ];
-  let checkpoint = await resumeWriting(principal.id, sessionId);
+  let checkpoint = await resumeWriting(ownerId, sessionId);
   const completedIndex = checkpoint ? stages.findIndex(({ stage }) => stage === checkpoint?.stage) : -1;
   if (checkpoint?.stage === "draft" || (checkpoint && completedIndex === -1)) {
     throw new WritingError("BAD_REQUEST", "This research session already has a server-owned draft artifact");
   }
   for (const item of stages.slice(completedIndex + 1)) {
-    checkpoint = await persistStage(principal.id, sessionId, item.stage, item.content);
+    checkpoint = await persistStage(ownerId, sessionId, item.stage, item.content);
   }
   if (!checkpoint) throw new Error("Draft checkpoint was not persisted");
   return checkpoint;
@@ -210,7 +213,7 @@ export async function generateEvidenceDraft(input: {
   if (selectedEvidence.some((item) => item.verificationStatus !== "verified" || !item.userConfirmedAt)) {
     throw new WritingError("BAD_REQUEST", "Selected evidence must be verified and user confirmed");
   }
-  const activeCheckpoint = await resumeWriting(input.principal.id, input.sessionId);
+  const activeCheckpoint = await resumeWriting(principalOwnerKey(input.principal), input.sessionId);
   if (activeCheckpoint && ["draft", "evidence_link", "human_review", "export"].includes(activeCheckpoint.stage)) {
     throw new WritingError("BAD_REQUEST", "This research session already has a server-owned draft artifact");
   }
@@ -248,7 +251,7 @@ export async function advanceDraftReview(input: {
   if (input.stage === "human_review" && input.confirmed !== true) {
     throw new WritingError("BAD_REQUEST", "Human review must be explicitly confirmed");
   }
-  return advanceDraftArtifactStage(input.principal.id, input.sessionId, input.stage);
+  return advanceDraftArtifactStage(principalOwnerKey(input.principal), input.sessionId, input.stage);
 }
 
 export async function exportEvidenceDraft(input: {
@@ -256,7 +259,7 @@ export async function exportEvidenceDraft(input: {
   sessionId: string;
 }): Promise<{ markdown: string; checkpoint: WritingCheckpoint }> {
   await requireOwnedResearchSession(input.principal, input.sessionId);
-  const artifact = await exportReviewedArtifact(input.principal.id, input.sessionId);
+  const artifact = await exportReviewedArtifact(principalOwnerKey(input.principal), input.sessionId);
   if (!artifact) throw new WritingError("BAD_REQUEST", "The latest draft has not completed human review");
   return artifact;
 }

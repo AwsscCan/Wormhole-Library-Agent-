@@ -5,6 +5,7 @@ import {
   WritingDependencyUnavailableError,
   WritingError,
 } from "@/lib/writing/draftService";
+import { principalOwnerKey } from "@/lib/research/principal";
 import { confirmCandidate } from "@/lib/writing/repository";
 import { apiError, parseBody } from "@/lib/validation/api";
 import { candidateSchema, confirmCandidateSchema } from "@/lib/validation/schemas";
@@ -49,7 +50,7 @@ export async function PATCH(request: Request) {
   if (!body.ok) return privateWritingResponse(body.response, principal);
   try {
     await requireOwnedResearchSession(principal, body.data.sessionId);
-    const confirmed = await confirmCandidate(principal.id, body.data.sessionId, body.data.evidenceId);
+    const confirmed = await confirmCandidate(principalOwnerKey(principal), body.data.sessionId, body.data.evidenceId);
     if (!confirmed) {
       return privateWritingResponse(apiError("BAD_REQUEST", "Candidate cannot be verified", 400), principal);
     }

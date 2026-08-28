@@ -19,6 +19,8 @@ const migrationPaths = [
 const testOrigin = "http://writing-routes.test";
 const ownerA = "a".repeat(43);
 const ownerB = "b".repeat(43);
+const ownerKeyA = `guest:${ownerA}`;
+const ownerKeyB = `guest:${ownerB}`;
 
 type PortsModule = typeof import("@/lib/writing/ports");
 type DraftRoute = typeof import("@/app/api/v3/writing/drafts/route");
@@ -28,6 +30,8 @@ type ReviewRoute = typeof import("@/app/api/v3/writing/review/route");
 type ExportRoute = typeof import("@/app/api/v3/writing/export/route");
 type ProviderRepository = typeof import("@/lib/llm/providerRepository");
 type ProviderAdapter = typeof import("@/lib/llm/providerAdapter");
+type Instrumentation = typeof import("@/instrumentation");
+type ResearchSessionStore = typeof import("@/lib/research/sessionStore");
 
 let ports: PortsModule;
 let draftRoute: DraftRoute;
@@ -37,6 +41,8 @@ let reviewRoute: ReviewRoute;
 let exportRoute: ExportRoute;
 let providerRepository: ProviderRepository;
 let providerAdapter: ProviderAdapter;
+let instrumentation: Instrumentation;
+let researchSessionStore: ResearchSessionStore;
 
 const evidence = (id: string): EvidenceItem => ({
   id,
@@ -56,12 +62,12 @@ const evidence = (id: string): EvidenceItem => ({
 });
 
 const sessions = new Map<string, ResearchSessionReadPort>([
-  ["session-a", { id: "session-a", ownerId: ownerA, researchQuestion: "Question A", evidenceIds: ["a1", "a2", "a3"] }],
-  ["session-b", { id: "session-b", ownerId: ownerB, researchQuestion: "Question B", evidenceIds: ["b1", "b2", "b3"] }],
-  ["state-session", { id: "state-session", ownerId: ownerA, researchQuestion: "State", evidenceIds: ["s1", "s2", "s3"] }],
+  ["session-a", { id: "session-a", ownerId: ownerKeyA, researchQuestion: "Question A", evidenceIds: ["a1", "a2", "a3"] }],
+  ["session-b", { id: "session-b", ownerId: ownerKeyB, researchQuestion: "Question B", evidenceIds: ["b1", "b2", "b3"] }],
+  ["state-session", { id: "state-session", ownerId: ownerKeyA, researchQuestion: "State", evidenceIds: ["s1", "s2", "s3"] }],
   ["focus-session", {
     id: "focus-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Methods",
     evidenceIds: [
       ...Array.from({ length: 15 }, (_, index) => `unrelated-${index + 1}`),
@@ -72,7 +78,7 @@ const sessions = new Map<string, ResearchSessionReadPort>([
   }],
   ["provider-success-session", {
     id: "provider-success-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Provider methods",
     evidenceIds: [
       ...Array.from({ length: 15 }, (_, index) => `unrelated-${index + 1}`),
@@ -83,49 +89,49 @@ const sessions = new Map<string, ResearchSessionReadPort>([
   }],
   ["missing-session", {
     id: "missing-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Missing",
     evidenceIds: ["available", "missing-1", "missing-2"],
   }],
   ["review-session", {
     id: "review-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Review",
     evidenceIds: ["review-1", "review-2", "review-3"],
   }],
   ["provider-failure-session", {
     id: "provider-failure-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Provider failure",
     evidenceIds: ["failure-1", "failure-2", "failure-3"],
   }],
   ["provider-no-key-session", {
     id: "provider-no-key-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Provider without key",
     evidenceIds: ["no-key-1", "no-key-2", "no-key-3"],
   }],
   ["provider-one-marker-session", {
     id: "provider-one-marker-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Insufficient Provider evidence",
     evidenceIds: ["one-marker-1", "one-marker-2", "one-marker-3"],
   }],
   ["provider-tail-session", {
     id: "provider-tail-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Uncited Provider tail",
     evidenceIds: ["tail-1", "tail-2", "tail-3"],
   }],
   ["legacy-blank-review-session", {
     id: "legacy-blank-review-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Legacy blank review",
     evidenceIds: ["legacy-review-1", "legacy-review-2", "legacy-review-3"],
   }],
   ["legacy-blank-export-session", {
     id: "legacy-blank-export-session",
-    ownerId: ownerA,
+    ownerId: ownerKeyA,
     researchQuestion: "Legacy blank export",
     evidenceIds: ["legacy-export-1", "legacy-export-2", "legacy-export-3"],
   }],
@@ -190,6 +196,8 @@ describe("production writing route integration", () => {
     exportRoute = await import("@/app/api/v3/writing/export/route");
     providerRepository = await import("@/lib/llm/providerRepository");
     providerAdapter = await import("@/lib/llm/providerAdapter");
+    instrumentation = await import("@/instrumentation");
+    researchSessionStore = await import("@/lib/research/sessionStore");
   });
 
   beforeEach(() => {
@@ -199,6 +207,7 @@ describe("production writing route integration", () => {
 
   afterAll(async () => {
     ports?.clearWritingPortsForTest();
+    researchSessionStore?.clearResearchSessionServiceForTests();
     const prisma = (globalThis as { __prisma?: { $disconnect(): Promise<void> } }).__prisma;
     await prisma?.$disconnect();
     delete (globalThis as { __prisma?: unknown }).__prisma;
@@ -238,6 +247,49 @@ describe("production writing route integration", () => {
       expectPrivate(response);
       await expect(response.json()).resolves.toMatchObject({ error: { code: "DEPENDENCY_UNAVAILABLE" } });
     }
+  });
+
+  it("registers production composition for namespaced research owners", async () => {
+    ports.clearWritingPortsForTest();
+    researchSessionStore.clearResearchSessionServiceForTests();
+    const previousRuntime = process.env.NEXT_RUNTIME;
+    process.env.NEXT_RUNTIME = "nodejs";
+    try {
+      await instrumentation.register();
+    } finally {
+      if (previousRuntime === undefined) delete process.env.NEXT_RUNTIME;
+      else process.env.NEXT_RUNTIME = previousRuntime;
+    }
+
+    const session = await researchSessionStore.getResearchSessionService().create(ownerKeyA, {
+      researchQuestion: "composition wiring",
+    });
+
+    const response = await stageRoute.POST(jsonRequest(ownerA, "/api/v3/writing/stages", "POST", {
+      sessionId: session.id,
+      stage: "evidence",
+      content: "[]",
+    }));
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      ownerId: ownerKeyA,
+      sessionId: session.id,
+      stage: "evidence",
+    });
+
+    const forbidden = await stageRoute.POST(jsonRequest(ownerB, "/api/v3/writing/stages", "POST", {
+      sessionId: session.id,
+      stage: "verified_sources",
+      content: "[]",
+    }));
+    expect(forbidden.status).toBe(404);
+
+    const database = new DatabaseSync(databasePath);
+    const rows = database.prepare("SELECT ownerId, sessionId, stage FROM WritingCheckpoint WHERE sessionId = ?")
+      .all(session.id);
+    database.close();
+    expect(rows).toEqual([{ ownerId: ownerKeyA, sessionId: session.id, stage: "evidence" }]);
   });
 
   it("validates the owner session and persists automatic catalog results as pending", async () => {
@@ -282,8 +334,8 @@ describe("production writing route integration", () => {
     const rows = database.prepare("SELECT ownerId, sessionId, externalEvidenceId, verificationStatus FROM WritingEvidence ORDER BY ownerId").all();
     database.close();
     expect(rows).toEqual([
-      { ownerId: ownerA, sessionId: "session-a", externalEvidenceId: "catalog-shared", verificationStatus: "verified" },
-      { ownerId: ownerB, sessionId: "session-b", externalEvidenceId: "catalog-shared", verificationStatus: "needs_review" },
+      { ownerId: ownerKeyA, sessionId: "session-a", externalEvidenceId: "catalog-shared", verificationStatus: "verified" },
+      { ownerId: ownerKeyB, sessionId: "session-b", externalEvidenceId: "catalog-shared", verificationStatus: "needs_review" },
     ]);
   });
 
@@ -371,9 +423,9 @@ describe("production writing route integration", () => {
 
     const database = new DatabaseSync(databasePath);
     const checkpoints = database.prepare("SELECT stage, artifactId FROM WritingCheckpoint WHERE ownerId = ? AND sessionId = ? ORDER BY createdAt, rowid")
-      .all(ownerA, "state-session") as Array<{ stage: string; artifactId: string }>;
+      .all(ownerKeyA, "state-session") as Array<{ stage: string; artifactId: string }>;
     const artifacts = database.prepare("SELECT stage, contentHash, content FROM WritingArtifact WHERE ownerId = ? AND sessionId = ? ORDER BY createdAt, rowid")
-      .all(ownerA, "state-session") as Array<{ stage: string; contentHash: string; content: string }>;
+      .all(ownerKeyA, "state-session") as Array<{ stage: string; contentHash: string; content: string }>;
     database.close();
     expect(checkpoints.map(({ stage }) => stage)).toEqual([
       "evidence", "verified_sources", "outline", "draft", "evidence_link", "human_review", "export",
@@ -571,15 +623,15 @@ describe("production writing route integration", () => {
     try {
       database.exec(`
         INSERT INTO "WritingArtifact" ("id", "ownerId", "sessionId", "stage", "contentHash", "content")
-          VALUES ('legacy-review-artifact', '${ownerA}', 'legacy-blank-review-session', 'draft', 'legacy-hash', '');
+          VALUES ('legacy-review-artifact', '${ownerKeyA}', 'legacy-blank-review-session', 'draft', 'legacy-hash', '');
         INSERT INTO "WritingCheckpoint" ("id", "ownerId", "sessionId", "stage", "artifactId")
-          VALUES ('legacy-review-draft', '${ownerA}', 'legacy-blank-review-session', 'draft', 'legacy-review-artifact');
+          VALUES ('legacy-review-draft', '${ownerKeyA}', 'legacy-blank-review-session', 'draft', 'legacy-review-artifact');
         INSERT INTO "WritingArtifact" ("id", "ownerId", "sessionId", "stage", "contentHash", "content")
-          VALUES ('legacy-export-artifact', '${ownerA}', 'legacy-blank-export-session', 'draft', 'legacy-hash', '   ');
+          VALUES ('legacy-export-artifact', '${ownerKeyA}', 'legacy-blank-export-session', 'draft', 'legacy-hash', '   ');
         INSERT INTO "WritingCheckpoint" ("id", "ownerId", "sessionId", "stage", "artifactId") VALUES
-          ('legacy-export-draft', '${ownerA}', 'legacy-blank-export-session', 'draft', 'legacy-export-artifact'),
-          ('legacy-export-evidence', '${ownerA}', 'legacy-blank-export-session', 'evidence_link', 'legacy-export-artifact'),
-          ('legacy-export-review', '${ownerA}', 'legacy-blank-export-session', 'human_review', 'legacy-export-artifact');
+          ('legacy-export-draft', '${ownerKeyA}', 'legacy-blank-export-session', 'draft', 'legacy-export-artifact'),
+          ('legacy-export-evidence', '${ownerKeyA}', 'legacy-blank-export-session', 'evidence_link', 'legacy-export-artifact'),
+          ('legacy-export-review', '${ownerKeyA}', 'legacy-blank-export-session', 'human_review', 'legacy-export-artifact');
       `);
     } finally {
       database.close();

@@ -4,6 +4,37 @@ Command failures and integration errors.
 
 ---
 
+## [ERR-20260828-001] sdd-workspace-script
+
+**Logged**: 2026-08-28T00:00:00+08:00
+**Priority**: low
+**Status**: resolved
+**Area**: infra
+
+### Summary
+The bundled Superpowers SDD helper is a Bash script, but this Windows host has no `bash` executable available.
+
+### Error
+```
+bash: The term 'bash' is not recognized as a name of a cmdlet, function, script file, or executable program.
+```
+
+### Context
+- Attempted to initialize the plan-scoped SDD workspace for the final integration plan.
+- The repository is operated through PowerShell on Windows.
+
+### Resolution
+- Recreate the helper's documented plan-scoped directory and self-ignoring `.gitignore` behaviour with PowerShell.
+
+### Metadata
+- Reproducible: yes
+- Related Files: docs/superpowers/plans/2026-08-28-final-integration.md
+- Pattern-Key: shell.command-not-found
+- First-Seen: 2026-08-28
+- Last-Seen: 2026-08-28
+
+---
+
 ## [ERR-20260821-001] powershell-interpolation
 
 **Logged**: 2026-08-21T00:00:00+08:00

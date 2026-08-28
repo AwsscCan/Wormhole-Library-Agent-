@@ -4,6 +4,7 @@ import { generateEvidenceDraft } from "@/lib/writing/draftService";
 import { clearWritingPortsForTest, installWritingPorts } from "@/lib/writing/ports";
 
 const guest = (id: string): CurrentPrincipal => ({ id, mode: "guest" });
+const guestOwner = (id: string) => `guest:${id}`;
 
 describe("generateEvidenceDraft", () => {
   afterEach(() => clearWritingPortsForTest());
@@ -15,7 +16,7 @@ describe("generateEvidenceDraft", () => {
 
   it("blocks factual prose for an unverified autonomous selection", async () => {
     installWritingPorts({
-      session: async () => ({ id: "s1", ownerId: "a", researchQuestion: "question", evidenceIds: ["candidate-unverified", "e1", "e2", "e3"] }),
+      session: async () => ({ id: "s1", ownerId: guestOwner("a"), researchQuestion: "question", evidenceIds: ["candidate-unverified", "e1", "e2", "e3"] }),
       evidence: async ({ evidenceId }) => ({
         id: evidenceId,
         title: `Title ${evidenceId}`,
@@ -34,7 +35,7 @@ describe("generateEvidenceDraft", () => {
 
   it("does not use evidence outside the caller-owned session", async () => {
     installWritingPorts({
-      session: async () => ({ id: "s1", ownerId: "a", researchQuestion: "question", evidenceIds: ["e1", "e2", "e3"] }),
+      session: async () => ({ id: "s1", ownerId: guestOwner("a"), researchQuestion: "question", evidenceIds: ["e1", "e2", "e3"] }),
       evidence: async ({ evidenceId }) => ({
         id: evidenceId,
         title: evidenceId,
