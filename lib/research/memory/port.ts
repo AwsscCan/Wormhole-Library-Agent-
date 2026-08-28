@@ -1,6 +1,6 @@
 import { listInferredPreferences } from "./inference";
 import { searchPrivateMemory } from "./indexStore";
-import type { MemoryReadPort, MemorySnippet } from "./types";
+import type { MemoryReadPort, WorkbenchInferredPreference, WorkbenchMemorySnippet } from "./types";
 
 /**
  * MemoryReadPort binding, mirroring the package-01 principal port pattern.
@@ -31,12 +31,41 @@ export function clearMemoryReadPortForTests(): void {
   delete store.__package04MemoryReadPort;
 }
 
-/** Default port backed by the private index + inference engine. */
+/** P04 概念偏好 → P05 key/value 偏好 DTO。 */
+function toWorkbenchPreference(p: { id: string; conceptId: string; confidence: number; evidenceCount: number; expiresAt: string }): WorkbenchInferredPreference {
+  return {
+    id: p.id,
+    key: "conceptId",
+    value: p.conceptId,
+    confidence: p.confidence,
+    evidenceCount: p.evidenceCount,
+    expiresAt: p.expiresAt,
+  };
+}
+
+/** 私有索引命中 → P05 snippet DTO（带 score）。 */
+function toWorkbenchSnippet(h: { id: string; sourceId: string; sessionId: string; createdAt: string; text: string; score: number }): WorkbenchMemorySnippet {
+  return {
+    id: h.id,
+    sourceId: h.sourceId,
+    sessionId: h.sessionId,
+    createdAt: h.createdAt,
+    text: h.text,
+    score: h.score,
+  };
+}
+
+/** Default port backed by the private index + inference engine (P05 DTO 形状)。 */
 export const defaultMemoryReadPort: MemoryReadPort = {
   async search(input) {
-    return searchPrivateMemory(input) as MemorySnippet[];
+    return searchPrivateMemory({
+      ownerId: input.ownerId,
+      sessionId: input.sessionId,
+      query: input.query,
+      limit: input.limit,
+    }).map(toWorkbenchSnippet);
   },
   async listInferredPreferences(input) {
-    return listInferredPreferences(input.ownerId);
+    return listInferredPreferences(input.ownerId).map(toWorkbenchPreference);
   },
 };

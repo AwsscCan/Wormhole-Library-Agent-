@@ -1,6 +1,8 @@
+import { principalOwnerKey, requireCurrentPrincipal } from "../principal";
 import { appendLearningEvent, listLearningEvents } from "./ledger";
 import { addMemorySnippet } from "./indexStore";
 import type { LearningEvent, LearningEventKind } from "./types";
+import type { SourceProvenance } from "../types";
 
 /**
  * Facade for package 04 consumers.
@@ -19,6 +21,8 @@ export type RecordEventInput = {
   query?: string;
   text?: string;
   rating?: LearningEvent["rating"];
+  /** Read-only source provenance from package 02. */
+  provenance?: SourceProvenance;
   at?: string;
 };
 
@@ -32,10 +36,24 @@ export function recordLearningEvent(input: RecordEventInput): LearningEvent {
       text: input.text,
       sourceId: event.id,
       conceptId: input.conceptId,
+      provenance: input.provenance,
       createdAt: event.at,
     });
   }
   return event;
+}
+
+/**
+ * P01 授权的写入口：owner 从 P01 server principal 推导（绝不信调用方给的 ownerId），
+ * 同时把 P02 provenance 与 P03 sessionId 作为只读输入写入。
+ */
+export async function recordLearningEventForCurrentPrincipal(
+  request: Request,
+  input: Omit<RecordEventInput, "ownerId">,
+): Promise<LearningEvent> {
+  const principal = await requireCurrentPrincipal(request);
+  const ownerId = principalOwnerKey(principal);
+  return recordLearningEvent({ ...input, ownerId });
 }
 
 export { listLearningEvents };
@@ -64,6 +82,17 @@ export {
 } from "./inference";
 export { answerFromSelectedMaterial, makeReviewCards } from "./qa";
 export {
+  getMemoryPersistenceStore,
+  InMemoryMemoryPersistenceStore,
+  loadMemoryState,
+  persistMemoryState,
+  restoreMemoryState,
+  setMemoryPersistenceStoreForTests,
+  snapshotMemoryState,
+  SqliteMemoryPersistenceStore,
+} from "./persistence";
+export type { MemoryPersistenceStore, MemorySnapshot } from "./persistence";
+export {
   bindMemoryReadPort,
   clearMemoryReadPortForTests,
   defaultMemoryReadPort,
@@ -83,4 +112,8 @@ export type {
   ProfileAnswerCitation,
   ProfileAnswerStatus,
   ReviewCard,
+  WorkbenchInferredPreference,
+  WorkbenchMemorySnippet,
 } from "./types";
+export { cosineSimilarity, hashedCharNgramEmbedding, ollamaEmbedding } from "./embedding";
+export type { Embedding, EmbedFn } from "./embedding";

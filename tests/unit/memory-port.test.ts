@@ -41,14 +41,17 @@ describe("package 04 memory read port (consumed by package 05)", () => {
 
     const aliceHits = await port!.search({ ownerId: "member:alice", query: "mechanism design review", limit: 5 });
     expect(aliceHits.length).toBeGreaterThan(0);
-    expect(aliceHits.every((hit) => hit.ownerId === "member:alice")).toBe(true);
+    // P05 DTO：每条 snippet 带 score，且不含内部 ownerId 字段
+    expect(aliceHits.every((hit) => typeof hit.score === "number" && hit.sourceId)).toBe(true);
 
     const bobHits = await port!.search({ ownerId: "member:bob", query: "mechanism design", limit: 5 });
     expect(bobHits).toHaveLength(0);
 
     const prefs = await port!.listInferredPreferences({ ownerId: "member:alice" });
     expect(prefs).toHaveLength(1);
-    expect(prefs[0].conceptId).toBe("game-theory");
+    // P05 DTO：key/value 形式（概念偏好映射为 key:"conceptId"）
+    expect(prefs[0].key).toBe("conceptId");
+    expect(prefs[0].value).toBe("game-theory");
   });
 
   it("forgetting removes content from the port surface", async () => {

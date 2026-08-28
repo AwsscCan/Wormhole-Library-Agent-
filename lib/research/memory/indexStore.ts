@@ -1,15 +1,17 @@
+import { cosineSimilarity, hashedCharNgramEmbedding, type EmbedFn } from "./embedding";
 import type { MemorySnippet, MemorySnippetMatch } from "./types";
 
 /**
- * Private hybrid retrieval index (lexical + semantic, zero tokens).
+ * Private hybrid retrieval index (lexical + semantic, zero external tokens).
  *
  * - Snippets are hard-scoped by ownerId; a search can never cross owners.
  * - An optional sessionId narrows retrieval to that session only.
  * - deleteSnippet / forgetSession remove content from the index so it can
  *   never be recalled again, while the append-only event ledger keeps its
  *   history untouched.
- * - Semantic similarity is a local TF cosine over token vectors — no model
- *   calls, keeping the zero-token core path.
+ * - Semantic similarity uses a real local embedding (fastText-style character
+ *   n-gram hashing by default, injectable for true neural embeddings), NOT
+ *   shared-token TF cosine — so subword/character-level synonymy is recalled.
  */
 
 const STOPWORDS = new Set([
@@ -18,7 +20,7 @@ const STOPWORDS = new Set([
   "at", "by", "from", "not", "but", "into", "about",
 ]);
 
-type IndexEntry = { snippet: MemorySnippet; tokens: Set<string>; tf: Map<string, number> };
+type IndexEntry = { snippet: MemorySnippet; tokens: Set<string>; embedding: number[] };
 
 type IndexState = { entries: Map<string, IndexEntry>; nextId: number };
 
@@ -29,6 +31,11 @@ function state(): IndexState {
     store.__package04MemoryIndex = { entries: new Map(), nextId: 1 };
   }
   return store.__package04MemoryIndex;
+}
+
+/** Deep-copy a flat DTO so callers can never mutate index-internal state. */
+function clone<T>(value: T): T {
+  return structuredClone(value);
 }
 
 /** Light English suffix folding so "incentives" matches "incentive". */
@@ -44,11 +51,9 @@ export function tokenize(text: string): string[] {
     .map((token) => (/^[a-z]+$/.test(token) ? stem(token) : token));
 }
 
-function buildEntry(snippet: MemorySnippet): IndexEntry {
+function buildEntry(snippet: MemorySnippet, embed: EmbedFn): IndexEntry {
   const tokens = tokenize(snippet.text);
-  const tf = new Map<string, number>();
-  for (const token of tokens) tf.set(token, (tf.get(token) ?? 0) + 1);
-  return { snippet, tokens: new Set(tokens), tf };
+  return { snippet, tokens: new Set(tokens), embedding: embed(snippet.text) };
 }
 
 export type AddSnippetInput = Omit<MemorySnippet, "id" | "createdAt"> & {
@@ -56,16 +61,23 @@ export type AddSnippetInput = Omit<MemorySnippet, "id" | "createdAt"> & {
   createdAt?: string;
 };
 
-export function addMemorySnippet(input: AddSnippetInput): MemorySnippet {
+export function addMemorySnippet(
+  input: AddSnippetInput,
+  options: { embed?: EmbedFn } = {},
+): MemorySnippet {
   if (!input.ownerId) throw new Error("MemorySnippet requires ownerId");
+  const embed = options.embed ?? hashedCharNgramEmbedding;
   const s = state();
   const snippet: MemorySnippet = {
     ...input,
     id: input.id ?? `snip-${s.nextId++}`,
     createdAt: input.createdAt ?? new Date().toISOString(),
   };
-  s.entries.set(snippet.id, buildEntry(snippet));
-  return snippet;
+  if (s.entries.has(snippet.id)) {
+    throw new Error(`MemorySnippet id already exists: ${snippet.id}`);
+  }
+  s.entries.set(snippet.id, buildEntry(snippet, embed));
+  return clone(snippet);
 }
 
 export function deleteMemorySnippet(ownerId: string, snippetId: string): boolean {
@@ -96,37 +108,34 @@ function lexicalScore(queryTokens: string[], entry: IndexEntry): number {
   return hits / queryTokens.length;
 }
 
-function cosine(tfA: Map<string, number>, tfB: Map<string, number>): number {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (const value of tfA.values()) normA += value * value;
-  for (const value of tfB.values()) normB += value * value;
-  if (normA === 0 || normB === 0) return 0;
-  for (const [token, value] of tfA) {
-    const other = tfB.get(token);
-    if (other !== undefined) dot += value * other;
-  }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
+/**
+ * 最小混合分数阈值：过滤无关文本的嵌入噪声底（无关英文 ≈ 0.03），
+ * 同时保留同义/形态召回（≈ 0.08-0.09 及以上）。
+ */
+const MIN_HYBRID_SCORE = 0.05;
 
 /**
- * Hybrid retrieval: lexical containment + TF cosine, then a small-result-set
- * rerank that blends relevance with recency. Lexical-only mode is available
- * for the required ablation experiment.
+ * Hybrid retrieval: lexical containment + embedding cosine, then a
+ * small-result-set rerank that blends relevance with recency. Lexical-only
+ * mode is available for the required ablation experiment. The embedding
+ * function is injectable (default: language-aware char n-gram hashing);
+ * callers using a custom embedder must use the same one at add-time.
  */
-export function searchPrivateMemory(input: {
-  ownerId: string;
-  sessionId?: string;
-  query: string;
-  limit: number;
-  mode?: "hybrid" | "lexical-only";
-}): MemorySnippetMatch[] {
+export function searchPrivateMemory(
+  input: {
+    ownerId: string;
+    sessionId?: string;
+    query: string;
+    limit: number;
+    mode?: "hybrid" | "lexical-only";
+  },
+  options: { embed?: EmbedFn } = {},
+): MemorySnippetMatch[] {
   const { ownerId, sessionId, query, limit } = input;
   const mode = input.mode ?? "hybrid";
+  const embed = options.embed ?? hashedCharNgramEmbedding;
   const queryTokens = tokenize(query);
-  const queryTf = new Map<string, number>();
-  for (const token of queryTokens) queryTf.set(token, (queryTf.get(token) ?? 0) + 1);
+  const queryEmbedding = mode === "hybrid" ? embed(query) : [];
 
   const candidates: MemorySnippetMatch[] = [];
   for (const entry of state().entries.values()) {
@@ -136,15 +145,15 @@ export function searchPrivateMemory(input: {
     const lexical = lexicalScore(queryTokens, entry);
     if (mode === "lexical-only") {
       if (lexical <= 0) continue;
-      candidates.push({ ...entry.snippet, score: lexical, matchedVia: "lexical" });
+      candidates.push({ ...clone(entry.snippet), score: lexical, matchedVia: "lexical" });
       continue;
     }
 
-    const semantic = cosine(queryTf, entry.tf);
+    const semantic = cosineSimilarity(queryEmbedding, entry.embedding);
     const hybrid = 0.6 * lexical + 0.4 * semantic;
-    if (hybrid <= 0) continue;
+    if (hybrid < MIN_HYBRID_SCORE) continue;
     const matchedVia = lexical > 0 && semantic > 0 ? "both" : lexical > 0 ? "lexical" : "semantic";
-    candidates.push({ ...entry.snippet, score: hybrid, matchedVia });
+    candidates.push({ ...clone(entry.snippet), score: hybrid, matchedVia });
   }
 
   // Small-result-set rerank: relevance first, recency breaks ties.
@@ -166,9 +175,22 @@ export function countMemorySnippets(ownerId: string): number {
 export function getMemorySnippet(ownerId: string, snippetId: string): MemorySnippet | undefined {
   const entry = state().entries.get(snippetId);
   if (!entry || entry.snippet.ownerId !== ownerId) return undefined;
-  return entry.snippet;
+  return clone(entry.snippet);
 }
 
 export function resetMemoryIndexForTests(): void {
   store.__package04MemoryIndex = { entries: new Map(), nextId: 1 };
+}
+
+/**
+ * 从持久化快照重建索引（供 persistence.restoreMemoryState 使用）。
+ * 重新计算每条 snippet 的 token 集合与嵌入向量。
+ */
+export function rebuildIndexFromSnippets(snippets: MemorySnippet[]): void {
+  const s = state();
+  s.entries.clear();
+  s.nextId = 1;
+  for (const snippet of snippets) {
+    s.entries.set(snippet.id, buildEntry(snippet, hashedCharNgramEmbedding));
+  }
 }

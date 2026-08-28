@@ -1,4 +1,4 @@
-import type { CurrentPrincipal } from "../types";
+import type { CurrentPrincipal, SourceProvenance } from "../types";
 
 /**
  * V3.3 Package 04 — Auditable research memory & private RAG.
@@ -36,6 +36,8 @@ export type LearningEvent = {
   /** Note/excerpt body; becomes an indexable private snippet. */
   text?: string;
   rating?: "too_easy" | "just_right" | "too_hard" | "useful" | "not_relevant";
+  /** Read-only source provenance from package 02 (audit trail). */
+  provenance?: SourceProvenance;
   at: string;
 };
 
@@ -68,11 +70,33 @@ export type MemorySnippet = {
   conceptId?: string;
   kind: MemorySnippetKind;
   text: string;
+  /** Read-only source provenance from package 02 (audit trail). */
+  provenance?: SourceProvenance;
 };
 
 export type MemorySnippetMatch = MemorySnippet & {
   score: number;
   matchedVia: "lexical" | "semantic" | "both";
+};
+
+/** P05（工作台）消费的 snippet DTO —— 与 lib/workbench/ports.ts 对齐。 */
+export type WorkbenchMemorySnippet = {
+  id: string;
+  sourceId: string;
+  sessionId?: string;
+  createdAt: string;
+  text: string;
+  score?: number;
+};
+
+/** P05（工作台）消费的偏好 DTO —— key/value 形式（概念偏好映射为 key:"conceptId"）。 */
+export type WorkbenchInferredPreference = {
+  id: string;
+  key: string;
+  value: unknown;
+  confidence: number;
+  evidenceCount: number;
+  expiresAt?: string;
 };
 
 /** Stable read port consumed by package 05 (workbench). */
@@ -82,8 +106,8 @@ export type MemoryReadPort = {
     sessionId?: string;
     query: string;
     limit: number;
-  }): Promise<MemorySnippet[]>;
-  listInferredPreferences(input: { ownerId: string }): Promise<InferredPreference[]>;
+  }): Promise<WorkbenchMemorySnippet[]>;
+  listInferredPreferences(input: { ownerId: string }): Promise<WorkbenchInferredPreference[]>;
 };
 
 export type ProfileAnswerStatus = "supported" | "unknown";

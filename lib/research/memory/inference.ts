@@ -39,6 +39,10 @@ function state(): InferenceState {
   return store.__package04Inference;
 }
 
+function clone<T>(value: T): T {
+  return structuredClone(value);
+}
+
 function preferenceKey(ownerId: string, conceptId: string): string {
   return `${ownerId}::${conceptId}`;
 }
@@ -109,7 +113,7 @@ export function listInferredPreferences(ownerId: string): InferredPreference[] {
     if (preference.ownerId !== ownerId) continue;
     if (preference.status !== "active") continue;
     if (preference.expiresAt < now) continue;
-    result.push(preference);
+    result.push(clone(preference));
   }
   return result;
 }
@@ -120,7 +124,7 @@ export function findInferredPreference(
 ): InferredPreference | undefined {
   const s = state();
   for (const preference of s.preferences.values()) {
-    if (preference.ownerId === ownerId && preference.id === preferenceId) return preference;
+    if (preference.ownerId === ownerId && preference.id === preferenceId) return clone(preference);
   }
   return undefined;
 }
