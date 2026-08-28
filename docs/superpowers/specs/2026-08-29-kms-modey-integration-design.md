@@ -225,8 +225,13 @@ surface.
 ## UI Boundaries
 
 The navigation exposes Search, Library maps, My star map, Writing workbench,
-Knowledge library, and Settings. Library sources are a settings section distinct
-from model providers.
+Knowledge library, Living Book, and one Settings center. The Settings center has
+cohesive sections for model providers, CC Switch import, DeepSeek quick-add,
+catalogue sources, themes, and star-map display preferences. These settings are
+not scattered across unrelated feature pages. Exploration and Research workspace use distinct icons and
+labels: exploration retains a compass/navigation signal; research workspace uses
+a workbench/map signal. No top-level destinations reuse the same icon for a
+different mental model.
 
 The search page is the first usable view. Its cards show title, source, source
 state, summary, concepts, venue, cited-by count where supplied, availability,
@@ -238,6 +243,37 @@ controls at the top; material, parameters, checkpoint, and model controls in
 the setup flow; stage list and logs on one side; editor and preview in the
 primary pane; evidence and artifacts in the other side pane. Controls remain
 functional at desktop and mobile widths rather than being decorative replicas.
+
+Theme preferences provide several restrained, work-focused colour systems rather
+than a single fixed palette. A user can select a theme from visible swatches in
+settings; the choice is persisted per owner and applied across navigation,
+catalogue maps, personal maps, notes, and the workbench. Every theme preserves
+contrast, source-status colours, and the semantic distinction between system,
+personal, warning, and error states.
+
+Star maps retain multiple contextual entry points in addition to navigation:
+search cards can focus their result and category path; research sessions can
+open their related personal projection; evidence and writing artifacts can focus
+their source clusters. All entries resolve to the same owner-scoped graph view
+and preserve the requested focus node in the URL.
+
+### Living Book Conversations and Sharing
+
+Living Book moves from a profile/match list to a consent-first answer space. A
+conversation can be created only after the Living Book owner has explicitly
+accepted a contact request. Both participants can send text and attach catalogue
+resources, reading lists, and source links. A participant may share a private
+knowledge asset only by choosing that asset in the attachment picker and
+explicitly granting that conversation access; private assets are never shared by
+profile visibility or chat creation alone.
+
+Conversation resource attachments preserve source provenance, availability,
+location, and canonical URL. The recipient can save a shared catalogue resource
+to their own evidence basket or reading list, but cannot gain the sender's
+private-source credentials. Shared private assets store a per-conversation grant
+that the sender may revoke; revocation removes recipient access while retaining
+the audit metadata that a share occurred. The chat UI shows clear ownership and
+access labels beside every attachment.
 
 ### Notes and Real-Time LaTeX Preview
 
@@ -303,6 +339,13 @@ replaced.
 11. Notes and editable writing artifacts render valid inline and display LaTeX
     without a refresh. Invalid LaTeX keeps the source intact and produces an
     understandable preview error. Browser regression tests prove both states.
+12. Exploration and research workspace have distinct navigation icons. A theme
+    selected through settings persists after reload and preserves accessible
+    contrast and source-status semantics.
+13. A Living Book owner can accept a request, answer in a private conversation,
+    and share a catalogue record or an explicitly selected knowledge asset. A
+    recipient can save a shared catalogue record, cannot view source credentials,
+    and loses asset access after the sender revokes the conversation grant.
 
 ## Scope Exclusions
 
