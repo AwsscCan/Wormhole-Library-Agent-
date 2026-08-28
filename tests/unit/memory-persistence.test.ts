@@ -1,13 +1,16 @@
 /**
- * Package 04 持久化与重启恢复测试（验收报告 F-005 / E-006）。
+ * Package 04 持久化与重启恢复测试（验收报告 F-004 / E-004）。
  *
- * 证明账本 / 索引 / 推断 / 撤销状态在「进程重启」（重置 globalThis + 从快照恢复）
- * 后不丢失，且恢复后的检索与偏好推理照常工作。
+ * 覆盖：写后自动持久化、启动恢复、恢复后继续写（nextId 连续）、删除/撤销后恢复、
+ * owner 隔离。
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   InMemoryMemoryPersistenceStore,
+  addMemorySnippet,
+  deleteMemorySnippet,
+  forgetSession,
   listInferredPreferences,
   listLearningEvents,
   loadMemoryState,
@@ -16,6 +19,7 @@ import {
   resetInferenceForTests,
   resetLearningLedgerForTests,
   resetMemoryIndexForTests,
+  resetSemanticEmbedderForTests,
   restoreMemoryState,
   revokeInferredPreference,
   searchPrivateMemory,
@@ -23,17 +27,11 @@ import {
   snapshotMemoryState,
 } from "@/lib/research/memory";
 
-function recordFixture(): void {
-  recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "ml", text: "machine learning course notes" });
-  recordLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "cite", conceptId: "ml" });
-  recordLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "favorite", conceptId: "graph" });
-  recordLearningEvent({ ownerId: "member:alice", sessionId: "s3", kind: "note", conceptId: "graph", text: "graph theory notes" });
-}
-
 function resetAll(): void {
   resetLearningLedgerForTests();
   resetMemoryIndexForTests();
   resetInferenceForTests();
+  resetSemanticEmbedderForTests();
 }
 
 beforeEach(() => {
@@ -42,14 +40,16 @@ beforeEach(() => {
 });
 
 describe("package 04 snapshot/restore persistence", () => {
-  it("survives a process restart: events, snippets, preferences and revocations all come back", () => {
-    recordFixture();
-    // 触发偏好推断：ml + graph 两个概念各跨 2 个 session
+  it("survives a process restart: events, snippets, preferences and revocations all come back", async () => {
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "ml", text: "machine learning course notes" });
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "cite", conceptId: "ml" });
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "note", conceptId: "graph", text: "graph notes" });
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s3", kind: "favorite", conceptId: "graph" });
+
     const prefs = listInferredPreferences("member:alice");
     expect(prefs).toHaveLength(2);
-    // 撤销 ml 这一条
     const mlPref = prefs.find((p) => p.conceptId === "ml")!;
-    revokeInferredPreference("member:alice", mlPref.id);
+    await revokeInferredPreference("member:alice", mlPref.id);
 
     const snapshot = snapshotMemoryState();
     expect(snapshot.events.length).toBeGreaterThan(0);
@@ -57,34 +57,62 @@ describe("package 04 snapshot/restore persistence", () => {
     expect(snapshot.preferences.length).toBe(2);
     expect(snapshot.revoked.length).toBe(1);
 
-    // 模拟新进程：清空 globalThis
     resetAll();
     expect(listLearningEvents({ ownerId: "member:alice" })).toHaveLength(0);
-    expect(searchPrivateMemory({ ownerId: "member:alice", query: "machine learning", limit: 5 })).toHaveLength(0);
+    expect(await searchPrivateMemory({ ownerId: "member:alice", query: "machine learning", limit: 5 })).toHaveLength(0);
 
-    // 从快照恢复
-    restoreMemoryState(snapshot);
+    await restoreMemoryState(snapshot);
 
     expect(listLearningEvents({ ownerId: "member:alice" }).length).toBe(snapshot.events.length);
-    expect(searchPrivateMemory({ ownerId: "member:alice", query: "machine learning", limit: 5 }).length).toBeGreaterThan(0);
+    expect((await searchPrivateMemory({ ownerId: "member:alice", query: "machine learning", limit: 5 })).length).toBeGreaterThan(0);
     // 未撤销的 graph 偏好存活，被撤销的 ml 不复活
     const restoredPrefs = listInferredPreferences("member:alice");
     expect(restoredPrefs).toHaveLength(1);
     expect(restoredPrefs[0].conceptId).toBe("graph");
   });
 
-  it("round-trips through the persistence store (persist → reset → load)", async () => {
-    recordFixture();
-    listInferredPreferences("member:alice"); // 触发推断
-    await persistMemoryState();
+  it("restores nextId continuity: appending after restart does not collide", async () => {
+    await addMemorySnippet({ ownerId: "member:alice", sessionId: "s1", sourceId: "e1", id: "snip-1", kind: "note", text: "first" });
+    const snapshot = snapshotMemoryState();
+    resetAll();
+    await restoreMemoryState(snapshot);
+
+    const next = await addMemorySnippet({ ownerId: "member:alice", sessionId: "s2", sourceId: "e2", kind: "note", text: "second" });
+    expect(next.id).toBe("snip-2"); // 不再重置回 1，无 ID 冲突
+    expect((await searchPrivateMemory({ ownerId: "member:alice", query: "second", limit: 5 })).length).toBeGreaterThan(0);
+  });
+
+  it("writes persist automatically through the write facade, then recover on load", async () => {
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "ml", text: "machine learning notes" });
+    listInferredPreferences("member:alice");
 
     resetAll();
     const loaded = await loadMemoryState();
     expect(loaded).toBe(true);
 
     expect(listLearningEvents({ ownerId: "member:alice" }).length).toBeGreaterThan(0);
-    expect(searchPrivateMemory({ ownerId: "member:alice", query: "machine learning", limit: 5 }).length).toBeGreaterThan(0);
-    expect(listInferredPreferences("member:alice").length).toBeGreaterThan(0);
+    expect((await searchPrivateMemory({ ownerId: "member:alice", query: "machine learning", limit: 5 })).length).toBeGreaterThan(0);
+  });
+
+  it("deletes and forgets persist: content stays gone after restart", async () => {
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "ml", text: "sensitive note to be deleted" });
+    const [hit] = await searchPrivateMemory({ ownerId: "member:alice", query: "sensitive note", limit: 5 });
+    await deleteMemorySnippet("member:alice", hit.id);
+
+    resetAll();
+    await loadMemoryState();
+    expect(await searchPrivateMemory({ ownerId: "member:alice", query: "sensitive note", limit: 5 })).toHaveLength(0);
+  });
+
+  it("revocations persist: a revoked preference never resurrects after restart", async () => {
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "ml", text: "a" });
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "note", conceptId: "ml", text: "b" });
+    const [pref] = listInferredPreferences("member:alice");
+    await revokeInferredPreference("member:alice", pref.id);
+
+    resetAll();
+    await loadMemoryState();
+    expect(listInferredPreferences("member:alice")).toHaveLength(0);
   });
 
   it("returns false when nothing is persisted yet", async () => {
@@ -92,13 +120,13 @@ describe("package 04 snapshot/restore persistence", () => {
     await expect(loadMemoryState()).resolves.toBe(false);
   });
 
-  it("restored snippets stay owner-scoped and retrievable", () => {
-    recordLearningEvent({ ownerId: "member:bob", sessionId: "t1", kind: "note", text: "bob private graph notes" });
+  it("restored snippets stay owner-scoped and retrievable", async () => {
+    await recordLearningEvent({ ownerId: "member:bob", sessionId: "t1", kind: "note", text: "bob private graph notes" });
     const snapshot = snapshotMemoryState();
     resetAll();
-    restoreMemoryState(snapshot);
+    await restoreMemoryState(snapshot);
 
-    expect(searchPrivateMemory({ ownerId: "member:alice", query: "graph notes", limit: 5 })).toHaveLength(0);
-    expect(searchPrivateMemory({ ownerId: "member:bob", query: "graph notes", limit: 5 }).length).toBeGreaterThan(0);
+    expect(await searchPrivateMemory({ ownerId: "member:alice", query: "graph notes", limit: 5 })).toHaveLength(0);
+    expect((await searchPrivateMemory({ ownerId: "member:bob", query: "graph notes", limit: 5 })).length).toBeGreaterThan(0);
   });
 });

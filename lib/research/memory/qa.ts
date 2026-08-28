@@ -18,12 +18,12 @@ import type {
 const EVIDENCE_THRESHOLD = 0.25;
 const MAX_CITATIONS = 3;
 
-export function answerFromSelectedMaterial(input: {
+export async function answerFromSelectedMaterial(input: {
   ownerId: string;
   question: string;
   selectedSourceIds: string[];
   limit?: number;
-}): ProfileAnswer {
+}): Promise<ProfileAnswer> {
   const { ownerId, question, selectedSourceIds } = input;
   const limit = input.limit ?? MAX_CITATIONS;
 
@@ -44,7 +44,7 @@ export function answerFromSelectedMaterial(input: {
 
   // Retrieve only within the user-selected subset.
   const allowed = new Set(selected.map((snippet) => snippet.id));
-  const hits = searchPrivateMemory({ ownerId, query: question, limit: limit * 3 }).filter(
+  const hits = (await searchPrivateMemory({ ownerId, query: question, limit: limit * 3 })).filter(
     (match) => allowed.has(match.id),
   );
   if (hits.length === 0 || hits[0].score < EVIDENCE_THRESHOLD) {

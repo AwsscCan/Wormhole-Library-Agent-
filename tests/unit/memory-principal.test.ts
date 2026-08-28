@@ -12,6 +12,7 @@ import {
   resetInferenceForTests,
   resetLearningLedgerForTests,
   resetMemoryIndexForTests,
+  resetSemanticEmbedderForTests,
   searchPrivateMemory,
 } from "@/lib/research/memory";
 import { clearCurrentPrincipalPortForTests, installCurrentPrincipalPortForTests } from "@/lib/research/principal";
@@ -20,6 +21,7 @@ beforeEach(() => {
   resetLearningLedgerForTests();
   resetMemoryIndexForTests();
   resetInferenceForTests();
+  resetSemanticEmbedderForTests();
 });
 
 afterEach(() => clearCurrentPrincipalPortForTests());
@@ -45,9 +47,8 @@ describe("package 04 principal-derived write path", () => {
     const stored = listLearningEvents({ ownerId: "member:alice" });
     expect(stored).toHaveLength(1);
     expect(stored[0].ownerId).toBe("member:alice");
-    // 只读 provenance 随事件 + 片段保留
     expect(stored[0].provenance?.sourceLabel).toBe("OpenAlex");
-    const hits = searchPrivateMemory({ ownerId: "member:alice", query: "machine learning", limit: 5 });
+    const hits = await searchPrivateMemory({ ownerId: "member:alice", query: "machine learning", limit: 5 });
     expect(hits[0].provenance?.sourceKind).toBe("openalex");
   });
 

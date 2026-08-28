@@ -148,3 +148,57 @@ npm run dev                                      # 然后人工/Playwright 走�
 ```
 
 demo 验收一句话：**输入 AI Agent → 滑块 70 → 看到 AI Agent → Multi-Agent Coordination → Game Theory → Mechanism Design 的虫洞 → 反馈后 /memory 的 mathTolerance 从 0.50 下降。**
+
+## 10. P02 / P04 补交（2026-08-28，队友02）
+
+### 背景
+
+队友验收报告打回 P02（`df80d1a`）与 P04（`0eafd6c`），5 个 blocker：
+F-001 P02 无 `SourceTransparentCatalogPort`；F-002 无来源状态矩阵；F-003 账本暴露可变引用；
+F-004 语义分数只靠共享 token；F-005 无身份/持久化/P05 DTO。
+
+补交提交（**非 merge commit**，落在 `codex/v3.3-p04-memory-rag`）：`aa7cee6`（P02）+ `ba17b4a`（P04）。
+
+### 新增文件索引
+
+| 文件 | 作用 |
+|---|---|
+| `lib/federation/catalogPortAdapter.ts` | EvidenceItem→SourceTransparentResource 投影 + `searchTopic` 状态矩阵（live/partial/unavailable）+ `bindSourceTransparentCatalogAdapter` |
+| `lib/composition.ts` | P01 组合绑定入口 `integratePackages()`（绑目录端口 + 记忆端口） |
+| `lib/research/memory/embedding.ts` | 分语言特征哈希嵌入（中文 bigram/trigram、英文整词+词内 trigram，带符号哈希）+ `ollamaEmbedding` 真实向量 |
+| `lib/research/memory/persistence.ts` | 快照持久化 + InMemory/Sqlite 存储 + `restoreMemoryState` 重启恢复 |
+| `prisma/migrations/202608280001_package04_memory/` | `MemorySnapshot` 表（raw SQL 建表，**不进冻结的 schema.prisma**） |
+
+### 关键改动
+
+- `federation.ts` 输出 `sourceOutcomes`（success/empty/failed/disabled 逐源矩阵）。
+- `memory/ledger.ts` + `indexStore.ts` + `inference.ts` 全部返回 `structuredClone` 深拷贝，append 校验唯一 ID。
+- `memory/port.ts` 把概念偏好映射为 P05 DTO `{key:"conceptId", value:conceptId}`，snippet 带 `score`。
+- `memory/index.ts` 加 `recordLearningEventForCurrentPrincipal()`：owner 从 P01 principal 推导，事件/片段带 P02 `provenance` 只读字段。
+- `research/runtime.ts` 在 `getResearchWorkspace()` 里调 `integratePackages()`。
+
+### 验证
+
+- `CIRCLE_NODE_TOTAL=1 npx vitest run --pool forks --poolOptions.forks.singleFork` → **335/335 全绿（38 文件）**。
+- `npx tsc --noEmit` → 退出码 0。
+
+### 关键坑（血泪，接手必读）
+
+1. **仓库曾被误删进回收站**：`C:\$RECYCLE.BIN\S-1-5-21-...\$RJPEA2S`，用 `tar -C <回收站路径> -cf - . | tar -C <桌面> -xf -` 拷回（源码 + .git + node_modules，跳过 .next/.worktrees）。
+2. **git 代理残留**：切 VPN 后 git 可能还配着旧 `http.proxy`（报 `Failed to connect to github.com:443 over proxy 127.0.0.1`）。push 前先 `git config --global --unset http.proxy` + `--unset https.proxy`。
+3. **给终端命令的写法**：PowerShell 不认 bash 的 `\` 行续、新开窗口 cwd 不保留。git 命令一律写成 `cd <绝对路径>; git ...` 单行。
+4. **commit ≠ push**：本地 commit 后必须 `git push -u origin codex/v3.3-p04-memory-rag`（本地分支没配 upstream）。
+5. **语义检索默认是本地字符 n-gram**，只召回子词/字符相关同义（汽车维护↔汽车保养、automobile↔automotive）；跨词面真同义（car→automobile、车辆→汽车）要走 `ollamaEmbedding`。
+6. **`prisma migrate dev` 需本地 DATABASE_URL**；`MemorySnapshot` 表靠迁移 SQL 建，测试走 InMemory 存储（`process.env.VITEST`）。
+
+### 二次补交（aa7cee6 / ba17b4a 被再次打回，2026-08-28 晚）
+
+验收结论：**P02 通过，P04 不通过**，3 个 blocker：
+
+| blocker | 问题 | 修复 |
+|---|---|---|
+| F-002 | 账本入库只 `{...input}` 浅复制，嵌套 `provenance` 仍共用调用方引用 | `appendLearningEvent` / `addMemorySnippet` 入库前 `structuredClone` 完整 input；补嵌套 provenance 篡改回归测试 |
+| F-003 | 默认语义=字符 n-gram，真同义只靠测试手写注入；API 是同步 `EmbedFn` 接不了真实模型 | 索引 API 改 **async**；默认 `createSemanticEmbedder` 走**本地 Ollama 嵌入模型**（`/api/embed`），失败**明确降级** char-ngram 并暴露 `degraded/provider`；真同义测试 mock 网络层 |
+| F-004 | persist/load 只手动调用；`rebuildIndexFromSnippets` 把 nextId 重置为 1，恢复后新增 snippet ID 冲突 | 写入口（record/delete/forget/revoke）成功变更后统一 `persistMemoryState()`；`initMemoryStore()` 生命周期；`nextSnipId` 从 `snip-N` 恢复最大+1 |
+
+二次补交后：`vitest` **338/338（38 文件）**、`tsc --noEmit` 0 错。语义检索默认 = 真实向量（Ollama `nomic-embed-text`，多语可换 `bge-m3`），无 Ollama 时降级 char-ngram 并如实标注。

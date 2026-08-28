@@ -55,13 +55,13 @@ export function snapshotMemoryState(): MemorySnapshot {
 }
 
 /** 用快照重建当前进程内状态（模拟新进程启动后的恢复）。 */
-export function restoreMemoryState(snapshot: MemorySnapshot): void {
+export async function restoreMemoryState(snapshot: MemorySnapshot): Promise<void> {
   const g = globalThis as unknown as Record<string, unknown>;
   g[KEYS.ledger] = {
     events: structuredClone(snapshot.events),
     nextId: nextIdOf(snapshot.events),
   } satisfies LedgerState;
-  rebuildIndexFromSnippets(structuredClone(snapshot.snippets));
+  await rebuildIndexFromSnippets(structuredClone(snapshot.snippets));
   g[KEYS.inference] = {
     preferences: new Map(structuredClone(snapshot.preferences).map((p) => [p.id, p])),
     revoked: new Set(snapshot.revoked),
@@ -136,6 +136,14 @@ export async function persistMemoryState(): Promise<void> {
 export async function loadMemoryState(): Promise<boolean> {
   const snapshot = await getMemoryPersistenceStore().load();
   if (!snapshot) return false;
-  restoreMemoryState(snapshot);
+  await restoreMemoryState(snapshot);
   return true;
+}
+
+/**
+ * 受控生命周期入口：进程启动时调用，从持久层恢复账本/索引/推断状态。
+ * 返回是否成功从已有快照恢复（无快照 = 冷启动，返回 false）。
+ */
+export async function initMemoryStore(): Promise<boolean> {
+  return loadMemoryState();
 }

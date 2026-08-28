@@ -12,6 +12,7 @@ import {
   resetInferenceForTests,
   resetLearningLedgerForTests,
   resetMemoryIndexForTests,
+  resetSemanticEmbedderForTests,
   searchPrivateMemory,
 } from "@/lib/research/memory";
 
@@ -19,6 +20,7 @@ beforeEach(() => {
   resetLearningLedgerForTests();
   resetMemoryIndexForTests();
   resetInferenceForTests();
+  resetSemanticEmbedderForTests();
 });
 
 afterEach(() => {
@@ -32,9 +34,9 @@ describe("package 04 memory read port (consumed by package 05)", () => {
 
   it("default port serves search and preferences for the requesting owner only", async () => {
     bindMemoryReadPort(defaultMemoryReadPort);
-    recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "game-theory", text: "Mechanism design notes for later review" });
-    recordLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "cite", conceptId: "game-theory" });
-    recordLearningEvent({ ownerId: "member:bob", sessionId: "t1", kind: "note", conceptId: "graph", text: "Bob private graph notes" });
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "game-theory", text: "Mechanism design notes for later review" });
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "cite", conceptId: "game-theory" });
+    await recordLearningEvent({ ownerId: "member:bob", sessionId: "t1", kind: "note", conceptId: "graph", text: "Bob private graph notes" });
 
     const port = getMemoryReadPort();
     expect(port).not.toBeNull();
@@ -58,7 +60,7 @@ describe("package 04 memory read port (consumed by package 05)", () => {
     bindMemoryReadPort(defaultMemoryReadPort);
     appendLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "favorite", conceptId: "ml" });
     appendLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "favorite", conceptId: "ml" });
-    forgetInferredPreferencesByConcept("member:alice", "ml");
+    await forgetInferredPreferencesByConcept("member:alice", "ml");
     expect(await defaultMemoryReadPort.listInferredPreferences({ ownerId: "member:alice" })).toHaveLength(0);
     expect(listInferredPreferences("member:alice")).toHaveLength(0);
   });
@@ -68,9 +70,9 @@ describe("package 04 memory read port (consumed by package 05)", () => {
     expect(getMemoryReadPort()).not.toBeNull();
   });
 
-  it("searchPrivateMemory stays owner-scoped even under a session-less query", () => {
-    recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", text: "private note about reinforcement learning" });
-    const bobView = searchPrivateMemory({ ownerId: "member:bob", query: "reinforcement learning", limit: 5 });
+  it("searchPrivateMemory stays owner-scoped even under a session-less query", async () => {
+    await recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", text: "private note about reinforcement learning" });
+    const bobView = await searchPrivateMemory({ ownerId: "member:bob", query: "reinforcement learning", limit: 5 });
     expect(bobView).toHaveLength(0);
   });
 });

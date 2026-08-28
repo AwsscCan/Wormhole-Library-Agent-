@@ -58,12 +58,13 @@ function toWorkbenchSnippet(h: { id: string; sourceId: string; sessionId: string
 /** Default port backed by the private index + inference engine (P05 DTO 形状)。 */
 export const defaultMemoryReadPort: MemoryReadPort = {
   async search(input) {
-    return searchPrivateMemory({
+    const hits = await searchPrivateMemory({
       ownerId: input.ownerId,
       sessionId: input.sessionId,
       query: input.query,
       limit: input.limit,
-    }).map(toWorkbenchSnippet);
+    });
+    return hits.map(toWorkbenchSnippet);
   },
   async listInferredPreferences(input) {
     return listInferredPreferences(input.ownerId).map(toWorkbenchPreference);

@@ -1,111 +1,127 @@
 /**
- * Package 04 真实语义检索消融（验收报告 F-004 / E-005）。
+ * Package 04 真实语义检索消融（验收报告 F-003 / E-003）。
  *
- * 证明混合检索的语义分数来自真实向量嵌入（可注入），而非共享 token：
- *  - 中文/英文「无 token 重叠」但字符层面相关的同义 fixture：lexical-only 召回 0，hybrid 召回 >0
- *  - 注入真实语义嵌入后，「完全无字符重叠」的真同义（car→automobile、车辆→汽车）也能召回，
- *    证明检索管线确实消费向量语义信号（生产可换成 ollamaEmbedding）。
+ * 默认语义路径是真实向量 provider（本地 Ollama 嵌入模型）。本测试通过 **mock
+ * Ollama HTTP 层**（`fetchImpl`）模拟嵌入模型返回「语义相近词 → 相近向量」的
+ * 输出，验证默认 provider 链路能召回无 token 重叠的真同义（car→automobile、
+ * 车辆→汽车），并验证 Ollama 不可用时**明确降级**到字符 n-gram（而非冒充语义）。
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   addMemorySnippet,
+  createSemanticEmbedder,
+  getSemanticEmbedderStatus,
   resetInferenceForTests,
   resetLearningLedgerForTests,
   resetMemoryIndexForTests,
+  resetSemanticEmbedderForTests,
   searchPrivateMemory,
+  setSemanticEmbedderForTests,
 } from "@/lib/research/memory";
-import type { Embedding } from "@/lib/research/memory/embedding";
+
+const DIM = 32;
+
+/** 模拟真实嵌入模型：把语义相近的词映射到同一 basis 维度。 */
+const CLASSES: Record<string, number> = {
+  car: 0, automobile: 0, vehicle: 0,
+  汽车: 1, 车辆: 1,
+  maintenance: 2, servicing: 2, repair: 2,
+  维护: 3, 保养: 3,
+};
+
+function classOf(token: string): number {
+  if (token in CLASSES) return CLASSES[token];
+  let h = 0;
+  for (let i = 0; i < token.length; i += 1) h = (h * 31 + token.charCodeAt(i)) >>> 0;
+  return 4 + (h % (DIM - 4));
+}
+
+function semanticVector(text: string): number[] {
+  const vec = new Array(DIM).fill(0);
+  const norm = text.toLowerCase();
+  for (const word of norm.split(/[^a-z0-9]+/).filter((w) => w.length > 1)) vec[classOf(word)] += 1;
+  const cjk = norm.match(/[\u4e00-\u9fff]+/g) ?? [];
+  for (const seg of cjk) for (let i = 0; i < seg.length - 1; i += 1) vec[classOf(seg.slice(i, i + 2))] += 1;
+  const len = Math.sqrt(vec.reduce((s, v) => s + v * v, 0));
+  return len ? vec.map((v) => v / len) : vec;
+}
+
+/** Mock Ollama `/api/embed`：返回语义向量。 */
+function mockOllamaFetch(): typeof fetch {
+  return (async (url: string, init?: { body?: string }) => {
+    if (!String(url).endsWith("/api/embed")) {
+      return new Response("not found", { status: 404 });
+    }
+    const body = JSON.parse(init?.body ?? "{}") as { input?: string };
+    return new Response(JSON.stringify({ embeddings: [semanticVector(body.input ?? "")] }), { status: 200 });
+  }) as typeof fetch;
+}
+
+function mockOllamaDownFetch(): typeof fetch {
+  return (async () => {
+    throw new TypeError("fetch failed");
+  }) as typeof fetch;
+}
 
 beforeEach(() => {
   resetLearningLedgerForTests();
   resetMemoryIndexForTests();
   resetInferenceForTests();
+  resetSemanticEmbedderForTests();
 });
 
-describe("lexical-only vs hybrid ablation", () => {
-  it("recalls a Chinese synonym with no shared token (汽车维护 ← 汽车保养)", () => {
-    addMemorySnippet({
-      ownerId: "member:alice", sessionId: "s1", sourceId: "ev-1", kind: "note",
-      text: "汽车维护的关键是定期更换机油和检查刹车。",
+describe("default semantic path (real embedding provider)", () => {
+  it("recalls a true English synonym with no token or character overlap (car servicing → automobile maintenance)", async () => {
+    setSemanticEmbedderForTests(createSemanticEmbedder({ useOllama: true, fetchImpl: mockOllamaFetch() }));
+    await addMemorySnippet({
+      ownerId: "member:alice", sessionId: "s1", sourceId: "ev-car", kind: "note",
+      text: "automobile maintenance",
     });
 
-    // 词面（token）层：两句话无共享 token → lexical-only 为空
-    const lexical = searchPrivateMemory({ ownerId: "member:alice", query: "汽车保养", limit: 5, mode: "lexical-only" });
+    // 词面（token）层完全无重叠 → lexical-only 为空
+    const lexical = await searchPrivateMemory({ ownerId: "member:alice", query: "car servicing", limit: 5, mode: "lexical-only" });
     expect(lexical).toHaveLength(0);
 
-    // 混合检索：字符 bigram「汽车」对齐 → 召回
-    const hybrid = searchPrivateMemory({ ownerId: "member:alice", query: "汽车保养", limit: 5 });
+    // 混合检索：真实向量召回真同义
+    const hybrid = await searchPrivateMemory({ ownerId: "member:alice", query: "car servicing", limit: 5 });
     expect(hybrid.length).toBeGreaterThan(0);
-    expect(hybrid[0].sourceId).toBe("ev-1");
+    expect(hybrid[0].sourceId).toBe("ev-car");
     expect(hybrid[0].matchedVia).toBe("semantic");
   });
 
-  it("recalls an English morphological synonym with no shared token (automobile ← automotive)", () => {
-    addMemorySnippet({
-      ownerId: "member:alice", sessionId: "s1", sourceId: "ev-en", kind: "note",
-      text: "Automobile maintenance schedules extend engine life.",
+  it("recalls a true Chinese synonym with no token or character overlap (车辆保养 → 汽车维护)", async () => {
+    setSemanticEmbedderForTests(createSemanticEmbedder({ useOllama: true, fetchImpl: mockOllamaFetch() }));
+    await addMemorySnippet({
+      ownerId: "member:alice", sessionId: "s1", sourceId: "ev-cn", kind: "note",
+      text: "汽车维护",
     });
 
-    const lexical = searchPrivateMemory({ ownerId: "member:alice", query: "automotive servicing", limit: 5, mode: "lexical-only" });
+    const lexical = await searchPrivateMemory({ ownerId: "member:alice", query: "车辆保养", limit: 5, mode: "lexical-only" });
     expect(lexical).toHaveLength(0);
 
-    const hybrid = searchPrivateMemory({ ownerId: "member:alice", query: "automotive servicing", limit: 5 });
+    const hybrid = await searchPrivateMemory({ ownerId: "member:alice", query: "车辆保养", limit: 5 });
     expect(hybrid.length).toBeGreaterThan(0);
-    expect(hybrid[0].sourceId).toBe("ev-en");
+    expect(hybrid[0].sourceId).toBe("ev-cn");
   });
 });
 
-describe("injected true-semantic embedding", () => {
-  /** 模拟真实同义嵌入：把同义词映射到同一个 basis 维度。 */
-  const synonymClasses: Record<string, string> = {
-    car: "vehicle", automobile: "vehicle",
-    汽车: "vehicle", 车辆: "vehicle",
-    maintenance: "repair", servicing: "repair",
-    维护: "repair", 保养: "repair",
-  };
-  function synonymEmbedding(text: string): Embedding {
-    const vec = new Array(32).fill(0);
-    const units: string[] = [];
-    // 中文：字符 bigram；英文：整词
-    const cjk = text.match(/[\u4e00-\u9fff]+/g) ?? [];
-    for (const seg of cjk) for (let i = 0; i < seg.length - 1; i += 1) units.push(seg.slice(i, i + 2));
-    for (const word of text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)) units.push(word);
-
-    for (const unit of units) {
-      const cls = synonymClasses[unit] ?? unit;
-      let h = 0;
-      for (let i = 0; i < cls.length; i += 1) h = (h * 31 + cls.charCodeAt(i)) >>> 0;
-      vec[h % 32] += 1;
-    }
-    const len = Math.sqrt(vec.reduce((s, v) => s + v * v, 0));
-    return len ? vec.map((v) => v / len) : vec;
-  }
-
-  it("recalls a true English synonym (car servicing → automobile maintenance) through the injected embedding", () => {
-    addMemorySnippet({
+describe("explicit degradation when the embedding model is unavailable", () => {
+  it("falls back to char n-gram and reports degraded=true, without faking semantics", async () => {
+    setSemanticEmbedderForTests(createSemanticEmbedder({ useOllama: true, fetchImpl: mockOllamaDownFetch() }));
+    await addMemorySnippet({
       ownerId: "member:alice", sessionId: "s1", sourceId: "ev-car", kind: "note",
-      text: "Automobile maintenance notes",
-    }, { embed: synonymEmbedding });
+      text: "automobile maintenance",
+    });
 
-    // 完全无字符重叠 → 默认字符嵌入召回不到
-    expect(searchPrivateMemory({ ownerId: "member:alice", query: "car servicing", limit: 5 })).toHaveLength(0);
+    expect(getSemanticEmbedderStatus()).toMatchObject({ degraded: true });
 
-    // 注入真实同义嵌入 → 召回
-    const hits = searchPrivateMemory({ ownerId: "member:alice", query: "car servicing", limit: 5 }, { embed: synonymEmbedding });
-    expect(hits.length).toBeGreaterThan(0);
-    expect(hits[0].sourceId).toBe("ev-car");
-    expect(hits[0].matchedVia).toBe("semantic");
-  });
+    // 降级后字符 n-gram 召不回「car↔automobile」这种零字符重叠的真同义（诚实降级）
+    const hits = await searchPrivateMemory({ ownerId: "member:alice", query: "car servicing", limit: 5 });
+    expect(hits).toHaveLength(0);
 
-  it("recalls a true Chinese synonym (车辆 → 汽车) through the injected embedding", () => {
-    addMemorySnippet({
-      ownerId: "member:alice", sessionId: "s1", sourceId: "ev-cn", kind: "note",
-      text: "汽车日常检查要点",
-    }, { embed: synonymEmbedding });
-
-    const hits = searchPrivateMemory({ ownerId: "member:alice", query: "车辆日常检查", limit: 5 }, { embed: synonymEmbedding });
-    expect(hits.length).toBeGreaterThan(0);
-    expect(hits[0].sourceId).toBe("ev-cn");
+    // 但词面命中的检索仍可用
+    const lexicalHits = await searchPrivateMemory({ ownerId: "member:alice", query: "automobile maintenance", limit: 5 });
+    expect(lexicalHits.length).toBeGreaterThan(0);
   });
 });

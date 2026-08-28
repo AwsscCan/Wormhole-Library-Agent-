@@ -35,11 +35,12 @@ export type AppendLearningEventInput = Omit<LearningEvent, "id" | "at"> & {
 export function appendLearningEvent(input: AppendLearningEventInput): LearningEvent {
   if (!input.ownerId) throw new Error("LearningEvent requires ownerId");
   const s = state();
-  const event: LearningEvent = {
+  // 入库前深拷贝完整 input（含嵌套 provenance 等），切断调用方对已存账本的引用。
+  const event: LearningEvent = clone({
     ...input,
     id: input.id ?? `le-${s.nextId++}`,
     at: input.at ?? new Date().toISOString(),
-  };
+  });
   if (s.events.some((existing) => existing.id === event.id)) {
     throw new Error(`LearningEvent id already exists: ${event.id}`);
   }

@@ -1,17 +1,19 @@
-import { cosineSimilarity, hashedCharNgramEmbedding, type EmbedFn } from "./embedding";
+import { cosineSimilarity, createSemanticEmbedder, type SemanticEmbedder } from "./embedding";
 import type { MemorySnippet, MemorySnippetMatch } from "./types";
 
 /**
- * Private hybrid retrieval index (lexical + semantic, zero external tokens).
+ * Private hybrid retrieval index (lexical + semantic).
  *
  * - Snippets are hard-scoped by ownerId; a search can never cross owners.
  * - An optional sessionId narrows retrieval to that session only.
  * - deleteSnippet / forgetSession remove content from the index so it can
  *   never be recalled again, while the append-only event ledger keeps its
  *   history untouched.
- * - Semantic similarity uses a real local embedding (fastText-style character
- *   n-gram hashing by default, injectable for true neural embeddings), NOT
- *   shared-token TF cosine — so subword/character-level synonymy is recalled.
+ * - Semantic similarity uses a real embedding provider (default: local Ollama
+ *   embedding model, explicit char-n-gram fallback when unavailable) — NOT
+ *   shared-token TF cosine, so no-overlap synonyms are recalled.
+ *
+ * Index API is async because a real embedding model is a network call.
  */
 
 const STOPWORDS = new Set([
@@ -21,10 +23,10 @@ const STOPWORDS = new Set([
 ]);
 
 type IndexEntry = { snippet: MemorySnippet; tokens: Set<string>; embedding: number[] };
-
 type IndexState = { entries: Map<string, IndexEntry>; nextId: number };
 
 const store = globalThis as unknown as { __package04MemoryIndex?: IndexState };
+const embedderStore = globalThis as unknown as { __package04SemanticEmbedder?: SemanticEmbedder };
 
 function state(): IndexState {
   if (!store.__package04MemoryIndex) {
@@ -33,9 +35,30 @@ function state(): IndexState {
   return store.__package04MemoryIndex;
 }
 
-/** Deep-copy a flat DTO so callers can never mutate index-internal state. */
 function clone<T>(value: T): T {
   return structuredClone(value);
+}
+
+function getEmbedder(): SemanticEmbedder {
+  if (!embedderStore.__package04SemanticEmbedder) {
+    embedderStore.__package04SemanticEmbedder = createSemanticEmbedder();
+  }
+  return embedderStore.__package04SemanticEmbedder;
+}
+
+/** 测试注入语义嵌入器（真同义消融用 mock 网络层）。 */
+export function setSemanticEmbedderForTests(embedder: SemanticEmbedder): void {
+  embedderStore.__package04SemanticEmbedder = embedder;
+}
+
+export function resetSemanticEmbedderForTests(): void {
+  delete embedderStore.__package04SemanticEmbedder;
+}
+
+/** 当前语义 provider 状态（provider 名 + 是否降级），供上层明确提示降级。 */
+export function getSemanticEmbedderStatus(): { provider: string; degraded: boolean } {
+  const embedder = getEmbedder();
+  return { provider: embedder.provider, degraded: embedder.degraded };
 }
 
 /** Light English suffix folding so "incentives" matches "incentive". */
@@ -51,9 +74,10 @@ export function tokenize(text: string): string[] {
     .map((token) => (/^[a-z]+$/.test(token) ? stem(token) : token));
 }
 
-function buildEntry(snippet: MemorySnippet, embed: EmbedFn): IndexEntry {
+async function buildEntry(snippet: MemorySnippet, embedder: SemanticEmbedder): Promise<IndexEntry> {
   const tokens = tokenize(snippet.text);
-  return { snippet, tokens: new Set(tokens), embedding: embed(snippet.text) };
+  const embedding = await embedder.embed(snippet.text);
+  return { snippet, tokens: new Set(tokens), embedding };
 }
 
 export type AddSnippetInput = Omit<MemorySnippet, "id" | "createdAt"> & {
@@ -61,22 +85,23 @@ export type AddSnippetInput = Omit<MemorySnippet, "id" | "createdAt"> & {
   createdAt?: string;
 };
 
-export function addMemorySnippet(
+export async function addMemorySnippet(
   input: AddSnippetInput,
-  options: { embed?: EmbedFn } = {},
-): MemorySnippet {
+  options: { embedder?: SemanticEmbedder } = {},
+): Promise<MemorySnippet> {
   if (!input.ownerId) throw new Error("MemorySnippet requires ownerId");
-  const embed = options.embed ?? hashedCharNgramEmbedding;
+  const embedder = options.embedder ?? getEmbedder();
   const s = state();
-  const snippet: MemorySnippet = {
+  // 入库前深拷贝完整 input（含嵌套 provenance），切断调用方对已存索引的引用。
+  const snippet: MemorySnippet = clone({
     ...input,
     id: input.id ?? `snip-${s.nextId++}`,
     createdAt: input.createdAt ?? new Date().toISOString(),
-  };
+  });
   if (s.entries.has(snippet.id)) {
     throw new Error(`MemorySnippet id already exists: ${snippet.id}`);
   }
-  s.entries.set(snippet.id, buildEntry(snippet, embed));
+  s.entries.set(snippet.id, await buildEntry(snippet, embedder));
   return clone(snippet);
 }
 
@@ -117,11 +142,9 @@ const MIN_HYBRID_SCORE = 0.05;
 /**
  * Hybrid retrieval: lexical containment + embedding cosine, then a
  * small-result-set rerank that blends relevance with recency. Lexical-only
- * mode is available for the required ablation experiment. The embedding
- * function is injectable (default: language-aware char n-gram hashing);
- * callers using a custom embedder must use the same one at add-time.
+ * mode is available for the required ablation experiment.
  */
-export function searchPrivateMemory(
+export async function searchPrivateMemory(
   input: {
     ownerId: string;
     sessionId?: string;
@@ -129,13 +152,13 @@ export function searchPrivateMemory(
     limit: number;
     mode?: "hybrid" | "lexical-only";
   },
-  options: { embed?: EmbedFn } = {},
-): MemorySnippetMatch[] {
+  options: { embedder?: SemanticEmbedder } = {},
+): Promise<MemorySnippetMatch[]> {
   const { ownerId, sessionId, query, limit } = input;
   const mode = input.mode ?? "hybrid";
-  const embed = options.embed ?? hashedCharNgramEmbedding;
+  const embedder = options.embedder ?? getEmbedder();
   const queryTokens = tokenize(query);
-  const queryEmbedding = mode === "hybrid" ? embed(query) : [];
+  const queryEmbedding = mode === "hybrid" ? await embedder.embed(query) : [];
 
   const candidates: MemorySnippetMatch[] = [];
   for (const entry of state().entries.values()) {
@@ -156,7 +179,6 @@ export function searchPrivateMemory(
     candidates.push({ ...clone(entry.snippet), score: hybrid, matchedVia });
   }
 
-  // Small-result-set rerank: relevance first, recency breaks ties.
   candidates.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return b.createdAt.localeCompare(a.createdAt);
@@ -182,15 +204,29 @@ export function resetMemoryIndexForTests(): void {
   store.__package04MemoryIndex = { entries: new Map(), nextId: 1 };
 }
 
+/** 从 `snip-N` 形式的 id 恢复下一个可用序号（恢复后继续写不冲突）。 */
+function nextSnipId(snippets: MemorySnippet[]): number {
+  let max = 0;
+  for (const snippet of snippets) {
+    const m = /^snip-(\d+)$/.exec(snippet.id);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return max + 1;
+}
+
 /**
  * 从持久化快照重建索引（供 persistence.restoreMemoryState 使用）。
- * 重新计算每条 snippet 的 token 集合与嵌入向量。
+ * 重新计算每条 snippet 的 token 集合与嵌入向量，并恢复 nextId 连续性。
  */
-export function rebuildIndexFromSnippets(snippets: MemorySnippet[]): void {
+export async function rebuildIndexFromSnippets(
+  snippets: MemorySnippet[],
+  options: { embedder?: SemanticEmbedder } = {},
+): Promise<void> {
+  const embedder = options.embedder ?? getEmbedder();
   const s = state();
   s.entries.clear();
-  s.nextId = 1;
+  s.nextId = nextSnipId(snippets);
   for (const snippet of snippets) {
-    s.entries.set(snippet.id, buildEntry(snippet, hashedCharNgramEmbedding));
+    s.entries.set(snippet.id, await buildEntry(snippet, embedder));
   }
 }

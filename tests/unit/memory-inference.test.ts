@@ -72,24 +72,24 @@ describe("package 04 preference inference", () => {
     expect(listInferredPreferences("member:alice")).toHaveLength(0);
   });
 
-  it("revoke removes the inference and it stays revoked after recompute", () => {
+  it("revoke removes the inference and it stays revoked after recompute", async () => {
     appendLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "ml", text: "x" });
     appendLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "note", conceptId: "ml", text: "y" });
     const [pref] = listInferredPreferences("member:alice");
-    expect(revokeInferredPreference("member:alice", pref.id)).toBe(true);
+    expect(await revokeInferredPreference("member:alice", pref.id)).toBe(true);
     expect(listInferredPreferences("member:alice")).toHaveLength(0);
     // New behaviour must not silently resurrect a revoked inference.
     appendLearningEvent({ ownerId: "member:alice", sessionId: "s3", kind: "cite", conceptId: "ml" });
     expect(listInferredPreferences("member:alice")).toHaveLength(0);
   });
 
-  it("forget by concept revokes every matching inference for the owner only", () => {
+  it("forget by concept revokes every matching inference for the owner only", async () => {
     appendLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "ml", text: "x" });
     appendLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "note", conceptId: "ml", text: "y" });
     appendLearningEvent({ ownerId: "member:bob", sessionId: "t1", kind: "note", conceptId: "ml", text: "x" });
     appendLearningEvent({ ownerId: "member:bob", sessionId: "t2", kind: "note", conceptId: "ml", text: "y" });
 
-    expect(forgetInferredPreferencesByConcept("member:alice", "ml")).toBe(1);
+    expect(await forgetInferredPreferencesByConcept("member:alice", "ml")).toBe(1);
     expect(listInferredPreferences("member:alice")).toHaveLength(0);
     expect(listInferredPreferences("member:bob")).toHaveLength(1);
   });
