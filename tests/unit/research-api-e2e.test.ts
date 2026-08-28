@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { POST as createSession } from "@/app/api/research/sessions/route";
 import { GET as getSession, PATCH as patchSession } from "@/app/api/research/sessions/[sessionId]/route";
+import { GET as getSavedSearch } from "@/app/api/research/sessions/[sessionId]/searches/[interactionId]/route";
 import { clearCurrentPrincipalPortForTests, installCurrentPrincipalPortForTests } from "@/lib/research/principal";
+import { getResearchSessionService } from "@/lib/research/sessionStore";
 
 afterEach(() => clearCurrentPrincipalPortForTests());
 
@@ -44,5 +46,31 @@ describe("research API owner/edit/recovery loop", () => {
     principal = { id: "guest-device", mode: "guest" };
     const context = { params: Promise.resolve({ sessionId: session.id }) };
     expect((await getSession(new Request(`http://local/api/research/sessions/${session.id}`), context)).status).toBe(404);
+  });
+
+  it("serves a persisted explore deep link only to the session owner", async () => {
+    let principalId = `deep-link-alice-${crypto.randomUUID()}`;
+    installCurrentPrincipalPortForTests({ read: async () => ({ id: principalId, mode: "member" }) });
+    const response = await createSession(new Request("http://local/api/research/sessions", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ researchQuestion: "Persistent explore" }),
+    }));
+    const session = await response.json();
+    const interactionId = `persisted-${crypto.randomUUID()}`;
+    await getResearchSessionService().recordSearch(`member:${principalId}`, session.id, {
+      interactionId,
+      query: "Restored after restart",
+      at: "2026-08-24T12:00:00.000Z",
+      concepts: [{ id: "rag", name: "RAG" }],
+      resources: [],
+    });
+    const context = { params: Promise.resolve({ sessionId: session.id, interactionId }) };
+
+    const owned = await getSavedSearch(new Request("http://local/saved-search"), context);
+    expect(owned.status).toBe(200);
+    expect(owned.headers.get("cache-control")).toBe("private, no-store");
+    expect(await owned.json()).toMatchObject({ interactionId, query: "Restored after restart" });
+
+    principalId = `deep-link-bob-${crypto.randomUUID()}`;
+    expect((await getSavedSearch(new Request("http://local/saved-search"), context)).status).toBe(404);
   });
 });

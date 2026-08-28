@@ -4,6 +4,7 @@ import { GET as list, POST as create } from "@/app/api/research/sessions/route";
 import { GET as read, PATCH as patch } from "@/app/api/research/sessions/[sessionId]/route";
 import { POST as act } from "@/app/api/research/sessions/[sessionId]/actions/route";
 import { POST as wormholes } from "@/app/api/research/sessions/[sessionId]/wormholes/route";
+import { GET as savedSearch } from "@/app/api/research/sessions/[sessionId]/searches/[interactionId]/route";
 import { clearCurrentPrincipalPortForTests } from "@/lib/research/principal";
 
 afterEach(() => clearCurrentPrincipalPortForTests());
@@ -11,6 +12,7 @@ afterEach(() => clearCurrentPrincipalPortForTests());
 describe("all private research routes", () => {
   it("return private, no-store even when the identity port is unavailable", async () => {
     const context = { params: Promise.resolve({ sessionId: "session-x" }) };
+    const searchContext = { params: Promise.resolve({ sessionId: "session-x", interactionId: "interaction-x" }) };
     const json = (url: string, body: unknown, method = "POST") => new Request(url, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
@@ -21,6 +23,7 @@ describe("all private research routes", () => {
       patch(json("http://local/api/research/sessions/session-x", { expectedVersion: 0, nodeOverrides: {}, hiddenSystemEdgeIds: [], personalEdges: [] }, "PATCH"), context),
       act(json("http://local/actions", { action: "search", nodeId: "topic", topic: "RAG" }), context),
       wormholes(json("http://local/wormholes", { wormholes: [] }), context),
+      savedSearch(new Request("http://local/saved-search"), searchContext),
       migrate(json("http://local/migrations", { interactionId: "int-x" })),
     ]);
     for (const response of responses) {

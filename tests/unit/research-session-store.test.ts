@@ -49,6 +49,25 @@ describe("ResearchSessionStore", () => {
     expect(restored.personalGraph.personalEdges[0].type).toBe("personal_note");
   });
 
+  it("restores a saved search without the volatile interaction store", async () => {
+    const { store, service } = fixture();
+    const session = await service.create("member:alice", { researchQuestion: "Restart-safe explore" });
+    await service.recordSearch("member:alice", session.id, {
+      interactionId: "int-persisted",
+      query: "Persistent deep link",
+      at: "2026-08-24T12:00:00.000Z",
+      concepts: [{ id: "rag", name: "RAG" }],
+      resources: [{ id: "paper-1", title: "RAG Survey", concepts: [{ id: "rag", name: "RAG" }] }],
+    });
+
+    const restarted = new ResearchSessionService(store);
+    await expect(restarted.getSearch("member:alice", session.id, "int-persisted")).resolves.toMatchObject({
+      interactionId: "int-persisted",
+      query: "Persistent deep link",
+    });
+    await expect(restarted.getSearch("member:bob", session.id, "int-persisted")).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
   it("never reveals a session to another owner", async () => {
     const { service } = fixture();
     const session = await service.create("member:alice", { researchQuestion: "Private topic" });

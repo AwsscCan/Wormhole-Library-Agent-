@@ -3,7 +3,8 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Route } from "lucide-react";
-import type { SearchResponse, WormholesResponse } from "@/lib/types";
+import type { WormholesResponse } from "@/lib/types";
+import type { SessionSearch } from "@/lib/research/types";
 import { Button } from "@/components/ui/button";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
 import { ResourceCard } from "@/components/ResourceCard";
@@ -13,19 +14,20 @@ export default function ResearchExplorePage({ params }: {
   params: Promise<{ sessionId: string; interactionId: string }>;
 }) {
   const { sessionId, interactionId } = use(params);
-  const [search, setSearch] = useState<SearchResponse | null>(null);
+  const [search, setSearch] = useState<SessionSearch | null>(null);
   const [result, setResult] = useState<WormholesResponse | null>(null);
   const [slider, setSlider] = useState(60);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/search?interactionId=${encodeURIComponent(interactionId)}`, { cache: "no-store" })
+    fetch(`/api/research/sessions/${encodeURIComponent(sessionId)}/searches/${encodeURIComponent(interactionId)}`, { cache: "no-store" })
       .then(async (response) => {
-        if (!response.ok) throw new Error("这次检索已过期，请回研究星图重新搜索。");
-        return response.json() as Promise<SearchResponse>;
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error?.message ?? "无法从研究会话恢复检索");
+        return data as SessionSearch;
       }).then(setSearch).catch((cause) => setError(cause instanceof Error ? cause.message : "无法恢复检索"));
-  }, [interactionId]);
+  }, [sessionId, interactionId]);
 
   async function generate() {
     if (!search) return;

@@ -56,6 +56,28 @@ describe("PrismaResearchSessionStore", () => {
     await expect(restarted.get("guest:device-b", session.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  it("restores a saved explore search through a new Prisma client", async () => {
+    const { prisma, url } = await database();
+    const first = new ResearchSessionService(new PrismaResearchSessionStore(prisma));
+    const session = await first.create("member:alice", { researchQuestion: "Restart-safe explore" });
+    await first.recordSearch("member:alice", session.id, {
+      interactionId: "int-after-restart",
+      query: "Persisted query",
+      at: "2026-08-24T12:00:00.000Z",
+      concepts: [{ id: "rag", name: "RAG" }],
+      resources: [],
+    });
+    await prisma.$disconnect();
+
+    const restartedClient = new PrismaClient({ datasources: { db: { url } } });
+    clients.push(restartedClient);
+    const restarted = new ResearchSessionService(new PrismaResearchSessionStore(restartedClient));
+    await expect(restarted.getSearch("member:alice", session.id, "int-after-restart")).resolves.toMatchObject({
+      interactionId: "int-after-restart",
+      query: "Persisted query",
+    });
+  });
+
   it("upgrades an existing identity database without losing member rows", async () => {
     const directory = mkdtempSync(path.join(tmpdir(), "wormhole-upgrade-"));
     const url = `file:${path.join(directory, "upgrade.db").replace(/\\/g, "/")}`;

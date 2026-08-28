@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
   createResearchSessionSchema,
   graphUpdateSchema,
@@ -8,6 +10,18 @@ import { explainPrivateWorkspaceError, explainResearchFailure } from "@/lib/rese
 import { ResearchError } from "@/lib/research/types";
 
 describe("research workspace contracts", () => {
+  it("keeps the runtime ResearchSession model in the Prisma schema", () => {
+    const schema = readFileSync(path.join(process.cwd(), "prisma/schema.prisma"), "utf8");
+    expect(schema).toMatch(/model ResearchSession\s*\{/);
+    expect(schema).toContain("searchesJson");
+  });
+
+  it("loads session explore deep links from the persisted owner-scoped route", () => {
+    const page = readFileSync(path.join(process.cwd(), "app/research/[sessionId]/explore/[interactionId]/page.tsx"), "utf8");
+    expect(page).toContain("/api/research/sessions/${encodeURIComponent(sessionId)}/searches/${encodeURIComponent(interactionId)}");
+    expect(page).not.toContain("/api/search?interactionId=");
+  });
+
   it("does not accept an owner identity from request bodies", () => {
     expect(createResearchSessionSchema.safeParse({ researchQuestion: "Graph RAG", ownerId: "attacker" }).success).toBe(false);
     expect(createResearchSessionSchema.safeParse({ researchQuestion: "Graph RAG", userId: "attacker" }).success).toBe(false);

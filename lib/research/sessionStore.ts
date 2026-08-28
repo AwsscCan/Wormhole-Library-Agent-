@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import { getPrisma } from "@/lib/db/prisma";
 import type { CreateResearchSessionInput, GraphUpdateInput } from "./schemas";
 import type { PersonalGraphState, ResearchSession, SessionSearch, SessionWormhole } from "./types";
@@ -54,47 +54,36 @@ function encode(session: ResearchSession) {
 export class PrismaResearchSessionStore implements ResearchSessionStore {
   constructor(private readonly prisma: PrismaClient) {}
   async create(session: ResearchSession) {
-    const data = encode(session);
-    await this.prisma.$executeRaw(Prisma.sql`
-      INSERT INTO "ResearchSession"
-        ("id", "ownerId", "researchQuestion", "writingTopic", "interactionIdsJson", "evidenceIdsJson",
-         "searchesJson", "wormholesJson", "personalGraphJson", "graphVersion", "revision", "createdAt", "updatedAt")
-      VALUES (${data.id}, ${data.ownerId}, ${data.researchQuestion}, ${data.writingTopic}, ${data.interactionIdsJson},
-        ${data.evidenceIdsJson}, ${data.searchesJson}, ${data.wormholesJson}, ${data.personalGraphJson},
-        ${data.graphVersion}, ${data.revision}, ${data.createdAt}, ${data.updatedAt})
-    `);
+    await this.prisma.researchSession.create({ data: encode(session) });
   }
   async list(ownerId: string) {
-    const rows = await this.prisma.$queryRaw<ResearchRow[]>(Prisma.sql`
-      SELECT * FROM "ResearchSession" WHERE "ownerId" = ${ownerId} ORDER BY "updatedAt" DESC
-    `);
+    const rows = await this.prisma.researchSession.findMany({ where: { ownerId }, orderBy: { updatedAt: "desc" } });
     return rows.map(decode);
   }
   async get(ownerId: string, id: string) {
-    const rows = await this.prisma.$queryRaw<ResearchRow[]>(Prisma.sql`
-      SELECT * FROM "ResearchSession" WHERE "id" = ${id} AND "ownerId" = ${ownerId} LIMIT 1
-    `);
-    return rows[0] ? decode(rows[0]) : null;
+    const row = await this.prisma.researchSession.findFirst({ where: { id, ownerId } });
+    return row ? decode(row) : null;
   }
   async replace(ownerId: string, expectedRevision: number, session: ResearchSession) {
     const data = encode({ ...session, revision: expectedRevision + 1 });
-    const changed = await this.prisma.$executeRaw(Prisma.sql`
-      UPDATE "ResearchSession" SET "researchQuestion" = ${data.researchQuestion}, "writingTopic" = ${data.writingTopic},
-        "interactionIdsJson" = ${data.interactionIdsJson}, "evidenceIdsJson" = ${data.evidenceIdsJson},
-        "searchesJson" = ${data.searchesJson}, "wormholesJson" = ${data.wormholesJson},
-        "personalGraphJson" = ${data.personalGraphJson}, "graphVersion" = ${data.graphVersion},
-        "revision" = "revision" + 1, "updatedAt" = ${data.updatedAt}
-      WHERE "id" = ${session.id} AND "ownerId" = ${ownerId} AND "revision" = ${expectedRevision}
-    `);
-    return changed === 1;
+    const changed = await this.prisma.researchSession.updateMany({
+      where: { id: session.id, ownerId, revision: expectedRevision },
+      data: {
+        researchQuestion: data.researchQuestion, writingTopic: data.writingTopic,
+        interactionIdsJson: data.interactionIdsJson, evidenceIdsJson: data.evidenceIdsJson,
+        searchesJson: data.searchesJson, wormholesJson: data.wormholesJson,
+        personalGraphJson: data.personalGraphJson, graphVersion: data.graphVersion,
+        revision: { increment: 1 }, updatedAt: data.updatedAt,
+      },
+    });
+    return changed.count === 1;
   }
   async updateGraph(ownerId: string, id: string, expectedVersion: number, graph: PersonalGraphState, updatedAt: string) {
-    const changed = await this.prisma.$executeRaw(Prisma.sql`
-      UPDATE "ResearchSession" SET "personalGraphJson" = ${JSON.stringify(graph)}, "graphVersion" = ${graph.version},
-        "revision" = "revision" + 1, "updatedAt" = ${new Date(updatedAt)}
-      WHERE "id" = ${id} AND "ownerId" = ${ownerId} AND "graphVersion" = ${expectedVersion}
-    `);
-    if (changed === 1) return "updated" as const;
+    const changed = await this.prisma.researchSession.updateMany({
+      where: { id, ownerId, graphVersion: expectedVersion },
+      data: { personalGraphJson: JSON.stringify(graph), graphVersion: graph.version, revision: { increment: 1 }, updatedAt: new Date(updatedAt) },
+    });
+    if (changed.count === 1) return "updated" as const;
     return await this.get(ownerId, id) ? "conflict" as const : "not_found" as const;
   }
 }
@@ -132,6 +121,12 @@ export class ResearchSessionService {
   async get(ownerId: string, id: string) {
     const session = await this.store.get(ownerId, id);
     if (!session) throw new ResearchError("NOT_FOUND", "Research session not found"); return session;
+  }
+  async getSearch(ownerId: string, id: string, interactionId: string) {
+    const session = await this.get(ownerId, id);
+    const search = session.searches.find((item) => item.interactionId === interactionId);
+    if (!search) throw new ResearchError("NOT_FOUND", "Research search not found");
+    return search;
   }
   async updateGraph(ownerId: string, id: string, input: GraphUpdateInput) {
     const graph: PersonalGraphState = { schemaVersion: 1, version: input.expectedVersion + 1, nodeOverrides: input.nodeOverrides, hiddenSystemEdgeIds: input.hiddenSystemEdgeIds, personalEdges: input.personalEdges };
