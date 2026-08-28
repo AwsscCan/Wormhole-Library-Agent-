@@ -12,6 +12,10 @@ next-env.d.ts
 # prisma / sqlite
 prisma/*.db
 prisma/*.db-journal
+# test-harness temp databases (shadow-*.db may land in worktree root)
+shadow-*.db
+deploy-*.db
+upgrade-*.db
 
 # memory file store (FileStore 运行时落盘)
 .data/
