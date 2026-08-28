@@ -146,6 +146,11 @@ function installPorts() {
       verificationStatus: "verified",
       userConfirmedAt: "forged-by-catalog",
     }],
+    addEvidence: async ({ sessionId, evidenceId }) => {
+      const session = sessions.get(sessionId);
+      if (!session) return;
+      session.evidenceIds = [...new Set([...session.evidenceIds, evidenceId])];
+    },
   });
 }
 

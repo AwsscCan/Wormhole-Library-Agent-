@@ -8,7 +8,7 @@ export class WritingPortsUnavailableError extends Error {
   }
 }
 
-let installedPorts: WritingPorts | undefined;
+const registry = globalThis as unknown as { __wormholeWritingPorts?: WritingPorts };
 
 /**
  * Installs the accepted package adapters at the server composition root.
@@ -16,21 +16,21 @@ let installedPorts: WritingPorts | undefined;
  * authoritative in the package databases and is re-checked on every call.
  */
 export function installWritingPorts(ports: WritingPorts): void {
-  installedPorts = ports;
+  registry.__wormholeWritingPorts = ports;
 }
 
 export function requireWritingPorts(): WritingPorts {
-  if (!installedPorts) throw new WritingPortsUnavailableError();
-  return installedPorts;
+  if (!registry.__wormholeWritingPorts) throw new WritingPortsUnavailableError();
+  return registry.__wormholeWritingPorts;
 }
 
 export function writingPortsAreInstalled(): boolean {
-  return installedPorts !== undefined;
+  return registry.__wormholeWritingPorts !== undefined;
 }
 
 export function clearWritingPortsForTest(): void {
   if (process.env.NODE_ENV === "production") {
     throw new Error("Writing ports cannot be cleared in production");
   }
-  installedPorts = undefined;
+  delete registry.__wormholeWritingPorts;
 }

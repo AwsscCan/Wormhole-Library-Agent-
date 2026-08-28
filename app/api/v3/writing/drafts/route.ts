@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import {
   generateEvidenceDraft,
+  resumeEvidenceDraft,
   requireOwnedResearchSession,
   WritingDependencyUnavailableError,
   WritingError,
 } from "@/lib/writing/draftService";
-import { principalOwnerKey } from "@/lib/research/principal";
-import { resumeWriting } from "@/lib/writing/repository";
 import { apiError, parseBody } from "@/lib/validation/api";
 import { createDraftSchema } from "@/lib/validation/schemas";
 import {
@@ -35,7 +34,7 @@ export async function GET(request: Request) {
   if (!sessionId) return privateWritingResponse(apiError("BAD_REQUEST", "sessionId is required", 400), principal);
   try {
     await requireOwnedResearchSession(principal, sessionId);
-    return privateWritingResponse(NextResponse.json(await resumeWriting(principalOwnerKey(principal), sessionId)), principal);
+    return privateWritingResponse(NextResponse.json(await resumeEvidenceDraft({ principal, sessionId })), principal);
   } catch (error) {
     return failure(error, principal);
   }

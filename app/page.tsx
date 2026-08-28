@@ -15,8 +15,6 @@ import { SerendipitySlider } from "@/components/SerendipitySlider";
 import { StarMap } from "@/components/StarMap";
 import { cn } from "@/lib/utils";
 
-const DEMO_USER = "demo-user";
-
 const TASKS = [
   { value: "course", label: "课程" },
   { value: "project", label: "项目" },
@@ -53,20 +51,32 @@ export default function HomePage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/search", {
+      const sessionResponse = await fetch("/api/research/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: DEMO_USER,
-          query: finalQuery,
+          researchQuestion: finalQuery,
+          writingTopic: taskType === "research" ? finalQuery : undefined,
+        }),
+      });
+      const session = await sessionResponse.json();
+      if (!sessionResponse.ok) throw new Error(session.error?.message ?? `无法创建研究会话（${sessionResponse.status}）`);
+
+      const actionResponse = await fetch(`/api/research/sessions/${encodeURIComponent(session.id)}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "search",
+          nodeId: "topic",
+          topic: finalQuery,
           taskType,
           level,
           sliderValue: slider,
         }),
       });
-      if (!res.ok) throw new Error(`检索失败（${res.status}）`);
-      const data = await res.json();
-      router.push(`/explore/${data.interactionId}`);
+      const action = await actionResponse.json();
+      if (!actionResponse.ok) throw new Error(action.error?.message ?? `检索失败（${actionResponse.status}）`);
+      router.push(action.href);
     } catch (e) {
       setError(e instanceof Error ? e.message : "检索失败");
       setBusy(false);

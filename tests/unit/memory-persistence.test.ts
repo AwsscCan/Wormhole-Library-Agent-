@@ -40,6 +40,31 @@ beforeEach(() => {
 });
 
 describe("package 04 snapshot/restore persistence", () => {
+  it("does not roll back another owner's successful concurrent write", async () => {
+    let rejectFirst!: () => void;
+    let saveCalls = 0;
+    setMemoryPersistenceStoreForTests({
+      load: async () => null,
+      save: async () => {
+        saveCalls += 1;
+        if (saveCalls === 1) {
+          await new Promise<void>((_resolve, reject) => { rejectFirst = () => reject(new Error("disk unavailable")); });
+        }
+      },
+    });
+
+    const failed = recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "feedback", rating: "useful" });
+    await Promise.resolve();
+    const successful = recordLearningEvent({ ownerId: "member:bob", sessionId: "s2", kind: "feedback", rating: "useful" });
+    await Promise.resolve();
+    rejectFirst();
+
+    await expect(failed).rejects.toThrow("disk unavailable");
+    await expect(successful).resolves.toMatchObject({ ownerId: "member:bob" });
+    expect(listLearningEvents({ ownerId: "member:alice" })).toEqual([]);
+    expect(listLearningEvents({ ownerId: "member:bob" })).toHaveLength(1);
+  });
+
   it("survives a process restart: events, snippets, preferences and revocations all come back", async () => {
     await recordLearningEvent({ ownerId: "member:alice", sessionId: "s1", kind: "note", conceptId: "ml", text: "machine learning course notes" });
     await recordLearningEvent({ ownerId: "member:alice", sessionId: "s2", kind: "cite", conceptId: "ml" });

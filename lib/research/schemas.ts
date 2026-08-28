@@ -35,6 +35,9 @@ export const nodeActionSchema = z.object({
   nodeId: z.string().min(1),
   topic: z.string().trim().min(1).max(500),
   resourceId: z.string().min(1).optional(),
+  taskType: z.enum(["course", "project", "research", "exam", "curiosity"]).optional(),
+  level: z.enum(["beginner", "undergraduate", "graduate", "research"]).optional(),
+  sliderValue: z.number().int().min(0).max(100).optional(),
 }).strict();
 
 export type CreateResearchSessionInput = z.infer<typeof createResearchSessionSchema>;

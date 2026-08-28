@@ -4,13 +4,14 @@ import { describe, expect, it } from "vitest";
 describe("writing workspace contract", () => {
   it("does not submit userId and renders the fallback label with evidence markers", async () => {
     const source = await readFile("app/writing/page.tsx", "utf8");
+    const service = await readFile("lib/writing/draftService.ts", "utf8");
 
     expect(source).not.toContain("userId:");
     expect(source).toContain("/api/v3/writing/drafts");
     expect(source).toContain("deterministic");
     expect(source).toContain("citations");
     expect(source).toContain("完整 session collection 保留");
-    expect(source).toContain(".slice(0, 12)");
+    expect(service).toContain(".slice(0, 12)");
   });
 
   it("renders Markdown without executable raw HTML and hardens outbound links", async () => {

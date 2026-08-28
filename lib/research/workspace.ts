@@ -17,7 +17,13 @@ export class ResearchWorkspace {
     const session = await this.sessions.get(ownerId, sessionId);
     if (input.action === "search") {
       const query = input.topic === session.researchQuestion ? input.topic : `${input.topic} — ${session.researchQuestion}`;
-      const response = await this.deps.search({ userId: ownerId, query, taskType: "research" });
+      const response = await this.deps.search({
+        userId: ownerId,
+        query,
+        taskType: input.taskType ?? "research",
+        level: input.level,
+        sliderValue: input.sliderValue,
+      });
       await this.sessions.recordSearch(ownerId, sessionId, {
         interactionId: response.interactionId,
         query: response.query,
@@ -29,7 +35,9 @@ export class ResearchWorkspace {
           sourceUrl: resource.sourceUrl,
         })),
       });
-      return { action: "search" as const, sessionId, interactionId: response.interactionId, href: `/research/${encodeURIComponent(sessionId)}/explore/${encodeURIComponent(response.interactionId)}`, response };
+      const explorePath = `/research/${encodeURIComponent(sessionId)}/explore/${encodeURIComponent(response.interactionId)}`;
+      const href = input.sliderValue === undefined ? explorePath : `${explorePath}?slider=${input.sliderValue}`;
+      return { action: "search" as const, sessionId, interactionId: response.interactionId, href, response };
     }
 
     if (input.action === "library") {

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import {
   discoverWritingEvidence,
-  requireOwnedResearchSession,
+  confirmWritingEvidence,
+  listWritingCandidates,
   WritingDependencyUnavailableError,
   WritingError,
 } from "@/lib/writing/draftService";
-import { principalOwnerKey } from "@/lib/research/principal";
-import { confirmCandidate } from "@/lib/writing/repository";
 import { apiError, parseBody } from "@/lib/validation/api";
 import { candidateSchema, confirmCandidateSchema } from "@/lib/validation/schemas";
 import {
@@ -41,6 +40,18 @@ export async function POST(request: Request) {
   }
 }
 
+export async function GET(request: Request) {
+  const rejected = rejectWritingUserId(request);
+  if (rejected) return rejected;
+  const principal = await requireWritingPrincipal(request);
+  if (principal instanceof Response) return principal;
+  const sessionId = new URL(request.url).searchParams.get("sessionId");
+  if (!sessionId) return privateWritingResponse(apiError("BAD_REQUEST", "sessionId is required", 400), principal);
+  try {
+    return privateWritingResponse(NextResponse.json(await listWritingCandidates({ principal, sessionId })), principal);
+  } catch (error) { return failure(error, principal); }
+}
+
 export async function PATCH(request: Request) {
   const rejected = rejectWritingUserId(request);
   if (rejected) return rejected;
@@ -49,8 +60,7 @@ export async function PATCH(request: Request) {
   const body = await parseBody(request, confirmCandidateSchema);
   if (!body.ok) return privateWritingResponse(body.response, principal);
   try {
-    await requireOwnedResearchSession(principal, body.data.sessionId);
-    const confirmed = await confirmCandidate(principalOwnerKey(principal), body.data.sessionId, body.data.evidenceId);
+    const confirmed = await confirmWritingEvidence({ principal, ...body.data });
     if (!confirmed) {
       return privateWritingResponse(apiError("BAD_REQUEST", "Candidate cannot be verified", 400), principal);
     }

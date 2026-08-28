@@ -14,8 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const DEMO_USER = "demo-user";
-
 function GaugeBar({
   label,
   value,
@@ -67,7 +65,7 @@ export default function MemoryPage() {
   const [resetting, setResetting] = useState(false);
 
   const load = useCallback(() => {
-    fetch(`/api/memory?userId=${DEMO_USER}`)
+    fetch("/api/v3/memory", { cache: "no-store" })
       .then((r) => r.json())
       .then(setData)
       .catch(() => {});
@@ -78,7 +76,7 @@ export default function MemoryPage() {
   async function reset() {
     setResetting(true);
     try {
-      const res = await fetch(`/api/memory?userId=${DEMO_USER}`, { method: "DELETE" });
+      const res = await fetch("/api/v3/memory", { method: "DELETE" });
       setData(await res.json());
     } finally {
       setResetting(false);
@@ -114,7 +112,7 @@ export default function MemoryPage() {
         </div>
         <Button variant="danger" size="sm" loading={resetting} onClick={reset}>
           <RotateCcw className="h-3.5 w-3.5" />
-          重置 Demo 记忆
+          重置我的记忆
         </Button>
       </motion.div>
 

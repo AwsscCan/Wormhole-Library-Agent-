@@ -14,6 +14,9 @@ import {
   advanceDraftArtifactStage,
   exportReviewedArtifact,
   persistCandidate,
+  confirmCandidate,
+  listCandidates,
+  resumeDraftArtifact,
   persistStage,
   resumeWriting,
 } from "@/lib/writing/repository";
@@ -161,6 +164,52 @@ export async function discoverWritingEvidence(input: {
   })));
 }
 
+export async function listWritingCandidates(input: { principal: CurrentPrincipal; sessionId: string }): Promise<WritingCandidateDto[]> {
+  await requireOwnedResearchSession(input.principal, input.sessionId);
+  return listCandidates(principalOwnerKey(input.principal), input.sessionId);
+}
+
+export async function confirmWritingEvidence(input: {
+  principal: CurrentPrincipal;
+  sessionId: string;
+  evidenceId: string;
+}): Promise<WritingCandidateDto | null> {
+  await requireOwnedResearchSession(input.principal, input.sessionId);
+  const confirmed = await confirmCandidate(
+    principalOwnerKey(input.principal),
+    input.sessionId,
+    input.evidenceId,
+  );
+  if (!confirmed) return null;
+  await requireWritingPorts().addEvidence({
+    principal: input.principal,
+    sessionId: input.sessionId,
+    evidenceId: confirmed.externalEvidenceId,
+  });
+  return confirmed;
+}
+
+export async function resumeEvidenceDraft(input: { principal: CurrentPrincipal; sessionId: string }) {
+  await requireOwnedResearchSession(input.principal, input.sessionId);
+  const ownerId = principalOwnerKey(input.principal);
+  const artifact = await resumeDraftArtifact(ownerId, input.sessionId);
+  if (!artifact) return null;
+  const candidates = await listCandidates(ownerId, input.sessionId);
+  const allowedIds = new Set(candidates.map((candidate) => candidate.externalEvidenceId));
+  const evidenceIds = [...new Set(
+    [...artifact.markdown.matchAll(/\[([^\]\r\n]+)\]/g)]
+      .map((match) => match[1])
+      .filter((evidenceId) => allowedIds.has(evidenceId)),
+  )];
+  return {
+    markdown: artifact.markdown,
+    citations: evidenceIds.map((evidenceId) => ({ evidenceId, marker: `[${evidenceId}]` })),
+    source: "restored" as const,
+    checkpointId: artifact.checkpoint.id,
+    stage: artifact.checkpoint.stage,
+  };
+}
+
 async function advanceToDraft(
   principal: CurrentPrincipal,
   sessionId: string,
@@ -238,6 +287,7 @@ export async function generateEvidenceDraft(input: {
       .map((evidenceId) => ({ evidenceId, marker: `[${evidenceId}]` })),
     source: generated ? "provider" : "deterministic",
     checkpointId: checkpoint.id,
+    stage: "draft",
   };
 }
 

@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Route } from "lucide-react";
 import type { WormholesResponse } from "@/lib/types";
 import type { SessionSearch } from "@/lib/research/types";
@@ -14,9 +15,11 @@ export default function ResearchExplorePage({ params }: {
   params: Promise<{ sessionId: string; interactionId: string }>;
 }) {
   const { sessionId, interactionId } = use(params);
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState<SessionSearch | null>(null);
   const [result, setResult] = useState<WormholesResponse | null>(null);
-  const [slider, setSlider] = useState(60);
+  const requestedSlider = Number(searchParams.get("slider"));
+  const [slider, setSlider] = useState(Number.isInteger(requestedSlider) && requestedSlider >= 0 && requestedSlider <= 100 ? requestedSlider : 60);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

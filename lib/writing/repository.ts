@@ -76,8 +76,6 @@ export async function persistCandidate(
       excerpt: item.excerpt,
       provenanceJson: JSON.stringify(provenance),
       url: item.url,
-      verificationStatus: "needs_review",
-      userConfirmedAt: null,
     },
   });
   return candidateDto(record);
@@ -85,13 +83,17 @@ export async function persistCandidate(
 
 export async function confirmCandidate(ownerId: string, sessionId: string, evidenceId: string) {
   const record = await getPrisma().writingEvidence.findFirst({
-    where: { id: evidenceId, ownerId, sessionId, verificationStatus: "needs_review" },
+    where: { id: evidenceId, ownerId, sessionId },
   });
   if (!record) return null;
+  if (record.verificationStatus === "verified" && record.userConfirmedAt) return candidateDto(record);
+  if (record.verificationStatus !== "needs_review") return null;
   const proof = JSON.parse(record.provenanceJson) as StoredProvenance;
   const hasSourceProof = proof.retrievedAt && proof.sourceKind;
   const hasMatchProof = proof.titleAuthorMatch === "matched" || proof.titleAuthorMatch === "partial";
-  const hasIdentityProof = hasMatchProof && Boolean(proof.authors?.length) && Boolean(proof.doi || record.url);
+  const hasStableIdentity = Boolean(proof.doi || record.url)
+    || (proof.sourceKind === "seed" && Boolean(proof.externalId));
+  const hasIdentityProof = hasMatchProof && Boolean(proof.authors?.length) && hasStableIdentity;
   if (!hasSourceProof || !hasIdentityProof) return null;
   const confirmed = await getPrisma().writingEvidence.update({
     where: { id: record.id },
@@ -111,6 +113,24 @@ export async function listVerifiedCandidates(ownerId: string, sessionId: string)
     orderBy: { createdAt: "asc" },
   });
   return records.map(candidateDto);
+}
+
+export async function listCandidates(ownerId: string, sessionId: string): Promise<WritingCandidateDto[]> {
+  const records = await getPrisma().writingEvidence.findMany({
+    where: { ownerId, sessionId },
+    orderBy: { createdAt: "asc" },
+  });
+  return records.map(candidateDto);
+}
+
+export async function resumeDraftArtifact(ownerId: string, sessionId: string): Promise<{ markdown: string; checkpoint: WritingCheckpoint } | null> {
+  const checkpoint = await resumeWriting(ownerId, sessionId);
+  if (!checkpoint || !["draft", "evidence_link", "human_review", "export"].includes(checkpoint.stage)) return null;
+  const artifact = await getPrisma().writingArtifact.findFirst({
+    where: { id: checkpoint.artifactId, ownerId, sessionId, stage: "draft" },
+  });
+  if (!artifact?.content.trim()) return null;
+  return { markdown: artifact.content, checkpoint };
 }
 
 function checkpointDto(checkpoint: {

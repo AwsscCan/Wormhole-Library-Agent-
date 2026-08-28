@@ -6,10 +6,35 @@ import { POST as act } from "@/app/api/research/sessions/[sessionId]/actions/rou
 import { POST as wormholes } from "@/app/api/research/sessions/[sessionId]/wormholes/route";
 import { GET as savedSearch } from "@/app/api/research/sessions/[sessionId]/searches/[interactionId]/route";
 import { clearCurrentPrincipalPortForTests } from "@/lib/research/principal";
+import { clearResearchSessionServiceForTests } from "@/lib/research/sessionStore";
+import { bindPackage01ServerPrincipal } from "@/lib/integration/package01Principal";
 
-afterEach(() => clearCurrentPrincipalPortForTests());
+afterEach(() => {
+  clearCurrentPrincipalPortForTests();
+  clearResearchSessionServiceForTests();
+});
 
 describe("all private research routes", () => {
+  it("persists a new guest principal on the first session response", async () => {
+    bindPackage01ServerPrincipal();
+    const created = await create(new Request("http://local/api/research/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ researchQuestion: "race-free guest workspace" }),
+    }));
+    expect(created.status).toBe(201);
+    const cookie = created.headers.get("set-cookie");
+    expect(cookie).toContain("wl_guest=");
+    const session = await created.json();
+
+    const action = await act(new Request(`http://local/api/research/sessions/${session.id}/actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie: cookie!.split(";", 1)[0] },
+      body: JSON.stringify({ action: "search", nodeId: "topic", topic: "AI Agent" }),
+    }), { params: Promise.resolve({ sessionId: session.id }) });
+    expect(action.status).toBe(200);
+  });
+
   it("return private, no-store even when the identity port is unavailable", async () => {
     const context = { params: Promise.resolve({ sessionId: "session-x" }) };
     const searchContext = { params: Promise.resolve({ sessionId: "session-x", interactionId: "interaction-x" }) };

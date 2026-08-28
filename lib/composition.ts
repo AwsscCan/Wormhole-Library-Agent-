@@ -7,8 +7,9 @@ import type { SessionResource } from "@/lib/research/types";
 import { getPrisma } from "@/lib/db/prisma";
 import { bindSourceTransparentCatalogAdapter } from "@/lib/federation/catalogPortAdapter";
 import { seedCatalogAdapter } from "@/lib/catalog/seedCatalogAdapter";
-import { defaultMemoryReadPort, bindMemoryReadPort, initMemoryStore } from "@/lib/research/memory";
-import { bindPackage04MemoryReadPort } from "@/lib/workbench/ports";
+import { extractConcepts } from "@/lib/concepts";
+import { defaultMemoryReadPort, bindMemoryReadPort, initMemoryStore, recordLearningEvent } from "@/lib/research/memory";
+import { bindExplorationEventPort, bindPackage04MemoryReadPort } from "@/lib/workbench/ports";
 import { installWritingPorts, writingPortsAreInstalled } from "@/lib/writing/ports";
 import type { EvidenceItem } from "@/lib/writing/types";
 
@@ -47,6 +48,23 @@ export async function ensureAppComposition(): Promise<void> {
   bindSourceTransparentCatalogAdapter();
   bindMemoryReadPort(defaultMemoryReadPort);
   bindPackage04MemoryReadPort(defaultMemoryReadPort);
+  bindExplorationEventPort({
+    async append(event) {
+      try {
+        await recordLearningEvent({
+          ownerId: event.ownerId,
+          sessionId: event.sessionId,
+          kind: "feedback",
+          resourceId: event.recommendationId,
+          rating: event.feedback === "too_far" ? "not_relevant" : event.feedback,
+          at: event.occurredAt,
+        });
+        return { accepted: true };
+      } catch {
+        return { accepted: false };
+      }
+    },
+  });
 
   if (!composition.__wormholeAppCompositionReady) {
     composition.__wormholeAppCompositionReady = true;
@@ -116,8 +134,10 @@ export async function ensureAppComposition(): Promise<void> {
       }
     },
     async discover({ researchQuestion }) {
+      const { concepts } = await extractConcepts(researchQuestion);
       const resources = await seedCatalogAdapter.searchCatalog({
         query: researchQuestion,
+        conceptIds: concepts.map((concept) => concept.id),
         limit: 12,
         taskType: "research",
       });
@@ -136,6 +156,9 @@ export async function ensureAppComposition(): Promise<void> {
         },
         verificationStatus: "needs_review",
       }));
+    },
+    async addEvidence({ principal, sessionId, evidenceId }) {
+      await getResearchSessionService().addEvidence(ownerKey(principal), sessionId, evidenceId);
     },
   });
 }

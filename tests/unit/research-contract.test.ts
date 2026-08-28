@@ -36,6 +36,8 @@ describe("research workspace contracts", () => {
   it("validates editable graph state and node actions", () => {
     expect(graphUpdateSchema.safeParse({ expectedVersion: 0, nodeOverrides: {}, hiddenSystemEdgeIds: [], personalEdges: [] }).success).toBe(true);
     expect(nodeActionSchema.safeParse({ action: "search", nodeId: "topic", topic: "RAG" }).success).toBe(true);
+    expect(nodeActionSchema.safeParse({ action: "search", nodeId: "topic", topic: "RAG", taskType: "project", level: "graduate", sliderValue: 72 }).success).toBe(true);
+    expect(nodeActionSchema.safeParse({ action: "search", nodeId: "topic", topic: "RAG", sliderValue: 101 }).success).toBe(false);
     expect(nodeActionSchema.safeParse({ action: "library", nodeId: "topic", topic: "" }).success).toBe(false);
   });
 

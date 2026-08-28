@@ -1,8 +1,19 @@
 import { NextResponse } from "next/server";
+import { guestCookieHeader, type CurrentPrincipal } from "@/lib/auth/principal";
 import { ResearchError } from "./types";
 
 const PRIVATE_HEADERS = { "Cache-Control": "private, no-store" };
-export function privateJson(body: unknown, status = 200) { return NextResponse.json(body, { status, headers: PRIVATE_HEADERS }); }
+export function privateJson(
+  body: unknown,
+  status = 200,
+  principal?: CurrentPrincipal,
+  request?: Request,
+) {
+  const response = NextResponse.json(body, { status, headers: PRIVATE_HEADERS });
+  const cookie = principal && guestCookieHeader(principal, request);
+  if (cookie) response.headers.append("Set-Cookie", cookie);
+  return response;
+}
 const messages: Record<ResearchError["code"], string> = {
   NOT_FOUND: "Research session not found", CONFLICT: "Research workspace changed concurrently",
   BAD_REQUEST: "Invalid research workspace request", EXPIRED_INTERACTION: "Legacy interaction expired",

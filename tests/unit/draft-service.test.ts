@@ -26,6 +26,7 @@ describe("generateEvidenceDraft", () => {
         userConfirmedAt: evidenceId === "candidate-unverified" ? undefined : "2026-08-24T00:00:00.000Z",
       }),
       discover: async () => [],
+      addEvidence: async () => undefined,
     });
 
     await expect(generateEvidenceDraft({ principal: guest("a"), sessionId: "s1", focus: "methods", evidenceIds: ["candidate-unverified", "e1", "e2"] }))
@@ -45,6 +46,7 @@ describe("generateEvidenceDraft", () => {
         userConfirmedAt: "2026-08-24T00:00:00.000Z",
       }),
       discover: async () => [],
+      addEvidence: async () => undefined,
     });
     await expect(generateEvidenceDraft({ principal: guest("a"), sessionId: "s1", focus: "methods", evidenceIds: ["e1", "e2", "outside"] }))
       .rejects.toMatchObject({ code: "BAD_REQUEST" });

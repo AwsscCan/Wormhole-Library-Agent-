@@ -67,6 +67,21 @@ describe("writing Prisma persistence", () => {
       id: stored.id,
       verificationStatus: "verified",
     });
+    await expect(repo.confirmCandidate("owner-a", "s1", stored.id)).resolves.toMatchObject({
+      id: stored.id,
+      verificationStatus: "verified",
+    });
+
+    const rediscovered = await repo.persistCandidate("owner-a", "s1", {
+      ...candidate,
+      excerpt: "Updated source excerpt.",
+    });
+    expect(rediscovered).toMatchObject({
+      id: stored.id,
+      excerpt: "Updated source excerpt.",
+      verificationStatus: "verified",
+    });
+    expect(rediscovered.userConfirmedAt).toBeTruthy();
   });
 
   it("refuses confirmation when title and author match proof is absent", async () => {
@@ -83,6 +98,28 @@ describe("writing Prisma persistence", () => {
       verificationStatus: "needs_review",
     });
     await expect(repo.confirmCandidate("owner-a", "s-proof", stored.id)).resolves.toBeNull();
+  });
+
+  it("accepts a server-owned seed identity without pretending it has an external URL", async () => {
+    const stored = await repo.persistCandidate("owner-a", "s-seed", {
+      id: "seed-paper-1",
+      title: "Seed paper",
+      excerpt: "Locally curated evidence.",
+      authors: ["Curator"],
+      titleAuthorMatch: "partial",
+      provenance: {
+        sourceKind: "seed",
+        sourceLabel: "本地种子",
+        retrievedAt: "2026-08-24T00:00:00.000Z",
+        externalId: "seed-paper-1",
+      },
+      verificationStatus: "needs_review",
+    });
+
+    await expect(repo.confirmCandidate("owner-a", "s-seed", stored.id)).resolves.toMatchObject({
+      verificationStatus: "verified",
+      externalEvidenceId: "seed-paper-1",
+    });
   });
 
   it("advances one server-owned draft artifact through review and returns only its reviewed Markdown", async () => {

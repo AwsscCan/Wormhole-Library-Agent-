@@ -211,3 +211,16 @@ F-004 语义分数只靠共享 token；F-005 无身份/持久化/P05 DTO。
 - `ensureAppComposition()` 继续保留 P01/P02/P05/Writing 组合，同时新增 P04 `initMemoryStore()` 恢复与 `defaultMemoryReadPort` 绑定。
 - `prisma/schema.prisma` 显式包含 `MemorySnapshot`，保证 `migrate deploy` 与 `migrate diff` 对齐。
 - 新增 `tests/unit/app-composition.test.ts`，证明启动组合层后 P01 principal、P02 catalog 与 P04→P05 memory 端口都可消费。
+
+## 11. 主 Web 流程可用性收尾（2026-08-29）
+
+用户浏览器验收发现旧首页仍进入易失的 `/api/search -> /explore/[interactionId]`，且认证和写作只有后端接口、没有完整用户入口。本次收尾完成：
+
+- 首页改走持久化 `ResearchSession`，深链刷新和 Next.js 服务重启后仍可恢复检索并继续生成虫洞。
+- 新增 `/auth`、导航身份状态和退出入口；Better Auth 注册/登录 Prisma 集成测试继续通过。
+- 写作工作台接通 session、候选发现、人工确认、证据篮、Provider preset、草稿、证据回链、人工复核、导出和 checkpoint 恢复。
+- 写作端口使用 `globalThis` 进程注册表，避免生产 bundle 中 instrumentation 与 API route 模块实例不共享。
+- 记忆页切换到 `/api/v3/memory`，按服务端当前 principal 隔离，不再固定 `demo-user`。
+- README 与 `.env.example` 更新为数据库和认证均必需的真实启动说明。
+
+浏览器和自动化证据见 `docs/FINAL-ACCEPTANCE-2026-08-29.md`。活馆藏与 V1 路径仍按该报告“诚实边界”处理，不应宣称为完整生产通讯系统。

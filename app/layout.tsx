@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { TopNav } from "@/components/TopNav";
+import { PrincipalBootstrap } from "@/components/auth/PrincipalBootstrap";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,8 +13,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh">
       <body className="min-h-screen font-sans">
-        <TopNav />
-        <main className="mx-auto max-w-[1400px] px-5 pb-16 pt-6">{children}</main>
+        <PrincipalBootstrap>
+          <TopNav />
+          <main className="mx-auto max-w-[1400px] px-5 pb-16 pt-6">{children}</main>
+        </PrincipalBootstrap>
       </body>
     </html>
   );

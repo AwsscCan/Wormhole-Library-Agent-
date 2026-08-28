@@ -6,16 +6,53 @@ import { NoteEditor } from "@/components/notes/NoteEditor";
 import { SafeMarkdown } from "@/components/notes/SafeMarkdown";
 import { ProviderSettings } from "@/components/settings/ProviderSettings";
 import WritingPage from "@/app/writing/page";
+import { PrincipalBootstrap } from "@/components/auth/PrincipalBootstrap";
 
 const note = { id: "note-1", title: "Private note", markdown: "body", version: 1, updatedAt: "2026-08-24T00:00:00.000Z" };
 const provider = { id: "provider-1", name: "Safe provider", baseUrl: "https://provider.example", model: "model-1", wireApi: "chat_completions", hasApiKey: true };
 const writingPreset = { id: "preset-owner-1", name: "Evidence writer", providerId: "provider-1", model: "model-1", temperature: 0.2, maxTokens: 600 };
+const writingSession = {
+  id: "session-1", ownerId: "guest:test", researchQuestion: "Methods question", writingTopic: "Methods",
+  interactionIds: [], evidenceIds: ["e1", "e2", "e3"], searches: [], wormholes: [],
+  personalGraph: { schemaVersion: 1, version: 0, nodeOverrides: {}, hiddenSystemEdgeIds: [], personalEdges: [] },
+  revision: 0, createdAt: "2026-08-24T00:00:00.000Z", updatedAt: "2026-08-24T00:00:00.000Z",
+};
+const writingCandidates = ["e1", "e2", "e3"].map((id) => ({
+  id: `candidate-${id}`, externalEvidenceId: id, title: `Evidence ${id}`, excerpt: `Finding ${id}.`,
+  authors: ["Researcher"], provenance: { sourceLabel: "OpenAlex", retrievedAt: "2026-08-24T00:00:00.000Z" },
+  verificationStatus: "verified", userConfirmedAt: "2026-08-24T00:00:00.000Z",
+}));
 const roots: Root[] = [];
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 function json(body: unknown) {
   return { ok: true, json: async () => body } as Response;
+}
+
+function writingFetch(options: {
+  presets?: typeof writingPreset[];
+  draft?: Response | (() => Response | Promise<Response>);
+  review?: (body: { stage: string }) => Response | Promise<Response>;
+  exportResponse?: Response;
+} = {}) {
+  return vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const url = String(input);
+    const method = init.method ?? "GET";
+    if (url === "/api/research/sessions") return json({ sessions: [writingSession] });
+    if (url === "/api/v3/model-presets") return json(options.presets ?? []);
+    if (url === "/api/research/sessions/session-1") return json({ session: writingSession });
+    if (url.startsWith("/api/v3/writing/candidates?") && method === "GET") return json(writingCandidates);
+    if (url.startsWith("/api/v3/writing/drafts?") && method === "GET") return json(null);
+    if (url === "/api/v3/writing/drafts" && method === "POST") {
+      return typeof options.draft === "function" ? options.draft() : options.draft ?? json(null);
+    }
+    if (url === "/api/v3/writing/review" && method === "POST") {
+      return options.review?.(JSON.parse(String(init.body))) ?? json({ stage: "evidence_link" });
+    }
+    if (url === "/api/v3/writing/export" && method === "POST") return options.exportResponse ?? json(null);
+    throw new Error(`Unexpected writing request: ${method} ${url}`);
+  });
 }
 
 async function render(element: ReactElement) {
@@ -63,6 +100,18 @@ afterEach(async () => {
 });
 
 describe("workspace UI rejected-fetch recovery", () => {
+  it("does not mount private workspace children until the guest cookie bootstrap completes", async () => {
+    let resolvePrincipal!: (response: Response) => void;
+    const principalResponse = new Promise<Response>((resolve) => { resolvePrincipal = resolve; });
+    vi.stubGlobal("fetch", vi.fn(() => principalResponse));
+    const container = await render(createElement(PrincipalBootstrap, null, createElement("div", null, "private workspace")));
+    expect(container.textContent).not.toContain("private workspace");
+
+    await act(async () => { resolvePrincipal(json({ principal: { id: "guest-1", mode: "guest" } })); await principalResponse; });
+    await settle();
+    expect(container.textContent).toContain("private workspace");
+  });
+
   it("shows a recovery message when private-note initial loading rejects", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
     const container = await render(createElement(NoteEditor));
@@ -145,13 +194,13 @@ describe("workspace UI security behavior", () => {
   });
 
   it("shows the safe dependency message for writing 503", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503 } as Response));
+    const unavailable = { ok: false, status: 503, json: async () => ({ error: { code: "DEPENDENCY_UNAVAILABLE" } }) } as Response;
+    vi.stubGlobal("fetch", writingFetch({ draft: unavailable }));
     const container = await render(createElement(WritingPage));
+    await settle();
     const inputs = [...container.querySelectorAll("input")];
-    await setInput(inputs[0], "session-1");
-    await setInput(inputs[1], "Methods");
-    await setInput(container.querySelector("textarea")!, "e1,e2,e3");
-    await click(container, "生成有证据草稿", true);
+    await setInput(inputs[0], "Methods");
+    await click(container, "生成本节草稿", true);
     await settle();
     expect(container.textContent).toContain("写作证据端口尚未接入");
   });
@@ -162,10 +211,9 @@ describe("workspace UI security behavior", () => {
       citations: ["e1", "e2", "e3"].map((evidenceId) => ({ evidenceId, marker: `[${evidenceId}]` })),
       source: "provider",
       checkpointId: "provider-draft-checkpoint",
+      stage: "draft",
     };
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(json([writingPreset]))
-      .mockResolvedValueOnce(json(generated));
+    const fetchMock = writingFetch({ presets: [writingPreset], draft: json(generated) });
     vi.stubGlobal("fetch", fetchMock);
     const container = await render(createElement(WritingPage));
     await settle();
@@ -175,15 +223,12 @@ describe("workspace UI security behavior", () => {
     expect(select?.textContent).toContain("Evidence writer");
     await setSelect(select!, writingPreset.id);
     const inputs = [...container.querySelectorAll("input")];
-    await setInput(inputs[0], "session-1");
-    await setInput(inputs[1], "Methods");
-    await setInput(container.querySelector("textarea")!, "e1,e2,e3");
-    await click(container, "生成有证据草稿", true);
+    await setInput(inputs[0], "Methods");
+    await click(container, "生成本节草稿", true);
     await settle();
 
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/v3/model-presets");
-    expect(fetchMock.mock.calls[1][0]).toBe("/api/v3/writing/drafts");
-    expect(JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body))).toEqual({
+    const draftCall = fetchMock.mock.calls.find(([url, init]) => url === "/api/v3/writing/drafts" && (init as RequestInit).method === "POST")!;
+    expect(JSON.parse(String((draftCall[1] as RequestInit).body))).toEqual({
       sessionId: "session-1",
       focus: "Methods",
       evidenceIds: ["e1", "e2", "e3"],
@@ -199,16 +244,16 @@ describe("workspace UI security behavior", () => {
       citations: ["e1", "e2", "e3"].map((evidenceId) => ({ evidenceId, marker: `[${evidenceId}]` })),
       source: "deterministic",
       checkpointId: "draft-checkpoint",
+      stage: "draft",
     };
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(json([]))
-      .mockResolvedValueOnce(json(generated))
-      .mockResolvedValueOnce(json({ stage: "evidence_link" }))
-      .mockResolvedValueOnce(json({ stage: "human_review" }))
-      .mockResolvedValueOnce(new Response("# Server-reviewed export", {
+    const fetchMock = writingFetch({
+      draft: json(generated),
+      review: (body) => json({ stage: body.stage }),
+      exportResponse: new Response("# Server-reviewed export", {
         status: 200,
         headers: { "content-type": "text/markdown" },
-      }));
+      }),
+    });
     vi.stubGlobal("fetch", fetchMock);
     const createObjectUrl = vi.fn().mockReturnValue("blob:reviewed-export");
     const revokeObjectUrl = vi.fn();
@@ -216,32 +261,36 @@ describe("workspace UI security behavior", () => {
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectUrl });
     const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     const container = await render(createElement(WritingPage));
+    await settle();
     const inputs = [...container.querySelectorAll("input")];
-    await setInput(inputs[0], "session-1");
-    await setInput(inputs[1], "Methods");
-    await setInput(container.querySelector("textarea")!, "e1,e2,e3");
-    await click(container, "生成有证据草稿", true);
+    await setInput(inputs[0], "Methods");
+    await click(container, "生成本节草稿", true);
     await settle();
 
-    expect([...container.querySelectorAll("button")].some((button) => button.textContent === ".md")).toBe(false);
+    expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("导出 Markdown"))).toBe(false);
     await click(container, "建立证据回链", true);
     await settle();
     await click(container, "确认人工复核", true);
     await settle();
-    await click(container, ".md", true);
+    await click(container, "导出 Markdown");
     await settle();
 
-    expect(fetchMock.mock.calls.slice(2).map(([url]) => url)).toEqual([
+    const workflowCalls = fetchMock.mock.calls.filter(([url]) => [
+      "/api/v3/writing/review",
+      "/api/v3/writing/export",
+    ].includes(String(url)));
+    expect(workflowCalls.map(([url]) => url)).toEqual([
       "/api/v3/writing/review",
       "/api/v3/writing/review",
       "/api/v3/writing/export",
     ]);
-    expect(JSON.parse(String((fetchMock.mock.calls[3][1] as RequestInit).body))).toMatchObject({
+    expect(JSON.parse(String((workflowCalls[1][1] as RequestInit).body))).toMatchObject({
       sessionId: "session-1",
       stage: "human_review",
       confirmed: true,
     });
-    const draftRequest = JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body)) as Record<string, unknown>;
+    const draftCall = fetchMock.mock.calls.find(([url, init]) => url === "/api/v3/writing/drafts" && (init as RequestInit).method === "POST")!;
+    const draftRequest = JSON.parse(String((draftCall[1] as RequestInit).body)) as Record<string, unknown>;
     expect(draftRequest).not.toHaveProperty("stepPresetId");
     const exportedBlob = createObjectUrl.mock.calls[0][0] as Blob;
     const exportedText = await new Promise<string>((resolve, reject) => {

@@ -39,6 +39,26 @@ describe("ResearchWorkspace closed loop", () => {
     expect(restored.searches[0].resources[0].id).toBe("paper-1");
   });
 
+  it("passes navigation preferences into search and preserves the slider in the deep link", async () => {
+    const { sessions, workspace, search } = setup();
+    const session = await sessions.create("member:alice", { researchQuestion: "Preference-aware search" });
+    const result = await workspace.act("member:alice", session.id, {
+      action: "search",
+      nodeId: "topic",
+      topic: "RAG",
+      taskType: "project",
+      level: "graduate",
+      sliderValue: 72,
+    });
+
+    expect(search).toHaveBeenCalledWith(expect.objectContaining({
+      taskType: "project",
+      level: "graduate",
+      sliderValue: 72,
+    }));
+    expect(result.href).toBe(`/research/${session.id}/explore/int-42?slider=72`);
+  });
+
   it("returns a truthful source failure instead of an empty result", async () => {
     const { sessions, workspace, library } = setup();
     const session = await sessions.create("guest:one", { researchQuestion: "Source resilience" });
