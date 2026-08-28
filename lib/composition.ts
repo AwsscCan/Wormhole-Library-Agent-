@@ -7,6 +7,7 @@ import type { SessionResource } from "@/lib/research/types";
 import { getPrisma } from "@/lib/db/prisma";
 import { bindSourceTransparentCatalogAdapter } from "@/lib/federation/catalogPortAdapter";
 import { searchCatalogGateway } from "@/lib/catalog/gateway";
+import { seedCatalogAdapter } from "@/lib/catalog/seedCatalogAdapter";
 import { extractConcepts } from "@/lib/concepts";
 import { defaultMemoryReadPort, bindMemoryReadPort, initMemoryStore, recordLearningEvent } from "@/lib/research/memory";
 import { bindExplorationEventPort, bindPackage04MemoryReadPort } from "@/lib/workbench/ports";
@@ -134,10 +135,17 @@ export async function ensureAppComposition(): Promise<void> {
       }
     },
     async discover({ researchQuestion }) {
+      const { concepts } = await extractConcepts(researchQuestion);
       const result = await searchCatalogGateway({ query: researchQuestion, limit: 12 }, {
         includeOpenAlex: process.env.OPENALEX_DISABLED !== "1",
         includeOpenLibrary: process.env.OPENLIBRARY_DISABLED !== "1",
         includeSeed: true,
+        seedSearch: (query) => seedCatalogAdapter.searchCatalog({
+          query: query.topic,
+          conceptIds: concepts.map((concept) => concept.id),
+          limit: query.limit,
+          taskType: "research",
+        }),
       });
       return result.records.map((resource): EvidenceItem => ({
         id: resource.id,

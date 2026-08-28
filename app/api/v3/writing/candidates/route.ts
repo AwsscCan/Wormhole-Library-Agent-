@@ -13,6 +13,7 @@ import {
   rejectWritingUserId,
   requireWritingPrincipal,
 } from "@/lib/writing/routeSupport";
+import { ensureAppComposition } from "@/lib/composition";
 
 function failure(error: unknown, principal: import("@/lib/auth/principal").CurrentPrincipal) {
   if (error instanceof WritingDependencyUnavailableError) {
@@ -26,6 +27,7 @@ function failure(error: unknown, principal: import("@/lib/auth/principal").Curre
 }
 
 export async function POST(request: Request) {
+  if (process.env.NODE_ENV !== "test") await ensureAppComposition();
   const rejected = rejectWritingUserId(request);
   if (rejected) return rejected;
   const principal = await requireWritingPrincipal(request);
@@ -41,6 +43,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  if (process.env.NODE_ENV !== "test") await ensureAppComposition();
   const rejected = rejectWritingUserId(request);
   if (rejected) return rejected;
   const principal = await requireWritingPrincipal(request);
@@ -53,6 +56,7 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  if (process.env.NODE_ENV !== "test") await ensureAppComposition();
   const rejected = rejectWritingUserId(request);
   if (rejected) return rejected;
   const principal = await requireWritingPrincipal(request);

@@ -4,7 +4,7 @@
  * 不做社交软件头像风——这是"活馆藏档案"，不是好友推荐。
  */
 import { useState } from "react";
-import { UserRound, Archive, ShieldCheck, Send } from "lucide-react";
+import { UserRound, Archive, ShieldCheck, MessageCircleMore } from "lucide-react";
 import type { LivingBookCard as LivingBookCardData } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,15 +21,21 @@ export function LivingBookCard({
   livingBook,
   userId,
   className,
+  onConversation,
 }: {
   livingBook: LivingBookCardData;
   userId: string;
   className?: string;
+  onConversation?: (livingBook: LivingBookCardData) => void;
 }) {
   const [state, setState] = useState<"idle" | "sending" | "pending">("idle");
   const anonymous = livingBook.displayMode !== "named" || !livingBook.displayName;
 
   async function requestContact() {
+    if (onConversation) {
+      onConversation(livingBook);
+      return;
+    }
     setState("sending");
     try {
       await fetch("/api/contact-requests", {
@@ -110,7 +116,7 @@ export function LivingBookCard({
             onClick={requestContact}
             className="shrink-0"
           >
-            <Send className="h-3 w-3" />
+            <MessageCircleMore className="h-3 w-3" />
             匿名请求交流
           </Button>
         )}

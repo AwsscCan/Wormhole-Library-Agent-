@@ -404,3 +404,65 @@ model MemorySnapshot {
   snapshotJson String
   updatedAt    DateTime @default(now())
 }
+
+
+/// A consent-gated discussion between a workspace owner and a Living Book.
+/// Owner keys use the existing member:/guest: convention rather than browser
+/// supplied user ids, so guest workspaces remain isolated too.
+model LivingBookConversation {
+  id                  String                    @id @default(cuid())
+  requesterOwnerId    String
+  livingBookId        String
+  status              String                    @default("pending")
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  messages            LivingBookMessage[]
+  sharedResources     LivingBookSharedResource[]
+  assetGrants         LivingBookAssetGrant[]
+
+  @@index([requesterOwnerId, updatedAt])
+  @@index([livingBookId, status])
+}
+
+model LivingBookMessage {
+  id             String                  @id @default(cuid())
+  conversationId String
+  senderRole     String
+  body           String
+  createdAt      DateTime                @default(now())
+  conversation   LivingBookConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+/// Links are shared as provenance-bearing reading-list entries. They are not
+/// scraped or dereferenced by this route, which avoids turning sharing into a
+/// server-side fetch primitive.
+model LivingBookSharedResource {
+  id             String                  @id @default(cuid())
+  conversationId String
+  sharedByRole   String
+  title          String
+  url            String
+  sourceLabel    String?
+  createdAt      DateTime                @default(now())
+  conversation   LivingBookConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+/// Private assets are granted by reference and can be revoked independently
+/// from the conversation. The asset table arrives in the knowledge-assets
+/// migration, so this deliberately has no premature foreign key.
+model LivingBookAssetGrant {
+  id             String                  @id @default(cuid())
+  conversationId String
+  assetReference String
+  grantedByRole  String
+  revokedAt      DateTime?
+  createdAt      DateTime                @default(now())
+  conversation   LivingBookConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, assetReference])
+  @@index([conversationId, revokedAt])
+}

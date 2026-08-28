@@ -10,6 +10,7 @@ import type { LivingBookCard as LivingBookCardData } from "@/lib/types";
 import { Panel, PanelHeader, PanelBody } from "@/components/ui/panel";
 import { Button } from "@/components/ui/button";
 import { LivingBookCard } from "@/components/LivingBookCard";
+import { ConversationPanel } from "@/components/living-library/ConversationPanel";
 import livingBooksSeed from "@/data/seed-living-books.json";
 
 const DEMO_USER = "demo-user";
@@ -17,6 +18,7 @@ const DEMO_USER = "demo-user";
 export default function LivingLibraryPage() {
   const [optIn, setOptIn] = useState(false);
   const [books, setBooks] = useState<LivingBookCardData[]>([]);
+  const [selectedBook, setSelectedBook] = useState<LivingBookCardData | null>(null);
 
   useEffect(() => {
     // 骨架期直接读 seed 中 consent 允许的数据（与 fallback engine 同一 consent 规则）
@@ -55,7 +57,7 @@ export default function LivingLibraryPage() {
         </p>
       </motion.div>
 
-      <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_360px]">
         <Panel className="self-start">
           <PanelHeader icon={BookUser} title="my volume · 我的档案" accent="copper" />
           <PanelBody className="space-y-3 pt-3">
@@ -94,11 +96,12 @@ export default function LivingLibraryPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
               >
-                <LivingBookCard livingBook={lb} userId={DEMO_USER} />
+                <LivingBookCard livingBook={lb} userId={DEMO_USER} onConversation={setSelectedBook} />
               </motion.div>
             ))}
           </PanelBody>
         </Panel>
+        <ConversationPanel livingBook={selectedBook} onClose={() => setSelectedBook(null)} />
       </div>
     </div>
   );
