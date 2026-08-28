@@ -7,12 +7,21 @@ export type SourceProvenance = {
   retrievedAt: string;
   externalId?: string;
 };
-export type SourceTransparentResource = ResourceCard & { provenance: SourceProvenance };
+export type SourceTransparentResource = ResourceCard & {
+  provenance: SourceProvenance;
+  additionalProvenance?: SourceProvenance[];
+};
+export type CatalogSourceStatus = {
+  kind: SourceProvenance["sourceKind"];
+  label: string;
+  status: "success" | "empty" | "failed" | "disabled";
+};
 export type TopicLibraryResult = {
   resources: SourceTransparentResource[];
   sourceStatus: "live" | "partial" | "unavailable";
   degraded: boolean;
   message?: string;
+  sources?: CatalogSourceStatus[];
 };
 
 export type GraphPosition = { x: number; y: number };

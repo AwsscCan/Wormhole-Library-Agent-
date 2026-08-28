@@ -1,11 +1,12 @@
 import "server-only";
 import type { CurrentPrincipal } from "@/lib/auth/principal";
 import { bindPackage01ServerPrincipal } from "@/lib/integration/package01Principal";
-import { seedCatalogAdapter } from "@/lib/catalog/seedCatalogAdapter";
 import { principalOwnerKey } from "@/lib/research/principal";
 import { getResearchSessionService } from "@/lib/research/sessionStore";
 import type { SessionResource } from "@/lib/research/types";
 import { getPrisma } from "@/lib/db/prisma";
+import { bindSourceTransparentCatalogAdapter } from "@/lib/federation/catalogPortAdapter";
+import { seedCatalogAdapter } from "@/lib/catalog/seedCatalogAdapter";
 import { installWritingPorts, writingPortsAreInstalled } from "@/lib/writing/ports";
 import type { EvidenceItem } from "@/lib/writing/types";
 
@@ -39,6 +40,7 @@ function resourceEvidence(resource: SessionResource): EvidenceItem {
 
 export function ensureAppComposition(): void {
   bindPackage01ServerPrincipal();
+  bindSourceTransparentCatalogAdapter();
   if (writingPortsAreInstalled()) return;
 
   installWritingPorts({
