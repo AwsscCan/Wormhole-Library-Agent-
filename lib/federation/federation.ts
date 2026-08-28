@@ -12,7 +12,7 @@ import type { ResourceCard } from "@/lib/types";
 import { dedupeCandidates, type DedupeCandidate } from "./dedupe";
 import { searchOpenAlexFederated, type OpenAlexFederatedOptions } from "./openAlexFederated";
 import { searchOpenLibrary, type OpenLibraryAdapterOptions } from "./openLibraryAdapter";
-import type { FederationFailure, FederationResult } from "./types";
+import type { FederationFailure, FederationResult, SourceOutcome } from "./types";
 
 /** seed 检索函数签名（默认接 seedCatalogAdapter，测试可注入） */
 export type SeedSearch = (query: {
@@ -89,38 +89,58 @@ export async function federateSearch(
   const limit = query.limit ?? 12;
   const retrievedAt = now();
 
+  // 逐源结局矩阵：disabled 先记（未启用的源），成功/空/失败在各自 fan-out 里补。
+  const outcomes: SourceOutcome[] = [];
+  if (!includeOpenAlex) outcomes.push({ kind: "openalex", status: "disabled" });
+  if (!includeOpenLibrary) outcomes.push({ kind: "openlibrary", status: "disabled" });
+  if (!includeSeed) outcomes.push({ kind: "seed", status: "disabled" });
+
   const tasks: Array<Promise<{ candidates: DedupeCandidate[]; failure?: FederationFailure }>> = [];
   if (includeOpenAlex) {
     // OpenAlex：主源（国内直连）
     tasks.push(
-      searchOpenAlexFederated({ topic: query.topic, limit }, { ...openAlex, now }).then(
-        (res) => (res.ok ? { candidates: [...res.candidates] } : { candidates: [], failure: res.failure }),
-      ),
+      searchOpenAlexFederated({ topic: query.topic, limit }, { ...openAlex, now }).then((res) => {
+        if (res.ok) {
+          outcomes.push({ kind: "openalex", status: res.candidates.length > 0 ? "success" : "empty" });
+          return { candidates: [...res.candidates] };
+        }
+        outcomes.push({ kind: "openalex", status: "failed" });
+        return { candidates: [], failure: res.failure };
+      }),
     );
   }
   if (includeOpenLibrary) {
     // Open Library：被墙，失败常见——失败如实上报
     tasks.push(
-      searchOpenLibrary({ topic: query.topic, limit }, { ...openLibrary, now }).then(
-        (res) => (res.ok ? { candidates: [...res.candidates] } : { candidates: [], failure: res.failure }),
-      ),
+      searchOpenLibrary({ topic: query.topic, limit }, { ...openLibrary, now }).then((res) => {
+        if (res.ok) {
+          outcomes.push({ kind: "openlibrary", status: res.candidates.length > 0 ? "success" : "empty" });
+          return { candidates: [...res.candidates] };
+        }
+        outcomes.push({ kind: "openlibrary", status: "failed" });
+        return { candidates: [], failure: res.failure };
+      }),
     );
   }
   if (includeSeed) {
     tasks.push(
       seedSearch({ topic: query.topic, limit })
-        .then((cards) => ({
-          candidates: cards.map((c) => seedCardToCandidate(c, retrievedAt)),
-        }))
-        .catch((error: unknown) => ({
-          candidates: [] as DedupeCandidate[],
+        .then((cards) => {
+          outcomes.push({ kind: "seed", status: cards.length > 0 ? "success" : "empty" });
+          return { candidates: cards.map((c) => seedCardToCandidate(c, retrievedAt)) };
+        })
+        .catch((error: unknown) => {
+          outcomes.push({ kind: "seed", status: "failed" });
           // seed 失败极罕见（纯本地），但也不撒谎
-          failure: {
-            kind: "unreachable" as const,
-            source: "seed" as const,
-            message: error instanceof Error ? error.message : String(error),
-          },
-        })),
+          return {
+            candidates: [] as DedupeCandidate[],
+            failure: {
+              kind: "unreachable" as const,
+              source: "seed" as const,
+              message: error instanceof Error ? error.message : String(error),
+            },
+          };
+        }),
     );
   }
 
@@ -136,5 +156,6 @@ export async function federateSearch(
     items,
     failures,
     degraded: items.length === 0 && failures.length > 0,
+    sourceOutcomes: outcomes,
   };
 }

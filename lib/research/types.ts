@@ -7,12 +7,27 @@ export type SourceProvenance = {
   retrievedAt: string;
   externalId?: string;
 };
-export type SourceTransparentResource = ResourceCard & { provenance: SourceProvenance };
+export type SourceTransparentResource = ResourceCard & {
+  provenance: SourceProvenance;
+  /** 多来源记录的附加来源（主来源是 `provenance`，这里诚实列出其余来源）。 */
+  additionalProvenance?: SourceProvenance[];
+};
+
+/** 单个馆藏来源的可用性状态 —— 来源透明度状态矩阵的一格。 */
+export type SourceStatusDetail = "success" | "empty" | "failed" | "disabled";
+export type CatalogSourceStatus = {
+  kind: SourceProvenance["sourceKind"];
+  label: string;
+  status: SourceStatusDetail;
+};
+
 export type TopicLibraryResult = {
   resources: SourceTransparentResource[];
   sourceStatus: "live" | "partial" | "unavailable";
   degraded: boolean;
   message?: string;
+  /** 逐来源状态矩阵（package 02 → package 05 契约）。 */
+  sources?: CatalogSourceStatus[];
 };
 
 export type GraphPosition = { x: number; y: number };

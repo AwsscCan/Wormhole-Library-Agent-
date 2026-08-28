@@ -62,6 +62,18 @@ export interface EvidenceItem {
 }
 
 /**
+ * 单个源在本轮扇出中的结局 —— 来源透明度状态矩阵的原料。
+ *  - success：该源返回了 ≥1 条候选
+ *  - empty：该源成功响应但 0 条候选（合法的"无结果"，不是失败）
+ *  - failed：该源 unreachable / rate_limited / parse_error
+ *  - disabled：该源本轮未启用（环境开关 / options 关闭）
+ */
+export type SourceOutcome = {
+  kind: SourceKind;
+  status: "success" | "empty" | "failed" | "disabled";
+};
+
+/**
  * 联邦查询结果 —— 全值传递，调用方自行决定怎么处理 failures。
  * 这是 orchestrator 与 federation 之间的契约：federation 永不抛异常。
  */
@@ -70,6 +82,8 @@ export interface FederationResult {
   failures: readonly FederationFailure[];
   /** 全失败判定：failures.length 等于本轮扇出的源数，且 items 为空 */
   degraded: boolean;
+  /** 逐源结局矩阵（package 02 → package 05 的来源透明度契约） */
+  sourceOutcomes?: readonly SourceOutcome[];
 }
 
 /** 联邦层的源描述（编排器扇出时使用，未来可能按健康度过滤） */
