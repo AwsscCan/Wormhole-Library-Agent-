@@ -25,6 +25,7 @@ describe("standard Prisma deployment chain", () => {
   it("contains a provider lock and deploys all migrations into an empty SQLite database", () => {
     expect(existsSync(path.join(process.cwd(), "prisma/migrations/migration_lock.toml"))).toBe(true);
     expect(readFileSync(path.join(process.cwd(), "prisma/schema.prisma"), "utf8")).toContain("model ExplorationWorkbench");
+    expect(readFileSync(path.join(process.cwd(), "prisma/schema.prisma"), "utf8")).toContain("model MemorySnapshot");
     const filename = `deploy-${process.pid}-${Date.now()}.db`;
     const shadowFilename = `shadow-${process.pid}-${Date.now()}.db`;
     const databasePath = path.join(process.cwd(), "prisma", filename);
@@ -71,8 +72,8 @@ describe("standard Prisma deployment chain", () => {
       const restarted = new PrismaClient({ datasources: { db: { url: absoluteUrl } } });
       try {
         expect(await restarted.$queryRawUnsafe<Array<{ name: string }>>('SELECT "name" FROM "User" WHERE "id" = \'alice\'')).toEqual([{ name: "Alice" }]);
-        expect(await restarted.$queryRawUnsafe<Array<{ name: string }>>("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('ResearchSession','ExplorationWorkbench') ORDER BY name")).toEqual([
-          { name: "ExplorationWorkbench" }, { name: "ResearchSession" },
+        expect(await restarted.$queryRawUnsafe<Array<{ name: string }>>("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('ResearchSession','ExplorationWorkbench','MemorySnapshot') ORDER BY name")).toEqual([
+          { name: "ExplorationWorkbench" }, { name: "MemorySnapshot" }, { name: "ResearchSession" },
         ]);
       } finally { await restarted.$disconnect(); }
     } finally { deleteFile(databasePath); }

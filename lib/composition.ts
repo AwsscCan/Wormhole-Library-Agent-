@@ -7,6 +7,8 @@ import type { SessionResource } from "@/lib/research/types";
 import { getPrisma } from "@/lib/db/prisma";
 import { bindSourceTransparentCatalogAdapter } from "@/lib/federation/catalogPortAdapter";
 import { seedCatalogAdapter } from "@/lib/catalog/seedCatalogAdapter";
+import { defaultMemoryReadPort, bindMemoryReadPort, initMemoryStore } from "@/lib/research/memory";
+import { bindPackage04MemoryReadPort } from "@/lib/workbench/ports";
 import { installWritingPorts, writingPortsAreInstalled } from "@/lib/writing/ports";
 import type { EvidenceItem } from "@/lib/writing/types";
 
@@ -38,9 +40,23 @@ function resourceEvidence(resource: SessionResource): EvidenceItem {
   };
 }
 
-export function ensureAppComposition(): void {
+const composition = globalThis as unknown as { __wormholeAppCompositionReady?: boolean };
+
+export async function ensureAppComposition(): Promise<void> {
   bindPackage01ServerPrincipal();
   bindSourceTransparentCatalogAdapter();
+  bindMemoryReadPort(defaultMemoryReadPort);
+  bindPackage04MemoryReadPort(defaultMemoryReadPort);
+
+  if (!composition.__wormholeAppCompositionReady) {
+    composition.__wormholeAppCompositionReady = true;
+    try {
+      await initMemoryStore();
+    } catch (error) {
+      console.error("[composition] Package 04 memory restore failed; continuing with an empty runtime index.", error);
+    }
+  }
+
   if (writingPortsAreInstalled()) return;
 
   installWritingPorts({

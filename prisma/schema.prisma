@@ -395,3 +395,12 @@ model ExplorationWorkbench {
 
   @@index([ownerId, updatedAt])
 }
+
+/// V3.3 package 04 private memory snapshot. The memory service owns the JSON
+/// shape and uses raw SQL so P04 can restore its ledger/index/inference state
+/// without exposing private snippets through Prisma client models elsewhere.
+model MemorySnapshot {
+  id           String   @id
+  snapshotJson String
+  updatedAt    DateTime @default(now())
+}
