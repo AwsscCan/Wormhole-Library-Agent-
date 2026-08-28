@@ -76,7 +76,7 @@ model WritingArtifact {
   sessionId   String
   stage       String
   contentHash String
-  content     String
+  content     String   @default("")
   createdAt   DateTime @default(now())
   checkpoints WritingCheckpoint[]
 

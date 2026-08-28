@@ -13,6 +13,8 @@ const upgradePath = resolve(temporaryRoot, `writing-migration-upgrade-${process.
 const cliFreshPath = resolve(temporaryRoot, `writing-migrate-cli-fresh-${process.pid}.db`);
 const cliExistingPath = resolve(temporaryRoot, `writing-migrate-cli-existing-${process.pid}.db`);
 const legacyDraftPath = resolve(temporaryRoot, `writing-migration-legacy-draft-${process.pid}.db`);
+const layeredPath = resolve(temporaryRoot, `writing-migration-layered-${process.pid}.db`);
+const protectedBaseMigration = resolve(process.cwd(), "prisma", "migrations", "202608200000_initial_schema", "migration.sql");
 const baselineMigration = resolve(process.cwd(), "prisma", "migrations", "202608240001_baseline_auth_notes", "migration.sql");
 const task4Migration = resolve(process.cwd(), "prisma", "migrations", "202608240002_provider_writing", "migration.sql");
 const reviewExportMigration = resolve(process.cwd(), "prisma", "migrations", "202608240003_reviewed_artifact_export", "migration.sql");
@@ -33,9 +35,12 @@ async function runPrisma(path: string, args: string[]) {
 
 async function executeMigrations(path: string, migrations: string[]) {
   const database = new DatabaseSync(path);
-  database.exec("PRAGMA foreign_keys=ON");
-  for (const migration of migrations) database.exec(await readFile(migration, "utf8"));
-  database.close();
+  try {
+    database.exec("PRAGMA foreign_keys=ON");
+    for (const migration of migrations) database.exec(await readFile(migration, "utf8"));
+  } finally {
+    database.close();
+  }
 }
 
 function tableNames(database: InstanceType<typeof DatabaseSync>) {
@@ -115,18 +120,31 @@ function createExistingAuthAndNoteDatabase() {
 describe("Task 4 Prisma migration", () => {
   beforeAll(async () => {
     await mkdir(temporaryRoot, { recursive: true });
-    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath, legacyDraftPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
+    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath, legacyDraftPath, layeredPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
       .map((path) => rm(path, { force: true })));
     createExistingAuthAndNoteDatabase();
   });
 
   afterAll(async () => {
-    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath, legacyDraftPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
+    await Promise.all([freshPath, upgradePath, cliFreshPath, cliExistingPath, legacyDraftPath, layeredPath].flatMap((path) => [path, `${path}-journal`, `${path}-shm`, `${path}-wal`])
       .map((path) => rm(path, { force: true })));
   });
 
+  it("applies P01 auth after the protected base without recreating its tables", async () => {
+    await executeMigrations(layeredPath, [protectedBaseMigration, baselineMigration]);
+    const database = new DatabaseSync(layeredPath);
+    try {
+      const userColumns = database.prepare("PRAGMA table_info('User')").all()
+        .map((row) => (row as { name: string }).name);
+      expect(userColumns).toEqual(expect.arrayContaining(["email", "emailVerified", "updatedAt"]));
+      expect(tableNames(database)).toEqual(expect.arrayContaining(["Account", "Note", "Session"]));
+    } finally {
+      database.close();
+    }
+  });
+
   it("deploys the reviewed schema to a fresh SQLite database", async () => {
-    await executeMigrations(freshPath, [baselineMigration, task4Migration, reviewExportMigration]);
+    await executeMigrations(freshPath, [protectedBaseMigration, baselineMigration, task4Migration, reviewExportMigration]);
     const database = new DatabaseSync(freshPath);
     try {
       const tables = tableNames(database);
@@ -171,7 +189,7 @@ describe("Task 4 Prisma migration", () => {
   });
 
   it("invalidates unrecoverable 002 writing state so the owner can regenerate after 003", async () => {
-    await executeMigrations(legacyDraftPath, [baselineMigration, task4Migration]);
+    await executeMigrations(legacyDraftPath, [protectedBaseMigration, baselineMigration, task4Migration]);
     const before = new DatabaseSync(legacyDraftPath);
     before.exec(`
       INSERT INTO "WritingEvidence" (
@@ -220,9 +238,12 @@ describe("Task 4 Prisma migration", () => {
         ORDER BY started_at
       `).all().map((row) => (row as { migration_name: string }).migration_name);
       expect(migrations).toEqual([
+        "202608200000_initial_schema",
         "202608240001_baseline_auth_notes",
         "202608240002_provider_writing",
         "202608240003_reviewed_artifact_export",
+        "202608250001_research_workspace",
+        "202608250002_exploration_workbench",
       ]);
       expect(tableNames(database)).toEqual(expect.arrayContaining(["Note", "ProviderConfig", "WritingArtifact"]));
     } finally {
@@ -230,30 +251,32 @@ describe("Task 4 Prisma migration", () => {
     }
   }, 30_000);
 
-  it("baselines an equivalent existing schema before deploy without losing Auth or Note data", async () => {
-    await executeMigrations(cliExistingPath, [baselineMigration]);
+  it("baselines an equivalent protected schema before deploy without losing User data", async () => {
+    await executeMigrations(cliExistingPath, [protectedBaseMigration]);
     const existing = new DatabaseSync(cliExistingPath);
     existing.exec(`
-      INSERT INTO "User" ("id", "email", "updatedAt") VALUES ('member-cli', 'cli@example.test', CURRENT_TIMESTAMP);
-      INSERT INTO "Note" ("id", "ownerId", "title", "markdown", "updatedAt")
-        VALUES ('note-cli', 'member-cli', 'Keep CLI', 'Existing CLI note', CURRENT_TIMESTAMP);
+      INSERT INTO "User" ("id", "name") VALUES ('member-cli', 'Keep CLI');
     `);
     existing.close();
 
-    await runPrisma(cliExistingPath, ["migrate", "resolve", "--applied", "202608240001_baseline_auth_notes"]);
+    await runPrisma(cliExistingPath, ["migrate", "resolve", "--applied", "202608200000_initial_schema"]);
     await runPrisma(cliExistingPath, ["migrate", "deploy"]);
     const database = new DatabaseSync(cliExistingPath);
     try {
-      expect(database.prepare("SELECT markdown FROM Note WHERE id = 'note-cli'").get()).toEqual({ markdown: "Existing CLI note" });
+      expect(database.prepare("SELECT name, email FROM User WHERE id = 'member-cli'").get())
+        .toEqual({ name: "Keep CLI", email: "legacy-6d656d6265722d636c69@wormhole.invalid" });
       const migrations = database.prepare(`
         SELECT migration_name FROM _prisma_migrations
         WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
         ORDER BY started_at
       `).all().map((row) => (row as { migration_name: string }).migration_name);
       expect(migrations).toEqual([
+        "202608200000_initial_schema",
         "202608240001_baseline_auth_notes",
         "202608240002_provider_writing",
         "202608240003_reviewed_artifact_export",
+        "202608250001_research_workspace",
+        "202608250002_exploration_workbench",
       ]);
       expect(tableNames(database)).toEqual(expect.arrayContaining(["ProviderConfig", "WritingCheckpoint", "ProviderConnectionRateLimit"]));
     } finally {

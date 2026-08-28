@@ -11,6 +11,7 @@ const databasePath = resolve(process.cwd(), ".tmp", `writing-routes-${process.pi
 const databaseUrl = `file:./../.tmp/${databasePath.split(sep).at(-1)}`;
 const databaseFiles = [databasePath, `${databasePath}-journal`, `${databasePath}-shm`, `${databasePath}-wal`];
 const migrationPaths = [
+  resolve(process.cwd(), "prisma", "migrations", "202608200000_initial_schema", "migration.sql"),
   resolve(process.cwd(), "prisma", "migrations", "202608240001_baseline_auth_notes", "migration.sql"),
   resolve(process.cwd(), "prisma", "migrations", "202608240002_provider_writing", "migration.sql"),
   resolve(process.cwd(), "prisma", "migrations", "202608240003_reviewed_artifact_export", "migration.sql"),

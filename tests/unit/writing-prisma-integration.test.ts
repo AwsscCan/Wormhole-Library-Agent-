@@ -9,6 +9,7 @@ const path = resolve(process.cwd(), ".tmp", `writing-prisma-${process.pid}.db`);
 const url = `file:./../.tmp/${path.split(sep).at(-1)}`;
 const files = [path, `${path}-journal`, `${path}-shm`, `${path}-wal`];
 const migrations = [
+  resolve(process.cwd(), "prisma", "migrations", "202608200000_initial_schema", "migration.sql"),
   resolve(process.cwd(), "prisma", "migrations", "202608240001_baseline_auth_notes", "migration.sql"),
   resolve(process.cwd(), "prisma", "migrations", "202608240002_provider_writing", "migration.sql"),
   resolve(process.cwd(), "prisma", "migrations", "202608240003_reviewed_artifact_export", "migration.sql"),
