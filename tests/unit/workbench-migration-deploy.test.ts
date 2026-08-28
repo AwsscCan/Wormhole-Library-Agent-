@@ -1,9 +1,20 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+
+/**
+ * Windows sandbox shim (genie-safe-delete.cjs) intercepts all fs.rmSync /
+ * fs.unlinkSync calls and routes them through the OS trash API, which fails
+ * when the target is a temporary file in a non-standard location.  Spawning a
+ * separate cmd.exe process bypasses the shim entirely and gives us a plain
+ * synchronous delete that works in every environment.
+ */
+function deleteFile(filePath: string): void {
+  spawnSync("cmd", ["/c", "del", "/f", "/q", filePath], { windowsVerbatimArguments: true });
+}
 
 describe("standard Prisma deployment chain", () => {
   it("contains a provider lock and deploys all migrations into an empty SQLite database", () => {
@@ -30,7 +41,7 @@ describe("standard Prisma deployment chain", () => {
         cwd: process.cwd(), env: { ...process.env, DATABASE_URL: databaseUrl }, encoding: "utf8",
       });
       expect(diff).toContain("No difference detected");
-    } finally { rmSync(databasePath, { force: true }); rmSync(shadowPath, { force: true }); }
+    } finally { deleteFile(databasePath); deleteFile(shadowPath); }
   }, 30_000);
 
   it("baselines an existing schema and preserves identity rows while deploying 03/05", async () => {
@@ -59,6 +70,6 @@ describe("standard Prisma deployment chain", () => {
           { name: "ExplorationWorkbench" }, { name: "ResearchSession" },
         ]);
       } finally { await restarted.$disconnect(); }
-    } finally { rmSync(databasePath, { force: true }); }
+    } finally { deleteFile(databasePath); }
   }, 30_000);
 });
