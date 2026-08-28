@@ -185,7 +185,9 @@ export class LibraryAgentOrchestrator {
       resources,
       readingPath,
       memoryUsed,
-      demoCatalog: true, // 降级不撒谎：目前是 seed catalog
+      // Only label a result as demo data when every returned item is local
+      // seed data. External records preserve sourceUrl through the adapter.
+      demoCatalog: resources.length > 0 && resources.every((resource) => !resource.sourceUrl),
     };
 
     getStore().interactions.set(interactionId, {

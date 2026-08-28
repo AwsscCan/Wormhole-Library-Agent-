@@ -6,7 +6,7 @@ import { getResearchSessionService } from "@/lib/research/sessionStore";
 import type { SessionResource } from "@/lib/research/types";
 import { getPrisma } from "@/lib/db/prisma";
 import { bindSourceTransparentCatalogAdapter } from "@/lib/federation/catalogPortAdapter";
-import { seedCatalogAdapter } from "@/lib/catalog/seedCatalogAdapter";
+import { searchCatalogGateway } from "@/lib/catalog/gateway";
 import { extractConcepts } from "@/lib/concepts";
 import { defaultMemoryReadPort, bindMemoryReadPort, initMemoryStore, recordLearningEvent } from "@/lib/research/memory";
 import { bindExplorationEventPort, bindPackage04MemoryReadPort } from "@/lib/workbench/ports";
@@ -134,14 +134,12 @@ export async function ensureAppComposition(): Promise<void> {
       }
     },
     async discover({ researchQuestion }) {
-      const { concepts } = await extractConcepts(researchQuestion);
-      const resources = await seedCatalogAdapter.searchCatalog({
-        query: researchQuestion,
-        conceptIds: concepts.map((concept) => concept.id),
-        limit: 12,
-        taskType: "research",
+      const result = await searchCatalogGateway({ query: researchQuestion, limit: 12 }, {
+        includeOpenAlex: process.env.OPENALEX_DISABLED !== "1",
+        includeOpenLibrary: process.env.OPENLIBRARY_DISABLED !== "1",
+        includeSeed: true,
       });
-      return resources.map((resource): EvidenceItem => ({
+      return result.records.map((resource): EvidenceItem => ({
         id: resource.id,
         title: resource.title,
         excerpt: resource.why,
@@ -149,10 +147,10 @@ export async function ensureAppComposition(): Promise<void> {
         authors: resource.authors,
         titleAuthorMatch: resource.authors.length > 0 ? "partial" : "low",
         provenance: {
-          sourceKind: "seed",
-          sourceLabel: "本地种子",
-          retrievedAt: new Date().toISOString(),
-          externalId: resource.id,
+          sourceKind: resource.sourceKind === "user" ? "library" : resource.sourceKind,
+          sourceLabel: resource.sourceLabel,
+          retrievedAt: resource.retrievedAt,
+          externalId: resource.externalId,
         },
         verificationStatus: "needs_review",
       }));

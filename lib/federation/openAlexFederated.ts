@@ -27,6 +27,7 @@ function toCandidate(work: OpenAlexWork, retrievedAt: number): DedupeCandidate |
   const doi = work.doi?.replace(/^https?:\/\/doi\.org\//, "");
   return {
     title, authors, year: work.publication_year ?? null, doi,
+    url: work.doi ?? `https://openalex.org/${work.id.replace("https://openalex.org/", "")}`,
     source: { kind: "openalex", label: "OpenAlex", sourceId: work.id.replace("https://openalex.org/", ""), retrievedAt },
   };
 }

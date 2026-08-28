@@ -1,10 +1,10 @@
 /**
  * 馆藏适配器导出点（队友02）
  *
- * 默认导出 OpenAlex 适配器（真实论文搜索，失败静默回退 seed）；
- * 设置 OPENALEX_DISABLED=1 可强制只用 seed（测试/离线演示）。
+ * 默认导出联邦适配器：真实 OpenAlex / Open Library 结果会保留来源链接；
+ * 种子馆藏只作为可见的离线降级来源。
  */
-export { openAlexAdapter as catalogAdapter } from "./openAlexAdapter";
+export { federatedCatalogAdapter as catalogAdapter } from "./federatedCatalogAdapter";
 export { seedCatalogAdapter } from "./seedCatalogAdapter";
 export { rankResources, scoreResource, WEIGHTS } from "./ranking";
 export type { RankContext } from "./ranking";

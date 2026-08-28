@@ -1,4 +1,4 @@
-import { BookMarked, FileText, GraduationCap, ScrollText, MapPin } from "lucide-react";
+import { BookMarked, ExternalLink, FileText, GraduationCap, ScrollText, MapPin } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ResourceCard as ResourceCardData } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +90,17 @@ export function ResourceCard({
           </span>
         )}
       </div>
+
+      {resource.sourceUrl && (
+        <a
+          href={resource.sourceUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="mt-2 inline-flex items-center gap-1 pl-2 text-[11px] text-pulse hover:underline"
+        >
+          <ExternalLink className="h-3 w-3" /> 查看原始来源
+        </a>
+      )}
 
       {!compact && resource.concepts.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1 pl-2">

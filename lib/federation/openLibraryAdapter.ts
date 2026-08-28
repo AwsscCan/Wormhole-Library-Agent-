@@ -29,6 +29,7 @@ function toCandidate(doc: OpenLibraryDoc, retrievedAt: number): DedupeCandidate 
     year: doc.first_publish_year ?? null,
     doi: doc.doi?.[0],
     isbn: doc.isbn?.[0],
+    url: `https://openlibrary.org${doc.key}`,
     source: { kind: "openlibrary", label: "Open Library", sourceId: workId, retrievedAt },
   };
 }
