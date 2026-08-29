@@ -405,6 +405,24 @@ model MemorySnapshot {
   updatedAt    DateTime @default(now())
 }
 
+model KnowledgeAsset {
+  id               String   @id
+  ownerId          String
+  originalName     String
+  mimeType         String
+  byteSize         Int
+  retention        String
+  expiresAt        DateTime?
+  storagePath      String
+  extractionStatus String   @default("stored")
+  extractedText    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([ownerId, createdAt])
+  @@index([ownerId, expiresAt])
+}
+
 
 /// A consent-gated discussion between a workspace owner and a Living Book.
 /// Owner keys use the existing member:/guest: convention rather than browser
