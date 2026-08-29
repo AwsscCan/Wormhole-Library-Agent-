@@ -4,6 +4,7 @@ import { federateSearch, type FederateOptions } from "@/lib/federation/federatio
 import { dedupeCandidates, type DedupeCandidate } from "@/lib/federation/dedupe";
 import { listCatalogSources } from "./sourceRepository";
 import type { SourceKind, SourceOutcome } from "@/lib/federation/types";
+import { rankFederatedItems } from "@/lib/federation/relevance";
 
 export type CatalogGatewayStatus = SourceOutcome["status"];
 export type CatalogGatewayRecord = ResourceCard & { sourceKind: SourceKind; sourceLabel: string; retrievedAt: string; externalId: string };
@@ -42,14 +43,26 @@ async function searchPersonalSource(source: { id: string; name: string; protocol
 
 export async function searchCatalogGateway(input: { query: string; limit?: number; ownerId?: string }, options: FederateOptions = {}): Promise<CatalogSearchResult> {
   const result = await federateSearch({ topic: input.query, limit: input.limit }, options);
-  const customSources = input.ownerId ? await listCatalogSources({ id: input.ownerId.replace(/^(member|guest):/, ""), mode: input.ownerId.startsWith("member:") ? "member" : "guest" }) : [];
+  let customSources: Awaited<ReturnType<typeof listCatalogSources>> = [];
+  let customSourceListFailed = false;
+  if (input.ownerId) {
+    try {
+      customSources = await listCatalogSources({ id: input.ownerId.replace(/^(member|guest):/, ""), mode: input.ownerId.startsWith("member:") ? "member" : "guest" });
+    } catch {
+      // A missing local database must not hide reachable public catalogues.
+      // The source remains absent from this response instead of being reported as empty.
+      customSources = [];
+      customSourceListFailed = true;
+    }
+  }
   const customResults = await Promise.allSettled(customSources.map((source) => searchPersonalSource(source, input.query, input.limit ?? 12, Date.now())));
   const customOutcomes: CatalogGatewaySource[] = customResults.map((outcome, index) => ({ kind: "user", label: customSources[index].name, status: outcome.status === "fulfilled" ? outcome.value.length ? "success" : "empty" : "failed" }));
   const customCandidates = customResults.flatMap((outcome) => outcome.status === "fulfilled" ? outcome.value : []);
   const baseCandidates: DedupeCandidate[] = result.items.flatMap((item) => item.sources.map((source) => ({ title: item.title, authors: item.authors, year: item.year, excerpt: item.excerpt, doi: item.doi, isbn: item.isbn, url: item.url, source })));
   const merged = dedupeCandidates([...baseCandidates, ...customCandidates]).items;
-  const sources = [...(result.sourceOutcomes ?? []).map((source) => ({ kind: source.kind, label: SOURCE_LABELS[source.kind], status: source.status })), ...customOutcomes];
-  const records = merged.map((item) => {
+  const sources = [...(result.sourceOutcomes ?? []).map((source) => ({ kind: source.kind, label: SOURCE_LABELS[source.kind], status: source.status })), ...(customSourceListFailed ? [{ kind: "user" as const, label: "个人馆藏配置", status: "failed" as const }] : []), ...customOutcomes];
+  const ranked = rankFederatedItems(merged, input.query);
+  const records = ranked.slice(0, input.limit ?? 12).map((item) => {
     const primary = [...item.sources].sort((left, right) => SOURCE_PRIORITY[left.kind] - SOURCE_PRIORITY[right.kind])[0]!;
     const sourceLabel = primary.label || SOURCE_LABELS[primary.kind];
     return {

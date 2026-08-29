@@ -45,7 +45,10 @@ export async function readMemorySummary(ownerId: string, sessionId: string, quer
   };
   try {
     const [snippets, preferences] = await Promise.all([
-      runtime.__package04MemoryReadPort.search({ ownerId, sessionId, query, limit: 8 }),
+      // Historical RAG is owner-scoped, not current-session-scoped. Passing the
+      // active session here made prior notes impossible to recall in a new
+      // research session, which defeated the purpose of long-term memory.
+      runtime.__package04MemoryReadPort.search({ ownerId, query, limit: 8 }),
       runtime.__package04MemoryReadPort.listInferredPreferences({ ownerId }),
     ]);
     return { status: "available", snippets, preferences };

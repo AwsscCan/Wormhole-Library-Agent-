@@ -37,7 +37,11 @@ export function catalogCandidates(session: ResearchSession, catalog: TopicLibrar
     // Public providers do not always return the local concept IDs. A clear
     // title/abstract overlap is still direct relevance, but is labelled as a
     // text match rather than pretending there is a verified graph bridge.
-    const queryMatch = [...queryTerms].filter((term) => resourceTerms.has(term)).length >= 2;
+    // Daily recommendations are intentionally broader than an exact search:
+    // one meaningful query-term overlap is enough to enter the direct band.
+    // The search endpoint keeps its stricter source ranking separately.
+    const queryOverlap = [...queryTerms].filter((term) => resourceTerms.has(term)).length;
+    const queryMatch = queryOverlap >= (queryTerms.size > 4 ? 1 : 2);
     const direct = matchedEvidenceIds.length > 0 || queryMatch;
     const band = direct ? "direct" as const : sharedContext ? "adjacent" as const : "distant" as const;
     const bridgeConcept = sharedEvidence ?? sharedContext ?? sharedWormhole;
@@ -100,7 +104,7 @@ export async function recommendForSession(ownerId: string, sessionId: string, op
   const existingWorkbench = await workbenchService.get(ownerId, sessionId);
   const today = new Date().toISOString().slice(0, 10);
   const cached = existingWorkbench.dailyRecommendation;
-  if (cached && cached.date === today && cached.surpriseLevel === options.surpriseLevel) {
+  if (cached && cached.date === today && cached.surpriseLevel === options.surpriseLevel && cached.recommendations.length > 0) {
     return {
       sessionId,
       candidates: cached.recommendations,
@@ -112,14 +116,21 @@ export async function recommendForSession(ownerId: string, sessionId: string, op
       cached: true,
     };
   }
-  const [catalog, memory] = await Promise.all([
+  const [initialCatalog, memory] = await Promise.all([
     queryTopicLibrary({ query: session.researchQuestion, limit: Math.max(options.limit * 3, 30) }).catch((): TopicLibraryResult => ({
       resources: [], sourceStatus: "unavailable", degraded: true,
       message: "Source-transparent catalog failed; no external results were used",
     })),
     readMemorySummary(ownerId, sessionId, session.researchQuestion),
   ]);
-  const result = buildRecommendationResult(session, catalog, memory, options);
+  let catalog = initialCatalog;
+  let result = buildRecommendationResult(session, catalog, memory, options);
+  if (result.recommendations.length === 0 && session.writingTopic === "每日推荐") {
+    const discoveryQuery = "artificial intelligence interdisciplinary research";
+    catalog = await queryTopicLibrary({ query: discoveryQuery, limit: Math.max(options.limit * 3, 30) })
+      .catch((): TopicLibraryResult => catalog);
+    result = buildRecommendationResult({ ...session, researchQuestion: discoveryQuery }, catalog, memory, options);
+  }
   const resources = new Map(catalog.resources.map((resource) => [resource.id, resource]));
   const projectedAt = new Date().toISOString();
   const projections: WorkbenchResourceProjection[] = result.recommendations.map((recommendation) => {

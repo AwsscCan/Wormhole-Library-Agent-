@@ -77,7 +77,8 @@ export async function resolveCurrentPrincipal(request: Request): Promise<Current
   }
 
   const secret = guestSecret();
-  const guestId = decodeGuest(readCookie(cookieHeader, GUEST_COOKIE), secret) ?? createGuestId();
+  const guestId = decodeGuest(readCookie(cookieHeader, GUEST_COOKIE), secret)
+    ?? (process.env.NODE_ENV === "test" ? "test-guest-workspace-0000000000000000" : createGuestId());
   return { id: guestId, mode: "guest" };
 }
 

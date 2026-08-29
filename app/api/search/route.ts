@@ -1,25 +1,26 @@
-import { NextResponse } from "next/server";
+import { ensureAppComposition } from "@/lib/composition";
 import { getOrchestrator } from "@/lib/agent/orchestrator";
-import { apiError, parseBody } from "@/lib/validation/api";
+import { parseBody } from "@/lib/validation/api";
 import { searchRequestSchema } from "@/lib/validation/schemas";
 import { privateJson, researchError } from "@/lib/research/api";
 import { principalOwnerKey, requireCurrentPrincipal } from "@/lib/research/principal";
 import { ResearchError } from "@/lib/research/types";
 
 export async function POST(request: Request) {
+  await ensureAppComposition();
   const parsed = await parseBody(request, searchRequestSchema);
   if (!parsed.ok) return parsed.response;
   try {
-    const result = await getOrchestrator().search(parsed.data);
-    return NextResponse.json(result);
-  } catch (e) {
-    return apiError("INTERNAL_ERROR", e instanceof Error ? e.message : "unknown error", 500);
-  }
+    const principal = await requireCurrentPrincipal(request);
+    const result = await getOrchestrator().search({ ...parsed.data, userId: principalOwnerKey(principal) });
+    return privateJson(result, 200, principal, request);
+  } catch (error) { return researchError(error); }
 }
 
 /** Legacy compatibility: only the principal that created an interaction may read it. */
 export async function GET(request: Request) {
   try {
+    if (process.env.NODE_ENV !== "test") await ensureAppComposition();
     const { searchParams } = new URL(request.url);
     const interactionId = searchParams.get("interactionId");
     if (!interactionId) throw new ResearchError("BAD_REQUEST", "interactionId is required");

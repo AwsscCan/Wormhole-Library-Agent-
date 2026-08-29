@@ -28,12 +28,7 @@ export function AssetDropzone({ selectedIds = [], onSelectionChange, compact = f
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.message ?? "上传失败");
       setAssets((items) => [data as Asset, ...items]);
-      let activitySessionId = sessionId;
-      if (!activitySessionId && compact) {
-        const sessionsResponse = await fetch("/api/research/sessions", { cache: "no-store" });
-        if (sessionsResponse.ok) activitySessionId = ((await sessionsResponse.json()) as { sessions?: Array<{ id: string }> }).sessions?.[0]?.id;
-      }
-      if (activitySessionId) void fetch(`/api/research/sessions/${encodeURIComponent(activitySessionId)}/activity`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "upload", title: file.name, resourceId: `asset:${data.id}` }) });
+      if (sessionId) void fetch(`/api/research/sessions/${encodeURIComponent(sessionId)}/activity`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "upload", title: file.name, resourceId: `asset:${data.id}` }) });
       setMessage(retention === "library" ? "已加入私有知识库。" : "已临时保存，将在 30 天后自动清理。");
     } catch (error) { setMessage(error instanceof Error ? error.message : "上传失败"); }
     finally { setBusy(false); if (input.current) input.current.value = ""; }

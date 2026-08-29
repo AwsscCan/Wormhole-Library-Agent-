@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Map, Plus, RotateCcw, Sparkles, ArrowRight } from "lucide-react";
+import { BookOpen, Map, Plus, RotateCcw, Sparkles, ArrowRight, Trash2 } from "lucide-react";
 import type { ResearchSession } from "@/lib/research/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,9 @@ export default function ResearchPage() {
   const [question, setQuestion] = useState("");
   const [writingTopic, setWritingTopic] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dailyLoading, setDailyLoading] = useState(true);
   const [daily, setDaily] = useState<{ sessionId: string; recommendations: Array<{ id: string; title: string; provenance: { sourceLabel: string }; explanation: { relationship: string }; sourceUrl?: string }>; source: { degraded: boolean; labels: string[] }; cached?: boolean } | null>(null);
 
   async function load(): Promise<ResearchSession[]> {
@@ -47,7 +49,7 @@ export default function ResearchPage() {
         body: JSON.stringify({ surpriseLevel: "low", limit: 4 }),
       });
       if (recommendationResponse.ok) setDaily(await recommendationResponse.json());
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(() => setDailyLoading(false));
   }, []);
 
   async function create() {
@@ -62,6 +64,23 @@ export default function ResearchPage() {
       if (!response.ok) throw new Error(session.error?.message ?? "创建失败");
       window.location.href = `/research/${session.id}/map`;
     } catch (cause) { setError(cause instanceof Error ? cause.message : "创建失败"); setBusy(false); }
+  }
+
+  async function deleteSession(session: ResearchSession) {
+    if (!window.confirm(`确认删除研究记录“${session.writingTopic ?? session.researchQuestion}”？相关星图、证据与写作工作台记录会一并删除。`)) return;
+    setDeletingId(session.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/research/sessions/${encodeURIComponent(session.id)}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error?.message ?? "删除失败");
+      setSessions((items) => items.filter((item) => item.id !== session.id));
+      setDaily((current) => current?.sessionId === session.id ? null : current);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "删除失败");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -93,22 +112,26 @@ export default function ResearchPage() {
         <PanelBody className="space-y-2">
           {sessions.length === 0 && !error && <div className="rounded-md border border-dashed border-ink-edge p-8 text-center text-sm text-steel-dim">还没有研究会话。左侧创建后，主题节点会成为工作图的起点。</div>}
           {sessions.map((session) => (
-            <Link key={session.id} href={`/research/${session.id}/map`} className="block rounded-md border border-ink-border bg-ink-raise/50 p-3 transition-colors hover:border-pulse/40">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="truncate text-sm text-ivory">{session.writingTopic ?? session.researchQuestion}</h2>
-                  {session.writingTopic && <p className="mt-1 truncate text-xs text-steel">{session.researchQuestion}</p>}
+            <div key={session.id} className="flex items-stretch border border-ink-border bg-ink-raise/50 transition-colors hover:border-pulse/40">
+              <Link href={`/research/${session.id}/map`} className="min-w-0 flex-1 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="truncate text-sm text-ivory">{session.writingTopic ?? session.researchQuestion}</h2>
+                    {session.writingTopic && <p className="mt-1 truncate text-xs text-steel">{session.researchQuestion}</p>}
+                  </div>
+                  <span className="shrink-0 font-mono text-[9px] text-steel-dim">v{session.personalGraph.version}</span>
                 </div>
-                <span className="shrink-0 font-mono text-[9px] text-steel-dim">v{session.personalGraph.version}</span>
-              </div>
-              <div className="mt-2 flex gap-3 font-mono text-[9px] uppercase tracking-wider text-steel-dim">
-                <span>{session.interactionIds.length} searches</span><span>{session.evidenceIds.length} evidence</span><span>{new Date(session.updatedAt).toLocaleString()}</span>
-              </div>
-            </Link>
+                <div className="mt-2 flex flex-wrap gap-3 font-mono text-[9px] uppercase tracking-wider text-steel-dim">
+                  <span>{session.interactionIds.length} searches</span><span>{session.evidenceIds.length} evidence</span><span>{new Date(session.updatedAt).toLocaleString()}</span>
+                </div>
+              </Link>
+              <button type="button" aria-label={`删除 ${session.writingTopic ?? session.researchQuestion}`} title="删除研究记录" disabled={deletingId === session.id} onClick={() => void deleteSession(session)} className="grid w-11 shrink-0 place-items-center border-l border-ink-border text-steel-dim transition-colors hover:bg-rosewood-faint/30 hover:text-rosewood disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>
+            </div>
           ))}
         </PanelBody>
       </Panel>
 
+      {dailyLoading && <Panel className="lg:col-span-2"><PanelHeader icon={Sparkles} title="today · 今日推荐" accent="copper" /><PanelBody><p role="status" className="flex items-center gap-2 text-xs text-steel"><span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-copper" />正在连接公共学术来源并生成今日推荐…</p></PanelBody></Panel>}
       {daily && <Panel className="lg:col-span-2">
         <PanelHeader icon={Sparkles} title="today · 今日推荐" accent="copper" right={<Link href={`/research/${encodeURIComponent(daily.sessionId)}/workbench`} className="flex items-center gap-1 text-xs text-pulse hover:underline">打开推荐工作台 <ArrowRight className="h-3.5 w-3.5" /></Link>} />
         <PanelBody className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

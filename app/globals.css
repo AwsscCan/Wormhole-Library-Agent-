@@ -23,20 +23,11 @@
     --theme-text: #F1F2EE;
     --theme-muted: #A5B1B4;
     --theme-muted-dim: #6D7C81;
-  }
-  html[data-theme="jade"] {
-    --theme-accent: #74C9C1; --theme-accent-dim: #3F918B; --theme-accent-faint: #183B3A;
-    --theme-warm: #E0B36D; --theme-warm-faint: #3C3221;
-    --theme-bg: #12191B; --theme-panel: #1A2426; --theme-raise: #243235;
-    --theme-border: #33494B; --theme-edge: #557477; --theme-text: #F1F3ED;
-    --theme-muted: #B2C0BE; --theme-muted-dim: #7D9290;
-  }
-  html[data-theme="crimson"] {
-    --theme-accent: #E38C75; --theme-accent-dim: #A35E57; --theme-accent-faint: #422827;
-    --theme-warm: #E4B86A; --theme-warm-faint: #403320;
-    --theme-bg: #171A1F; --theme-panel: #22262D; --theme-raise: #2D333A;
-    --theme-border: #46505A; --theme-edge: #6C7B82; --theme-text: #F5F2EC;
-    --theme-muted: #BDC4C5; --theme-muted-dim: #89959A;
+    --atlas-edge-system: #49616C;
+    --atlas-edge-personal: #79C9D0;
+    --atlas-edge-memory: #D2AA70;
+    --atlas-edge-holding: #B27A4C;
+    --atlas-grid-dot: #25333a;
   }
   body {
     @apply bg-ink text-ivory antialiased;
@@ -45,33 +36,6 @@
     background-size: 44px 44px;
     background-attachment: fixed;
   }
-  html[data-theme]:not([data-theme="cockpit"]) body {
-    background-color: var(--theme-bg) !important;
-    background-image: linear-gradient(color-mix(in srgb, var(--theme-border) 65%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--theme-border) 65%, transparent) 1px, transparent 1px);
-    background-size: 44px 44px;
-  }
-  /* Tailwind's static palette is used throughout the app. Map its semantic
-     classes to the active theme so panels, controls and diagrams change too. */
-  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink-panel"] { background-color: var(--theme-panel) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink-raise"] { background-color: var(--theme-raise) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class~="bg-ink"], html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink/"] { background-color: var(--theme-bg) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="border-ink-border"] { border-color: var(--theme-border) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="border-ink-edge"] { border-color: var(--theme-edge) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="text-ivory"] { color: var(--theme-text) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="text-steel-dim"] { color: var(--theme-muted-dim) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="text-steel"] { color: var(--theme-muted) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="text-pulse"] { color: var(--theme-accent) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="text-copper"] { color: var(--theme-warm) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="border-pulse"] { border-color: var(--theme-accent) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="border-copper"] { border-color: var(--theme-warm) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-pulse"] { background-color: var(--theme-accent-faint) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-copper"] { background-color: var(--theme-warm-faint) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) input,
-  html[data-theme]:not([data-theme="cockpit"]) textarea,
-  html[data-theme]:not([data-theme="cockpit"]) select { color-scheme: dark; accent-color: var(--theme-accent); }
-  html[data-theme]:not([data-theme="cockpit"]) .rf-cockpit .react-flow__edge-path { stroke: var(--theme-edge) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) .rf-cockpit .react-flow__background pattern circle { fill: var(--theme-edge) !important; }
-
   ::selection {
     background: color-mix(in srgb, var(--theme-accent) 28%, transparent);
   }
@@ -156,5 +120,25 @@
   }
   .rf-cockpit .react-flow__edge-path {
     transition: stroke 0.3s ease, stroke-width 0.3s ease;
+  }
+  .rf-cockpit .react-flow__edge.selected .react-flow__edge-path {
+    filter: drop-shadow(0 0 3px color-mix(in srgb, var(--theme-accent) 38%, transparent));
+  }
+  .rf-cockpit .react-flow__controls {
+    border: 1px solid var(--theme-border);
+    border-radius: 3px;
+    box-shadow: none;
+    overflow: hidden;
+  }
+  .rf-cockpit .react-flow__controls-button {
+    background: color-mix(in srgb, var(--theme-bg) 92%, transparent);
+    border-bottom-color: var(--theme-border);
+    color: var(--theme-muted);
+  }
+  .rf-cockpit .react-flow__controls-button:hover {
+    background: var(--theme-panel-raised);
+  }
+  .rf-cockpit .react-flow__controls-button svg {
+    fill: currentColor;
   }
 }

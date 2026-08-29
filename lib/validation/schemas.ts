@@ -28,7 +28,8 @@ export const updateNoteSchema = z.object({
 );
 
 export const searchRequestSchema = z.object({
-  userId: z.string().min(1),
+  /** Legacy clients may still send this field; the route ignores it and derives identity from the server principal. */
+  userId: z.string().min(1).optional(),
   query: z.string().min(1),
   taskType: z.enum(["course", "project", "research", "exam", "curiosity"]).optional(),
   level: z.enum(["beginner", "undergraduate", "graduate", "research"]).optional(),

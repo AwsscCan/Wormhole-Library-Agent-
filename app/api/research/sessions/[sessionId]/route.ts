@@ -1,4 +1,5 @@
 import { privateJson, researchError } from "@/lib/research/api";
+import { ensureAppComposition } from "@/lib/composition";
 import { buildSystemGraph, hashPublicGraph, mergePersonalGraph } from "@/lib/research/personalGraph";
 import { requireCurrentPrincipal, principalOwnerKey } from "@/lib/research/principal";
 import { graphUpdateSchema } from "@/lib/research/schemas";
@@ -8,6 +9,7 @@ type Context = { params: Promise<{ sessionId: string }> };
 
 export async function GET(request: Request, { params }: Context) {
   try {
+    if (process.env.NODE_ENV !== "test") await ensureAppComposition();
     const { sessionId } = await params;
     const ownerId = principalOwnerKey(await requireCurrentPrincipal(request));
     const session = await getResearchSessionService().get(ownerId, sessionId);
@@ -18,11 +20,22 @@ export async function GET(request: Request, { params }: Context) {
 
 export async function PATCH(request: Request, { params }: Context) {
   try {
+    if (process.env.NODE_ENV !== "test") await ensureAppComposition();
     const { sessionId } = await params;
     const body = graphUpdateSchema.safeParse(await request.json());
     if (!body.success) return privateJson({ error: { code: "BAD_REQUEST", message: "Invalid research workspace request" } }, 400);
     const ownerId = principalOwnerKey(await requireCurrentPrincipal(request));
     const session = await getResearchSessionService().updateGraph(ownerId, sessionId, body.data);
     return privateJson(session);
+  } catch (error) { return researchError(error); }
+}
+
+export async function DELETE(request: Request, { params }: Context) {
+  try {
+    if (process.env.NODE_ENV !== "test") await ensureAppComposition();
+    const { sessionId } = await params;
+    const ownerId = principalOwnerKey(await requireCurrentPrincipal(request));
+    await getResearchSessionService().delete(ownerId, sessionId);
+    return privateJson({ deleted: true, sessionId });
   } catch (error) { return researchError(error); }
 }

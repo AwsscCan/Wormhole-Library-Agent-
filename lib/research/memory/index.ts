@@ -91,7 +91,16 @@ export function deleteMemorySnippet(ownerId: string, snippetId: string): Promise
 /** 遗忘整个 session 的私有内容并持久化。 */
 export function forgetSession(ownerId: string, sessionId: string): Promise<number> {
   return mutateAndPersist(async () => {
-    const dropped = forgetSessionInMemory(ownerId, sessionId);
+    const snapshot = snapshotMemoryState();
+    const droppedSnippets = forgetSessionInMemory(ownerId, sessionId);
+    const events = snapshot.events.filter((event) => !(event.ownerId === ownerId && event.sessionId === sessionId));
+    const removedEvents = snapshot.events.length - events.length;
+    const preferences = snapshot.preferences.filter((preference) => preference.ownerId !== ownerId);
+    if (removedEvents || preferences.length !== snapshot.preferences.length) {
+      const current = snapshotMemoryState();
+      await restoreMemoryState({ ...current, events, preferences });
+    }
+    const dropped = droppedSnippets + removedEvents;
     return { result: dropped, changed: dropped > 0 };
   });
 }
@@ -145,6 +154,8 @@ export async function recordLearningEventForCurrentPrincipal(
 }
 
 export { listLearningEvents };
+export { buildHybridMemoryInsights } from "./insights";
+export type { HybridMemoryInsights } from "./insights";
 
 export {
   appendLearningEvent,

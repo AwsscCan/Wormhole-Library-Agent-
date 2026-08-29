@@ -120,7 +120,7 @@ export type SystemGraphEdge = {
   id: string;
   source: string;
   target: string;
-  type: "topic_search" | "search_concept" | "concept_resource" | "wormhole";
+  type: "topic_search" | "topic_resource" | "search_concept" | "concept_resource" | "wormhole";
   system: true;
   recommendationProjection?: true;
 };

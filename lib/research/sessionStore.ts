@@ -3,6 +3,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import type { CreateResearchSessionInput, GraphUpdateInput } from "./schemas";
 import type { PersonalGraphState, ResearchSession, SessionSearch, SessionWormhole } from "./types";
 import { ResearchError } from "./types";
+import { forgetSession } from "./memory";
 
 type Dependencies = { now: () => string; id: (prefix: string) => string };
 type ResearchRow = {
@@ -15,6 +16,7 @@ export interface ResearchSessionStore {
   create(session: ResearchSession): Promise<void>;
   list(ownerId: string): Promise<ResearchSession[]>;
   get(ownerId: string, id: string): Promise<ResearchSession | null>;
+  delete(ownerId: string, id: string): Promise<boolean>;
   replace(ownerId: string, expectedRevision: number, session: ResearchSession): Promise<boolean>;
   updateGraph(ownerId: string, id: string, expectedVersion: number, graph: PersonalGraphState, updatedAt: string): Promise<"updated" | "conflict" | "not_found">;
 }
@@ -64,6 +66,18 @@ export class PrismaResearchSessionStore implements ResearchSessionStore {
     const row = await this.prisma.researchSession.findFirst({ where: { id, ownerId } });
     return row ? decode(row) : null;
   }
+  async delete(ownerId: string, id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const owned = await tx.researchSession.findFirst({ where: { id, ownerId }, select: { id: true } });
+      if (!owned) return false;
+      await tx.writingCheckpoint.deleteMany({ where: { ownerId, sessionId: id } });
+      await tx.writingArtifact.deleteMany({ where: { ownerId, sessionId: id } });
+      await tx.writingEvidence.deleteMany({ where: { ownerId, sessionId: id } });
+      await tx.explorationWorkbench.deleteMany({ where: { ownerId, sessionId: id } });
+      await tx.researchSession.deleteMany({ where: { id, ownerId } });
+      return true;
+    });
+  }
   async replace(ownerId: string, expectedRevision: number, session: ResearchSession) {
     const data = encode({ ...session, revision: expectedRevision + 1 });
     const changed = await this.prisma.researchSession.updateMany({
@@ -93,6 +107,12 @@ export class InMemoryResearchSessionStore implements ResearchSessionStore {
   async create(session: ResearchSession) { this.sessions.push(structuredClone(session)); }
   async list(ownerId: string) { return structuredClone(this.sessions.filter((item) => item.ownerId === ownerId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))); }
   async get(ownerId: string, id: string) { return structuredClone(this.sessions.find((item) => item.ownerId === ownerId && item.id === id) ?? null); }
+  async delete(ownerId: string, id: string) {
+    const index = this.sessions.findIndex((item) => item.ownerId === ownerId && item.id === id);
+    if (index < 0) return false;
+    this.sessions.splice(index, 1);
+    return true;
+  }
   async replace(ownerId: string, expectedRevision: number, session: ResearchSession) {
     const index = this.sessions.findIndex((item) => item.id === session.id && item.ownerId === ownerId && item.revision === expectedRevision);
     if (index < 0) return false;
@@ -118,6 +138,11 @@ export class ResearchSessionService {
     await this.store.create(session); return session;
   }
   async list(ownerId: string) { return this.store.list(ownerId); }
+  async delete(ownerId: string, id: string) {
+    await this.get(ownerId, id);
+    await forgetSession(ownerId, id);
+    if (!(await this.store.delete(ownerId, id))) throw new ResearchError("NOT_FOUND", "Research session not found");
+  }
   async get(ownerId: string, id: string) {
     const session = await this.store.get(ownerId, id);
     if (!session) throw new ResearchError("NOT_FOUND", "Research session not found"); return session;

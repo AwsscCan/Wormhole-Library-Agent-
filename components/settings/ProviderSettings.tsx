@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Cable, Check, Languages, Palette, Plus, RefreshCw, Save, Sparkles, Trash2, UploadCloud, LibraryBig, Network } from "lucide-react";
+import { Cable, Check, Languages, Plus, RefreshCw, Save, Sparkles, Trash2, UploadCloud, LibraryBig, Network } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,11 +23,6 @@ const deepSeekProvider: ProviderFields = {
   wireApi: "chat_completions",
 };
 const loadFailure = "暂时无法读取配置；请确认当前账户权限和服务状态。";
-const themeOptions = [
-  { id: "cockpit", label: "深夜纸墨", color: "#79C9D0", detail: "石墨底 · 靛青焦点" },
-  { id: "jade", label: "雾青纸张", color: "#6FB6B0", detail: "青灰底 · 柔和青绿焦点" },
-  { id: "crimson", label: "石榴墨线", color: "#D98B76", detail: "烟灰底 · 低饱和红铜焦点" },
-] as const;
 const languageOptions = [
   { id: "any", label: "不偏好" },
   { id: "zh_first", label: "中文优先" },
@@ -46,7 +41,6 @@ export function ProviderSettings() {
   const [presetForm, setPresetForm] = useState({ name: "", providerId: "", model: "", temperature: "0.2", maxTokens: "1200" });
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
-  const [theme, setTheme] = useState("cockpit");
   const [language, setLanguage] = useState("any");
   const [ccCatalog, setCcCatalog] = useState<CcCatalog | null>(null);
   const [ccMode, setCcMode] = useState<"claude" | "codex">("claude");
@@ -88,7 +82,6 @@ export function ProviderSettings() {
     void load();
     void loadCcSwitch();
     const values = Object.fromEntries(document.cookie.split("; ").filter(Boolean).map((part) => part.split("=")));
-    setTheme(values.wl_theme ?? "cockpit");
     setLanguage(values.wl_language ?? "any");
   }, []);
 
@@ -110,12 +103,10 @@ export function ProviderSettings() {
     finally { setCcBusy(false); }
   }
 
-  function saveAppearance(nextTheme: string, nextLanguage: string) {
-    setTheme(nextTheme); setLanguage(nextLanguage);
-    document.documentElement.dataset.theme = nextTheme;
-    document.cookie = `wl_theme=${nextTheme}; Max-Age=31536000; Path=/; SameSite=Lax`;
+  function saveLanguage(nextLanguage: string) {
+    setLanguage(nextLanguage);
     document.cookie = `wl_language=${nextLanguage}; Max-Age=31536000; Path=/; SameSite=Lax`;
-    setStatus("外观与检索语言偏好已保存；后续检索会优先采用此语种。");
+    setStatus("检索语言偏好已保存；后续检索会优先采用此语种。");
   }
 
   function resetProviderForm() {
@@ -208,7 +199,7 @@ export function ProviderSettings() {
   return <div className="mx-auto max-w-5xl space-y-4">
     <header><h1 className="flex items-center gap-2 font-display text-xl text-ivory"><Cable className="h-5 w-5 text-copper" />Provider 与模型配置</h1><p className="mt-1 text-sm text-steel">密钥为一次性写入字段：提交后立即从浏览器输入框清除，列表仅显示配置状态。</p></header>
     {status && <p className="rounded-md border border-copper/40 bg-copper-faint/30 p-3 text-sm text-copper">{status}</p>}
-    <Panel><PanelHeader icon={Palette} title="workspace · 外观与语言" accent="copper" /><PanelBody className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]"><div><p className="mb-2 text-xs text-steel">主题色</p><div className="grid gap-2 sm:grid-cols-3">{themeOptions.map((option) => <button type="button" key={option.id} aria-label={`主题 ${option.label}`} onClick={() => saveAppearance(option.id, language)} className={`flex min-h-16 flex-col items-start gap-1 border px-3 py-2 text-left text-xs transition-colors ${theme === option.id ? "border-pulse bg-pulse-faint/35 text-ivory" : "border-ink-border bg-ink-raise/60 text-steel hover:border-ink-edge"}`}><span className="flex items-center gap-2"><span className="h-4 w-4 rounded-sm border border-white/20" style={{ backgroundColor: option.color }} />{option.label}</span><span className="text-[10px] text-steel-dim">{option.detail}</span></button>)}</div></div><label className="text-xs text-steel"><span className="mb-2 flex items-center gap-1"><Languages className="h-3.5 w-3.5" />检索语言偏好</span><select value={language} onChange={(event) => saveAppearance(theme, event.target.value)} className="h-10 w-full border border-ink-border bg-ink-raise px-3 text-sm text-ivory">{languageOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select><span className="mt-2 block text-[10px] leading-relaxed text-steel-dim">语言偏好会同时影响联邦检索排序和写作证据发现。</span></label></PanelBody></Panel>
+    <Panel><PanelHeader icon={Languages} title="workspace · 语言偏好" accent="copper" /><PanelBody><label className="block max-w-md text-xs text-steel"><span className="mb-2 block">检索语言偏好</span><select value={language} onChange={(event) => saveLanguage(event.target.value)} className="h-10 w-full border border-ink-border bg-ink-raise px-3 text-sm text-ivory">{languageOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select><span className="mt-2 block text-[10px] leading-relaxed text-steel-dim">语言偏好会同时影响联邦检索排序和写作证据发现。</span></label></PanelBody></Panel>
     <Panel><PanelHeader icon={UploadCloud} title="CC Switch · 模型预设导入" accent="cyan" right={<Button size="sm" variant="outline" loading={ccBusy} onClick={() => void loadCcSwitch()}><RefreshCw className="h-3.5 w-3.5" />重新读取</Button>} /><PanelBody className="space-y-3"><p className="text-xs leading-relaxed text-steel">只读取本机的脱敏 Provider × 模型目录。勾选后显式导入为 Wormhole 的独立模型预设，不会改动原配置，也不会在页面显示密钥。</p><div className="flex gap-1 border-b border-ink-border">{(["claude", "codex"] as const).map((mode) => <button key={mode} type="button" onClick={() => { setCcMode(mode); setCcSelections([]); }} className={`border-b-2 px-3 py-2 text-xs uppercase ${ccMode === mode ? "border-pulse text-pulse" : "border-transparent text-steel"}`}>{mode}</button>)}</div>{!ccCatalog && <p className="text-xs text-steel-dim">尚未读取本机目录，点击“重新读取”。</p>}{ccCatalog && !ccCatalog.available && <p className="border border-copper/40 bg-copper-faint/20 p-3 text-xs text-copper">没有找到 CC Switch 本机目录。你仍可以在下方手动配置 Provider。</p>}{ccCatalog?.modes.find((item) => item.mode === ccMode)?.providers.map((provider) => <div key={provider.id} className="border border-ink-border bg-ink-raise/50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm text-ivory">{provider.name}</p><p className="mt-1 text-[10px] text-steel-dim">{provider.wireApi || "未识别 API"} · {provider.available ? "可导入" : "配置不完整"}</p></div><span className={`text-[10px] ${provider.available ? "text-pulse" : "text-copper"}`}>{provider.available ? "ready" : "unavailable"}</span></div>{provider.models.length ? <div className="mt-2 grid gap-1 sm:grid-cols-2">{provider.models.map((model) => { const key = `${provider.id}\u0000${model.id}`; const checked = ccSelections.includes(key); return <label key={model.id} className={`flex items-center gap-2 border px-2 py-1.5 text-xs ${checked ? "border-pulse/60 bg-pulse-faint/30 text-ivory" : "border-ink-border text-steel"}`}><input type="checkbox" checked={checked} disabled={!provider.available || ccBusy} onChange={() => setCcSelections((items) => checked ? items.filter((item) => item !== key) : [...items, key])} className="accent-pulse" /><span className="min-w-0 truncate">{model.name}<span className="ml-1 font-mono text-[9px] text-steel-dim">{model.id}</span></span></label>; })}</div> : <p className="mt-2 text-[10px] text-steel-dim">该 Provider 没有可导入模型。</p>}</div>)}{ccCatalog?.available && !ccCatalog.modes.find((item) => item.mode === ccMode)?.providers.length && <p className="text-xs text-steel-dim">当前模式没有可用 Provider。</p>}<div className="flex items-center justify-between gap-2 border-t border-ink-border pt-3"><span className="text-[10px] text-steel-dim">已选 {ccSelections.length} 个模型 · 来源 {ccCatalog?.source ?? "未读取"}</span><Button variant="solid" size="sm" loading={ccBusy} disabled={!ccSelections.length} onClick={() => void importCcSwitch()}><Check className="h-3.5 w-3.5" />导入选中预设</Button></div></PanelBody></Panel>
     <div className="grid gap-3 md:grid-cols-2"><Link href="/settings/catalog-sources" className="flex items-center gap-3 border border-ink-border bg-ink-panel p-4 transition-colors hover:border-pulse/50"><LibraryBig className="h-5 w-5 text-copper" /><span><strong className="block text-sm text-ivory">馆藏来源</strong><small className="text-xs text-steel">连接个人 OPAC、SRU、OAI-PMH 或高校馆藏</small></span></Link><Link href="/research" className="flex items-center gap-3 border border-ink-border bg-ink-panel p-4 transition-colors hover:border-pulse/50"><Network className="h-5 w-5 text-pulse" /><span><strong className="block text-sm text-ivory">星图与记忆</strong><small className="text-xs text-steel">进入研究工作区调整星图距离和个人层</small></span></Link></div>
     <div className="grid gap-4 lg:grid-cols-[1fr_1fr]"><Panel><PanelHeader icon={Save} title={editingId ? "provider · 编辑" : "provider · 新建"} accent="cyan" right={editingId ? <Button size="sm" onClick={resetProviderForm}>取消</Button> : undefined} /><PanelBody className="space-y-3">{!editingId && <Button className="w-full" onClick={useDeepSeekPreset}><Sparkles className="h-4 w-4" />使用 DeepSeek 快速配置</Button>}<Input value={providerForm.name} placeholder="Provider 名称" onChange={(event) => setProviderForm((current) => ({ ...current, name: event.target.value }))} /><Input value={providerForm.baseUrl} type="url" placeholder="https://api.example.com" onChange={(event) => setProviderForm((current) => ({ ...current, baseUrl: event.target.value }))} /><Input value={providerForm.model} placeholder="模型 ID" onChange={(event) => setProviderForm((current) => ({ ...current, model: event.target.value }))} /><select value={providerForm.wireApi} onChange={(event) => setProviderForm((current) => ({ ...current, wireApi: event.target.value as WireApi }))} className="h-11 w-full rounded-md border border-ink-border bg-ink-raise px-3 text-sm text-ivory"><option value="chat_completions">OpenAI Chat Completions</option><option value="responses">OpenAI Responses</option><option value="anthropic_messages">Anthropic Messages</option></select><Input ref={apiKeyInput} type="password" autoComplete="new-password" placeholder={editingId ? "可选：替换 API Key" : "API Key（可选，提交后清除）"} /><Button variant="solid" className="w-full" loading={saving} onClick={saveProvider}><Save className="h-4 w-4" />保存 Provider</Button></PanelBody></Panel>

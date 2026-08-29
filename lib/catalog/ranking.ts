@@ -116,6 +116,8 @@ function getMemoryBonus(r: ResourceCard, memory?: MemorySummary): number {
 /* ---------------- 排序上下文 ---------------- */
 
 export interface RankContext {
+  /** 原始查询：用于标题/摘要词覆盖加成。 */
+  query?: string;
   /** 任务类型（可选，缺省按均衡处理） */
   taskType?: TaskType;
   /** 用户水平（可选） */
@@ -126,6 +128,20 @@ export interface RankContext {
   conceptIds?: string[];
   /** 语言偏好 */
   language?: LanguagePref;
+}
+
+function queryRelevance(r: ResourceCard, query?: string): number {
+  const normalized = query?.trim().toLocaleLowerCase();
+  if (!normalized) return 0;
+  const terms = normalized.match(/[\p{L}\p{N}]+/gu)?.filter((term) => term.length > 1) ?? [];
+  if (!terms.length) return 0;
+  const title = r.title.toLocaleLowerCase();
+  const context = `${r.title} ${r.why}`.toLocaleLowerCase();
+  const titleHits = terms.filter((term) => title.includes(term)).length;
+  const contextHits = terms.filter((term) => context.includes(term)).length;
+  const titleCoverage = titleHits / terms.length;
+  const contextCoverage = contextHits / terms.length;
+  return Math.min(0.55, (title.includes(normalized) ? 0.2 : 0) + titleCoverage * 0.38 + contextCoverage * 0.1);
 }
 
 /**
@@ -167,7 +183,8 @@ export function scoreResource(r: ResourceCard, ctx: RankContext): number {
     WEIGHTS.quality * qualScore +
     WEIGHTS.language * langScore +
     WEIGHTS.availability * availScore +
-    memBonus;
+    memBonus +
+    queryRelevance(r, ctx.query);
 
   // 概念交集加成：每命中一个查询概念 +0.04（上限 0.12）
   if (ctx.conceptIds && ctx.conceptIds.length > 0) {

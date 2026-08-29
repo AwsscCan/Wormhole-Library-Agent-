@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server";
 import { getOrchestrator } from "@/lib/agent/orchestrator";
-import { apiError, parseBody } from "@/lib/validation/api";
+import { parseBody } from "@/lib/validation/api";
 import { feedbackRequestSchema } from "@/lib/validation/schemas";
+import { privateJson, researchError } from "@/lib/research/api";
+import { principalOwnerKey, requireCurrentPrincipal } from "@/lib/research/principal";
 
 export async function POST(request: Request) {
   const parsed = await parseBody(request, feedbackRequestSchema);
   if (!parsed.ok) return parsed.response;
   try {
-    const result = await getOrchestrator().feedback(parsed.data);
-    return NextResponse.json(result);
-  } catch (e) {
-    return apiError("INTERNAL_ERROR", e instanceof Error ? e.message : "unknown error", 500);
-  }
+    const principal = await requireCurrentPrincipal(request);
+    const result = await getOrchestrator().feedback({ ...parsed.data, userId: principalOwnerKey(principal) });
+    return privateJson(result, 200, principal, request);
+  } catch (error) { return researchError(error); }
 }

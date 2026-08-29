@@ -30,4 +30,34 @@ describe("catalog gateway", () => {
     });
     expect(result.records.find((record) => record.sourceLabel === "本地种子")?.sourceUrl).toBeUndefined();
   });
+
+  it("ranks exact scholarly title coverage above broad catalogue matches", async () => {
+    const result = await searchCatalogGateway({ query: "retrieval augmented generation evaluation", limit: 2 }, {
+      now: NOW,
+      includeSeed: false,
+      openAlex: {
+        transport: async () => new Response(JSON.stringify({ results: [{
+          id: "https://openalex.org/W1",
+          doi: "https://doi.org/10.1000/rag-eval",
+          display_name: "Retrieval Augmented Generation Evaluation in Practice",
+          publication_year: 2025,
+          authorships: [],
+        }] }), { status: 200 }),
+        now: NOW,
+      },
+      openLibrary: {
+        transport: async () => new Response(JSON.stringify({ docs: [
+          { key: "/works/OL1W", title: "AI Engineering" },
+          { key: "/works/OL2W", title: "Video Data" },
+        ] }), { status: 200 }),
+        now: NOW,
+      },
+    });
+
+    expect(result.records).toHaveLength(2);
+    expect(result.records[0]).toMatchObject({
+      title: "Retrieval Augmented Generation Evaluation in Practice",
+      sourceLabel: "OpenAlex",
+    });
+  });
 });

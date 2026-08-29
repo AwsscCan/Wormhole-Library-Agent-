@@ -3,6 +3,7 @@ import {
   WritingDependencyUnavailableError,
   WritingError,
 } from "@/lib/writing/draftService";
+import { ensureAppComposition } from "@/lib/composition";
 import { WritingStateError } from "@/lib/writing/stateMachine";
 import { apiError, parseBody } from "@/lib/validation/api";
 import { exportArtifactSchema } from "@/lib/validation/schemas";
@@ -27,6 +28,7 @@ function failure(error: unknown, principal: import("@/lib/auth/principal").Curre
 }
 
 export async function POST(request: Request) {
+  if (process.env.NODE_ENV !== "test") await ensureAppComposition();
   const rejected = rejectWritingUserId(request);
   if (rejected) return rejected;
   const principal = await requireWritingPrincipal(request);

@@ -96,4 +96,16 @@ describe("federateSearch", () => {
     expect(result.failures).toHaveLength(2);
     expect(result.degraded).toBe(true);
   });
+
+  it("orders exploration results by query coverage across sources", async () => {
+    const result = await federateSearch({ topic: "retrieval augmented generation evaluation", limit: 2 }, {
+      includeSeed: false,
+      openAlex: { transport: okTransport({ results: [{ id: "https://openalex.org/W1", display_name: "Retrieval Augmented Generation Evaluation Benchmark", authorships: [] }] }), now: NOW },
+      openLibrary: { transport: okTransport({ docs: [{ key: "/works/OL1W", title: "AI Engineering" }, { key: "/works/OL2W", title: "Video Data" }] }), now: NOW },
+      now: NOW,
+    });
+
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0]?.title).toBe("Retrieval Augmented Generation Evaluation Benchmark");
+  });
 });

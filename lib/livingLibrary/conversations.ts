@@ -6,6 +6,9 @@ import type { CurrentPrincipal } from "@/lib/auth/principal";
 import livingBooksSeed from "@/data/seed-living-books.json";
 import { AI_LIVING_BOOK_ID } from "@/lib/livingLibrary/constants";
 import { findDiscoverableLivingProfile } from "@/lib/livingLibrary/profile";
+import { generateProviderText } from "@/lib/llm/providerAdapter";
+import { getOwnedProviderSecret, listProviders } from "@/lib/llm/providerRepository";
+import { searchPrivateMemory } from "@/lib/research/memory";
 
 type ConversationStatus = "pending" | "accepted" | "declined" | "closed";
 type SenderRole = "requester" | "living_book";
@@ -31,9 +34,34 @@ export function canRequestAsyncConversation(livingBookId: string): boolean {
   );
 }
 
-function aiReply(question: string): string {
+function fallbackAiReply(question: string): string {
   const topic = question.replace(/\[[^\]]+\]/g, "").replace(/\s+/g, " ").trim().slice(0, 180);
   return `我是 Wormhole AI 馆员。针对「${topic || "这个问题"}」，我会先帮你拆成可检索的概念、优先给出可打开的来源，并标注哪些结论需要你回到原文核验。你也可以让我把下一步整理成研究问题、阅读计划或写作提纲。`;
+}
+
+async function aiReply(principal: CurrentPrincipal, question: string, context: { history?: string; sharedResources?: string } = {}): Promise<string> {
+  const ownerId = owner(principal);
+  const [memory, providers] = await Promise.all([
+    searchPrivateMemory({ ownerId, query: question, limit: 5 }).catch(() => []),
+    listProviders(principal).catch(() => []),
+  ]);
+  const provider = providers.find((item) => item.hasApiKey);
+  if (!provider) return fallbackAiReply(question);
+  try {
+    const { provider: stored, apiKey } = await getOwnedProviderSecret(principal, provider.id);
+    const memoryContext = memory.map((item) => `- ${item.text.slice(0, 800)} (召回 ${item.matchedVia}, ${item.score.toFixed(2)})`).join("\n") || "无相关私有记忆";
+    const prompt = [
+      "你是 Wormhole Library Agent 的 AI 活馆藏。请用清晰、克制的中文回答用户，优先基于给定上下文，不要编造书目或事实。需要外部核验时明确说出来。",
+      `用户问题：${question.slice(0, 4000)}`,
+      context.history ? `当前对话：\n${context.history.slice(-6000)}` : "",
+      context.sharedResources ? `已共享馆藏：\n${context.sharedResources.slice(0, 4000)}` : "",
+      `个人 RAG 记忆：\n${memoryContext}`,
+    ].filter(Boolean).join("\n\n");
+    return await generateProviderText(stored, apiKey, { model: stored.model, temperature: 0.35, maxTokens: 900 }, prompt);
+  } catch (error) {
+    console.warn("[living-library] AI provider unavailable; using traceable fallback.", error);
+    return fallbackAiReply(question);
+  }
 }
 
 export function normalizeSharedUrl(value: string): string | null {
@@ -100,11 +128,14 @@ export async function createConversationRequest(principal: CurrentPrincipal, liv
       targetOwnerId: targetProfile?.ownerId ?? null,
       livingBookId,
       status: isAiLibrarian ? "accepted" : "pending",
-      messages: { create: isAiLibrarian ? [{ senderRole: "requester", body }, { senderRole: "living_book", body: aiReply(body) }] : { senderRole: "requester", body } },
+      messages: { create: [{ senderRole: "requester", body }] },
     },
     include: conversationInclude,
   });
-  return toConversationDto(record, owner(principal));
+  if (isAiLibrarian) {
+    await getPrisma().livingBookMessage.create({ data: { conversationId: record.id, senderRole: "living_book", body: await aiReply(principal, body) } });
+  }
+  return toConversationDto(await participantConversation(principal, record.id), owner(principal));
 }
 
 async function participantConversation(principal: CurrentPrincipal, conversationId: string) {
@@ -127,7 +158,9 @@ export async function sendConversationMessage(principal: CurrentPrincipal, conve
   const senderRole = conversation.requesterOwnerId === owner(principal) ? "requester" : "living_book";
   await getPrisma().livingBookMessage.create({ data: { conversationId, senderRole, body: message } });
   if (conversation.livingBookId === AI_LIVING_BOOK_ID && senderRole === "requester") {
-    await getPrisma().livingBookMessage.create({ data: { conversationId, senderRole: "living_book", body: aiReply(message) } });
+    const history = conversation.messages.map((item) => `${item.senderRole === "requester" ? "用户" : "馆员"}: ${item.body}`).join("\n");
+    const sharedResources = conversation.sharedResources.map((item) => `${item.title} · ${item.url}`).join("\n");
+    await getPrisma().livingBookMessage.create({ data: { conversationId, senderRole: "living_book", body: await aiReply(principal, message, { history, sharedResources }) } });
   }
   await getPrisma().livingBookConversation.update({ where: { id: conversation.id }, data: { updatedAt: new Date() } });
   return toConversationDto(await participantConversation(principal, conversationId), owner(principal));

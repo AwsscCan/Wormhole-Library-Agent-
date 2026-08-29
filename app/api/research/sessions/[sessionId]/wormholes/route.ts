@@ -1,4 +1,5 @@
 import { privateJson } from "@/lib/research/api";
+import { ensureAppComposition } from "@/lib/composition";
 import { z } from "zod";
 import { researchError } from "@/lib/research/api";
 import { getOrchestrator } from "@/lib/agent/orchestrator";
@@ -19,6 +20,7 @@ const schema = z.union([storedSchema, generateSchema]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   try {
+    if (process.env.NODE_ENV !== "test") await ensureAppComposition();
     const body = schema.safeParse(await request.json());
     if (!body.success) return privateJson({ error: { code: "BAD_REQUEST", message: "Invalid research workspace request" } }, 400);
     const { sessionId } = await params;

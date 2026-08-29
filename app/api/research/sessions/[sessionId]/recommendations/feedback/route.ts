@@ -1,4 +1,5 @@
 import { privateJson, researchError } from "@/lib/research/api";
+import { ensureAppComposition } from "@/lib/composition";
 import { requireCurrentPrincipal, principalOwnerKey } from "@/lib/research/principal";
 import { getResearchSessionService } from "@/lib/research/sessionStore";
 import { ResearchError } from "@/lib/research/types";
@@ -8,6 +9,7 @@ import { getWorkbenchService } from "@/lib/workbench/store";
 
 export async function POST(request: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   try {
+    if (process.env.NODE_ENV !== "test") await ensureAppComposition();
     const parsed = feedbackSchema.safeParse(await request.json());
     if (!parsed.success) return privateJson({ error: { code: "BAD_REQUEST", message: "Invalid recommendation feedback" } }, 400);
     const { sessionId } = await params;

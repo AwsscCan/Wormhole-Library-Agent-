@@ -3,6 +3,7 @@ import { dedupeCandidates, type DedupeCandidate } from "./dedupe";
 import { searchOpenAlexFederated, type OpenAlexFederatedOptions } from "./openAlexFederated";
 import { searchOpenLibrary, type OpenLibraryAdapterOptions } from "./openLibraryAdapter";
 import type { FederationFailure, FederationResult, SourceOutcome } from "./types";
+import { rankFederatedItems } from "./relevance";
 
 export type SeedSearch = (query: { topic: string; limit: number }) => Promise<ResourceCard[]>;
 export interface FederateQuery { topic: string; limit?: number; }
@@ -84,5 +85,6 @@ export async function federateSearch(query: FederateQuery, options: FederateOpti
   const candidates = settled.flatMap((s) => s.candidates);
   const failures = settled.map((s) => s.failure).filter((f): f is FederationFailure => f !== undefined);
   const { items } = dedupeCandidates(candidates);
-  return { items, failures, degraded: items.length === 0 && failures.length > 0, sourceOutcomes: outcomes };
+  const ranked = rankFederatedItems(items, query.topic).slice(0, limit);
+  return { items: ranked, failures, degraded: ranked.length === 0 && failures.length > 0, sourceOutcomes: outcomes };
 }

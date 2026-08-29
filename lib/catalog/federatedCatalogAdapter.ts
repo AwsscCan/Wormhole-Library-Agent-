@@ -33,7 +33,7 @@ export const federatedCatalogAdapter: CatalogAdapter = {
         includeSeed: true,
       },
     );
-    return rankResources([...result.records], input).slice(0, input.limit ?? 10);
+    return rankResources([...result.records], { ...input, query: input.query }).slice(0, input.limit ?? 10);
   },
 
   async getResourceDetails(resourceId) {

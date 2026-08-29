@@ -21,10 +21,15 @@ export function projectWorkbenchResources(base: SystemGraph, projections: Record
     known.add(nodeId);
     nodes.push({ id: nodeId, label: projection.title, kind: "resource", resourceId: projection.resourceId, recommendationProjection: true,
       position: { x: 680 + (index % 4) * 190, y: -260 + Math.floor(index / 4) * 130 } });
-    projection.conceptIds.map(conceptNodeId).filter((id) => known.has(id)).forEach((source) => {
+    const conceptSources = projection.conceptIds.map(conceptNodeId).filter((id) => known.has(id));
+    conceptSources.forEach((source) => {
       edges.push({ id: `system:concept_resource:${source}:${nodeId}`, source, target: nodeId,
         type: "concept_resource", system: true, recommendationProjection: true });
     });
+    if (conceptSources.length === 0 && known.has("topic")) {
+      edges.push({ id: `system:topic_resource:topic:${nodeId}`, source: "topic", target: nodeId,
+        type: "topic_resource", system: true, recommendationProjection: true });
+    }
   });
   return { nodes, edges };
 }

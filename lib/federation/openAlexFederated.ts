@@ -33,7 +33,7 @@ function toCandidate(work: OpenAlexWork, retrievedAt: number): DedupeCandidate |
 }
 
 export async function searchOpenAlexFederated(query: OpenAlexQuery, options: OpenAlexFederatedOptions = {}): Promise<AdapterResponse> {
-  const { baseUrl = "https://api.openalex.org/works", timeoutMs = 6000, transport = defaultTransport, now = () => Date.now() } = options;
+  const { baseUrl = "https://api.openalex.org/works", timeoutMs = 12000, transport = defaultTransport, now = () => Date.now() } = options;
   if (!query.topic.trim()) return { ok: true, candidates: [] };
   const limit = Math.min(Math.max(query.limit ?? 12, 1), 100);
   const url = `${baseUrl}?search=${encodeURIComponent(query.topic)}&per-page=${limit}&mailto=${encodeURIComponent("wormhole-library-agent@example.com")}`;

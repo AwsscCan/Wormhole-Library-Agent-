@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import type { CurrentPrincipal } from "@/lib/auth/principal";
 import { getPrisma } from "@/lib/db/prisma";
 import { principalOwnerKey } from "@/lib/research/principal";
+import { forgetSession, recordLearningEvent } from "@/lib/research/memory";
 
 export type AssetRetention = "temporary" | "library";
 export type KnowledgeAssetDto = { id: string; originalName: string; mimeType: string; byteSize: number; retention: AssetRetention; expiresAt?: string; extractionStatus: string; createdAt: string };
@@ -67,6 +68,14 @@ export async function createKnowledgeAsset(principal: CurrentPrincipal, file: Fi
     await rm(storagePath, { force: true });
     throw error;
   }
+  if (extracted.text) {
+    try {
+      await recordLearningEvent({ ownerId, sessionId: `asset:${id}`, kind: "note", resourceId: id,
+        conceptId: path.basename(file.name, path.extname(file.name)).toLocaleLowerCase(), text: extracted.text });
+    } catch (error) {
+      console.error("[knowledge-assets] Unable to index extracted text in private memory.", error);
+    }
+  }
   return dto({ id, originalName: file.name, mimeType: file.type || "application/octet-stream", byteSize: file.size, retention, expiresAt, extractionStatus: extracted.status, createdAt });
 }
 
@@ -78,6 +87,7 @@ export async function listKnowledgeAssets(principal: CurrentPrincipal): Promise<
   const expired = await getPrisma().$queryRaw<AssetRow[]>(Prisma.sql`SELECT "id", "storagePath" FROM "KnowledgeAsset" WHERE "ownerId" = ${ownerId} AND "expiresAt" IS NOT NULL AND "expiresAt" <= ${now}`);
   if (expired.length) {
     await Promise.all(expired.map((asset) => rm(asset.storagePath, { force: true })));
+    await Promise.all(expired.map((asset) => forgetSession(ownerId, `asset:${asset.id}`)));
     await getPrisma().$executeRaw(Prisma.sql`DELETE FROM "KnowledgeAsset" WHERE "ownerId" = ${ownerId} AND "expiresAt" IS NOT NULL AND "expiresAt" <= ${now}`);
   }
   const rows = await getPrisma().$queryRaw<AssetRow[]>(Prisma.sql`SELECT "id", "originalName", "mimeType", "byteSize", "retention", "expiresAt", "storagePath", "extractionStatus", "createdAt" FROM "KnowledgeAsset" WHERE "ownerId" = ${ownerId} ORDER BY "createdAt" DESC`);
@@ -91,6 +101,8 @@ export async function deleteKnowledgeAsset(principal: CurrentPrincipal, assetId:
   if (!asset) throw new KnowledgeAssetError("NOT_FOUND", "Knowledge asset not found");
   await getPrisma().$executeRaw(Prisma.sql`DELETE FROM "KnowledgeAsset" WHERE "id" = ${assetId} AND "ownerId" = ${ownerId}`);
   await rm(asset.storagePath, { force: true });
+  try { await forgetSession(ownerId, `asset:${assetId}`); }
+  catch (error) { console.error("[knowledge-assets] Unable to forget deleted asset memory.", error); }
 }
 
 export async function getKnowledgeAssetContexts(principal: CurrentPrincipal, assetIds: string[]): Promise<KnowledgeAssetContext[]> {

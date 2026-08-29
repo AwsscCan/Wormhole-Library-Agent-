@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { Telescope, Brain, BookUser, Landmark, ScrollText, PenLine, NotebookPen, Settings2, Map } from "lucide-react";
+import { Telescope, Brain, BookUser, Landmark, PenLine, NotebookPen, Settings2, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthStatus } from "@/components/auth/AuthStatus";
 
@@ -10,8 +10,7 @@ const LINKS = [
   { href: "/", label: "探索台", en: "EXPLORE", icon: Telescope },
   { href: "/research", label: "研究工作区", en: "RESEARCH", icon: Map },
   { href: "/memory", label: "记忆核心", en: "MEMORY", icon: Brain },
-  { href: "/review", label: "文献综述", en: "REVIEW", icon: ScrollText },
-  { href: "/writing", label: "写作工作台", en: "WRITING", icon: PenLine },
+  { href: "/writing", label: "写作与综述", en: "WRITING", icon: PenLine },
   { href: "/notes", label: "研究笔记", en: "NOTES", icon: NotebookPen },
   { href: "/living-library", label: "活馆藏", en: "LIVING LIB", icon: BookUser },
   { href: "/settings/providers", label: "模型设置", en: "MODELS", icon: Settings2 },
@@ -20,8 +19,8 @@ const LINKS = [
 export function TopNav() {
   const pathname = usePathname();
   useEffect(() => {
-    const theme = document.cookie.split("; ").find((part) => part.startsWith("wl_theme="))?.split("=")[1];
-    if (theme) document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.theme = "cockpit";
+    document.cookie = "wl_theme=; Max-Age=0; Path=/; SameSite=Lax";
   }, []);
   return (
     <nav className="sticky top-0 z-40 border-b border-ink-border bg-ink/85 backdrop-blur-sm">

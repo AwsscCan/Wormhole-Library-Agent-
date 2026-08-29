@@ -4,6 +4,7 @@ import type { NodeActionInput } from "./schemas";
 import type { ResearchSessionService } from "./sessionStore";
 import { ResearchError } from "./types";
 import type { TopicLibraryResult } from "./types";
+import { recordLearningEvent } from "./memory";
 
 type WorkspaceDependencies = {
   search(input: SearchRequest): Promise<SearchResponse>;
@@ -12,6 +13,11 @@ type WorkspaceDependencies = {
 
 export class ResearchWorkspace {
   constructor(private readonly sessions: ResearchSessionService, private readonly deps: WorkspaceDependencies) {}
+
+  private async remember(input: Parameters<typeof recordLearningEvent>[0]) {
+    try { await recordLearningEvent(input); }
+    catch (error) { console.error("[research] Unable to persist private memory event.", error); }
+  }
 
   async act(ownerId: string, sessionId: string, input: NodeActionInput) {
     const session = await this.sessions.get(ownerId, sessionId);
@@ -36,6 +42,7 @@ export class ResearchWorkspace {
           sourceUrl: resource.sourceUrl,
         })),
       });
+      await this.remember({ ownerId, sessionId, kind: "search", query: response.query, conceptId: response.concepts[0]?.id });
       const explorePath = `/research/${encodeURIComponent(sessionId)}/explore/${encodeURIComponent(response.interactionId)}`;
       const href = input.sliderValue === undefined ? explorePath : `${explorePath}?slider=${input.sliderValue}`;
       return { action: "search" as const, sessionId, interactionId: response.interactionId, href, response };
@@ -57,12 +64,15 @@ export class ResearchWorkspace {
             sourceLabel: resource.provenance.sourceLabel, sourceUrl: resource.sourceUrl,
           })),
         });
+        await this.remember({ ownerId, sessionId, kind: "search", query: input.topic, conceptId: concepts[0]?.id });
       }
       return { action: "library" as const, sessionId, topic: input.topic, ...result, empty: result.resources.length === 0 };
     }
 
     if (!input.resourceId) throw new ResearchError("BAD_REQUEST", "resourceId is required for add_evidence");
     const updated = await this.sessions.addEvidence(ownerId, sessionId, input.resourceId);
+    const selectedResource = session.searches.flatMap((search) => search.resources).find((resource) => resource.id === input.resourceId);
+    await this.remember({ ownerId, sessionId, kind: "favorite", resourceId: input.resourceId, conceptId: selectedResource?.concepts[0]?.id });
     return { action: "add_evidence" as const, sessionId, evidenceIds: updated.evidenceIds };
   }
 
@@ -86,7 +96,7 @@ export class ResearchWorkspace {
       concepts: interaction.searchResponse.concepts,
       resources: interaction.searchResponse.resources.map((resource) => ({
         id: resource.id, title: resource.title, concepts: resource.concepts, sourceUrl: resource.sourceUrl,
-        sourceLabel: interaction.searchResponse.demoCatalog ? "Demo seed catalog" : "Federated catalog",
+        sourceLabel: resource.sourceLabel ?? (interaction.searchResponse.demoCatalog ? "本地种子" : "联邦馆藏"),
       })),
     });
   }

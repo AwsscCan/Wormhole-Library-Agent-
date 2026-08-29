@@ -266,3 +266,11 @@ describe("概念交集加成", () => {
     expect(scoreWith).toBeGreaterThan(scoreWithout);
   });
 });
+
+describe("原始查询相关性", () => {
+  it("标题词覆盖会让真实相关论文排在泛化书目之前", () => {
+    const broad = makeCard({ id: "broad", title: "AI Engineering", type: "book", qualityScore: 0.95 });
+    const exact = makeCard({ id: "exact", title: "Retrieval Augmented Generation Evaluation Benchmark", type: "paper", qualityScore: 0.80 });
+    expect(rankResources([broad, exact], { query: "retrieval augmented generation evaluation" })[0]?.id).toBe("exact");
+  });
+});

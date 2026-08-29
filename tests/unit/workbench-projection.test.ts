@@ -13,7 +13,7 @@ describe("workbench resource deep-link projection", () => {
     const graph = projectWorkbenchResources(base, { [projection.resourceId]: projection });
     expect(graph.nodes).toContainEqual(expect.objectContaining({ id: "resource:paper%2F42", resourceId: "paper/42", label: "Projected paper",
       recommendationProjection: true }));
-    expect(graph.edges).toEqual([]);
+    expect(graph.edges).toEqual([expect.objectContaining({ source: "topic", target: "resource:paper%2F42", type: "topic_resource" })]);
     expect(resolveFocusedResource(graph, "paper/42")).toEqual({ nodeId: "resource:paper%2F42", status: "focused" });
   });
 

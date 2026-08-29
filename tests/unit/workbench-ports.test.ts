@@ -23,7 +23,7 @@ describe("bounded package 04 and event ports", () => {
     await expect(readMemorySummary("member:alice", "session-1", "RAG evidence")).resolves.toMatchObject({
       status: "available", snippets: [{ sourceId: "note-1" }], preferences: [{ id: "pref-1" }],
     });
-    expect(search).toHaveBeenCalledWith({ ownerId: "member:alice", sessionId: "session-1", query: "RAG evidence", limit: 8 });
+    expect(search).toHaveBeenCalledWith({ ownerId: "member:alice", query: "RAG evidence", limit: 8 });
     expect(listInferredPreferences).toHaveBeenCalledWith({ ownerId: "member:alice" });
   });
 

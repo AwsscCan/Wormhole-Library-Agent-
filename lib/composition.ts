@@ -42,7 +42,19 @@ function resourceEvidence(resource: SessionResource): EvidenceItem {
   };
 }
 
-const composition = globalThis as unknown as { __wormholeAppCompositionReady?: boolean };
+const composition = globalThis as unknown as { __wormholeAppCompositionPromise?: Promise<void> };
+
+function ensureMemoryInitialized(): Promise<void> {
+  if (!composition.__wormholeAppCompositionPromise) {
+    composition.__wormholeAppCompositionPromise = initMemoryStore()
+      .then(() => undefined)
+      .catch((error) => {
+        delete composition.__wormholeAppCompositionPromise;
+        console.error("[composition] Package 04 memory restore failed; continuing with an empty runtime index.", error);
+      });
+  }
+  return composition.__wormholeAppCompositionPromise;
+}
 
 export async function ensureAppComposition(): Promise<void> {
   if (!hasTestCurrentPrincipalPort()) bindPackage01ServerPrincipal();
@@ -67,14 +79,7 @@ export async function ensureAppComposition(): Promise<void> {
     },
   });
 
-  if (!composition.__wormholeAppCompositionReady) {
-    composition.__wormholeAppCompositionReady = true;
-    try {
-      await initMemoryStore();
-    } catch (error) {
-      console.error("[composition] Package 04 memory restore failed; continuing with an empty runtime index.", error);
-    }
-  }
+  await ensureMemoryInitialized();
 
   if (writingPortsAreInstalled()) return;
 
@@ -167,4 +172,9 @@ export async function ensureAppComposition(): Promise<void> {
       await getResearchSessionService().addEvidence(ownerKey(principal), sessionId, evidenceId);
     },
   });
+}
+
+export function clearAppCompositionForTests(): void {
+  if (process.env.VITEST !== "true" && process.env.NODE_ENV !== "test") throw new Error("Composition reset is test-only");
+  delete composition.__wormholeAppCompositionPromise;
 }
