@@ -2,6 +2,7 @@
  * zod schemas — 与 lib/types.ts 的 API contract 一一对应（冻结）
  */
 import { z } from "zod";
+import { writingTemplateIds } from "@/lib/writing/workflowTemplates";
 
 export const noteLinkSchema = z.object({
   kind: z.enum(["session", "resource", "graph_node", "draft_section"]),
@@ -46,6 +47,7 @@ export const createDraftSchema = z.object({
   sessionId: z.string().min(1),
   focus: z.string().min(1).max(500),
   evidenceIds: z.array(z.string().min(1)).min(3),
+  templateId: z.enum(writingTemplateIds).default("evidence_section"),
   stepPresetId: optionalPresetId,
   workflowPresetId: optionalPresetId,
   rolePresetId: optionalPresetId,

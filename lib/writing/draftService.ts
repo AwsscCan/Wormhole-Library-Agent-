@@ -19,6 +19,7 @@ import {
   resumeDraftArtifact,
   persistStage,
   resumeWriting,
+  resumeWritingTemplate,
 } from "@/lib/writing/repository";
 import type {
   DraftResult,
@@ -28,6 +29,7 @@ import type {
   WritingCheckpoint,
   WritingStage,
 } from "@/lib/writing/types";
+import { type WritingTemplateId, writingTemplate } from "@/lib/writing/workflowTemplates";
 
 export { WritingPortsUnavailableError as WritingDependencyUnavailableError };
 
@@ -90,15 +92,26 @@ async function loadCompleteSessionEvidence(
   return loaded as EvidenceItem[];
 }
 
-function deterministicMarkdown(focus: string, evidence: EvidenceItem[]): string {
-  return `## ${focus}\n\n${evidence.map((item) => factualSentence(item.excerpt, item.id)).join(" ")}`;
+function deterministicMarkdown(templateId: WritingTemplateId, focus: string, evidence: EvidenceItem[]): string {
+  const citedSentences = evidence.map((item) => factualSentence(item.excerpt, item.id)).join(" ");
+  if (templateId === "literature_review") {
+    return `# 文献综述：${focus}\n\n## 已核验文献\n\n${evidence.map((item) => `- ${item.title} [${item.id}]`).join("\n")}\n\n## 综合讨论\n\n${citedSentences}`;
+  }
+  if (templateId === "outline") {
+    return `# ${focus}\n\n## 研究背景\n\n${citedSentences}\n\n## 待展开章节\n\n1. 问题界定\n2. 相关工作\n3. 方法与证据\n4. 讨论与结论`;
+  }
+  if (templateId === "source_to_paper") {
+    return `# ${focus}\n\n## 来源与论据\n\n${citedSentences}\n\n## 初稿结构\n\n### 引言\n\n### 方法\n\n### 讨论`;
+  }
+  return `## ${focus}\n\n${citedSentences}`;
 }
 
-function evidencePrompt(focus: string, evidence: EvidenceItem[]): string {
+function evidencePrompt(templateId: WritingTemplateId, focus: string, evidence: EvidenceItem[]): string {
   return [
     "Write a concise Markdown section grounded only in the allowed evidence JSON below.",
     "Every factual sentence must end with an allowed evidence marker in the exact form [evidence-id].",
     "Never cite, mention, infer from, or invent evidence outside this JSON.",
+    `Workflow template: ${writingTemplate(templateId).name}.`,
     `Section focus: ${focus}`,
     `Allowed evidence JSON: ${JSON.stringify(evidence.map(({ id, title, excerpt, provenance }) => ({ id, title, excerpt, provenance })))}`,
   ].join("\n");
@@ -128,6 +141,7 @@ async function providerMarkdown(input: {
   principal: CurrentPrincipal;
   focus: string;
   evidence: EvidenceItem[];
+  templateId: WritingTemplateId;
   stepPresetId?: string;
   workflowPresetId?: string;
   rolePresetId?: string;
@@ -141,7 +155,7 @@ async function providerMarkdown(input: {
       model: preset.model,
       temperature: preset.temperature,
       maxTokens: preset.maxTokens,
-    }, evidencePrompt(input.focus, input.evidence));
+    }, evidencePrompt(input.templateId, input.focus, input.evidence));
     const citedIds = evidenceMarkers(markdown, new Set(input.evidence.map(({ id }) => id)));
     return citedIds ? { markdown, citedIds } : null;
   } catch {
@@ -207,6 +221,7 @@ export async function resumeEvidenceDraft(input: { principal: CurrentPrincipal; 
     source: "restored" as const,
     checkpointId: artifact.checkpoint.id,
     stage: artifact.checkpoint.stage,
+    templateId: await resumeWritingTemplate(ownerId, input.sessionId),
   };
 }
 
@@ -215,11 +230,12 @@ async function advanceToDraft(
   sessionId: string,
   evidenceIds: string[],
   focus: string,
+  templateId: WritingTemplateId,
   markdown: string,
 ): Promise<WritingCheckpoint> {
   const ownerId = principalOwnerKey(principal);
   const stages: Array<{ stage: WritingStage; content: string }> = [
-    { stage: "evidence", content: JSON.stringify(evidenceIds) },
+    { stage: "evidence", content: JSON.stringify({ evidenceIds, templateId }) },
     { stage: "verified_sources", content: JSON.stringify(evidenceIds) },
     { stage: "outline", content: `## ${focus}` },
     { stage: "draft", content: markdown },
@@ -241,6 +257,7 @@ export async function generateEvidenceDraft(input: {
   sessionId: string;
   focus: string;
   evidenceIds: string[];
+  templateId?: WritingTemplateId;
   stepPresetId?: string;
   workflowPresetId?: string;
   rolePresetId?: string;
@@ -272,13 +289,15 @@ export async function generateEvidenceDraft(input: {
     .sort((left, right) => focusScore(right.item, focusTerms) - focusScore(left.item, focusTerms) || left.index - right.index)
     .slice(0, 12)
     .map(({ item }) => item);
-  const generated = await providerMarkdown({ ...input, evidence: verified });
-  const markdown = generated?.markdown ?? deterministicMarkdown(input.focus, verified);
+  const templateId = input.templateId ?? "evidence_section";
+  const generated = await providerMarkdown({ ...input, templateId, evidence: verified });
+  const markdown = generated?.markdown ?? deterministicMarkdown(templateId, input.focus, verified);
   const checkpoint = await advanceToDraft(
     input.principal,
     input.sessionId,
     verified.map(({ id }) => id),
     input.focus,
+    templateId,
     markdown,
   );
   return {
@@ -288,6 +307,7 @@ export async function generateEvidenceDraft(input: {
     source: generated ? "provider" : "deterministic",
     checkpointId: checkpoint.id,
     stage: "draft",
+    templateId,
   };
 }
 

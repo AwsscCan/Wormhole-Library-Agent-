@@ -8,6 +8,7 @@ import type {
   WritingStage,
 } from "@/lib/writing/types";
 import { advanceWritingStage, WritingStateError } from "@/lib/writing/stateMachine";
+import { isWritingTemplateId, type WritingTemplateId } from "@/lib/writing/workflowTemplates";
 
 type StoredProvenance = EvidenceItem["provenance"] & {
   doi?: string;
@@ -189,6 +190,22 @@ export async function resumeWriting(ownerId: string, sessionId: string): Promise
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
   return last ? checkpointDto(last) : null;
+}
+
+/** The first persisted stage records the selected ModeY-style template. */
+export async function resumeWritingTemplate(ownerId: string, sessionId: string): Promise<WritingTemplateId> {
+  const artifact = await getPrisma().writingArtifact.findFirst({
+    where: { ownerId, sessionId, stage: "evidence" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!artifact?.content) return "evidence_section";
+  try {
+    const parsed = JSON.parse(artifact.content) as { templateId?: string };
+    return isWritingTemplateId(parsed.templateId) ? parsed.templateId : "evidence_section";
+  } catch {
+    // Legacy runs stored a bare evidence-id array and are section drafts.
+    return "evidence_section";
+  }
 }
 
 export async function advanceDraftArtifactStage(

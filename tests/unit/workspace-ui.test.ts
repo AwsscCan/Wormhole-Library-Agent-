@@ -193,6 +193,20 @@ describe("workspace UI security behavior", () => {
     expect(container.textContent).not.toContain("secret-not-retained");
   });
 
+  it("prefills a write-only DeepSeek provider configuration", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json([])).mockResolvedValueOnce(json([])));
+    const container = await render(createElement(ProviderSettings));
+
+    await click(container, "使用 DeepSeek 快速配置");
+    const inputs = [...container.querySelectorAll("input")] as HTMLInputElement[];
+
+    expect(inputs[0].value).toBe("DeepSeek");
+    expect(inputs[1].value).toBe("https://api.deepseek.com");
+    expect(inputs[2].value).toBe("deepseek-chat");
+    expect(inputs[3].value).toBe("");
+    expect(container.textContent).toContain("密钥只会写入一次");
+  });
+
   it("shows the safe dependency message for writing 503", async () => {
     const unavailable = { ok: false, status: 503, json: async () => ({ error: { code: "DEPENDENCY_UNAVAILABLE" } }) } as Response;
     vi.stubGlobal("fetch", writingFetch({ draft: unavailable }));
@@ -200,7 +214,7 @@ describe("workspace UI security behavior", () => {
     await settle();
     const inputs = [...container.querySelectorAll("input")];
     await setInput(inputs[0], "Methods");
-    await click(container, "生成本节草稿", true);
+    await click(container, "运行 证据约束章节", true);
     await settle();
     expect(container.textContent).toContain("写作证据端口尚未接入");
   });
@@ -218,13 +232,12 @@ describe("workspace UI security behavior", () => {
     const container = await render(createElement(WritingPage));
     await settle();
 
-    const select = container.querySelector("select");
-    expect(select).not.toBeNull();
-    expect(select?.textContent).toContain("Evidence writer");
-    await setSelect(select!, writingPreset.id);
+    const selects = [...container.querySelectorAll("select")];
+    expect(selects[2]?.textContent).toContain("Evidence writer");
+    await setSelect(selects[2]!, writingPreset.id);
     const inputs = [...container.querySelectorAll("input")];
     await setInput(inputs[0], "Methods");
-    await click(container, "生成本节草稿", true);
+    await click(container, "运行 证据约束章节", true);
     await settle();
 
     const draftCall = fetchMock.mock.calls.find(([url, init]) => url === "/api/v3/writing/drafts" && (init as RequestInit).method === "POST")!;
@@ -232,6 +245,7 @@ describe("workspace UI security behavior", () => {
       sessionId: "session-1",
       focus: "Methods",
       evidenceIds: ["e1", "e2", "e3"],
+      templateId: "evidence_section",
       stepPresetId: writingPreset.id,
     });
     expect(container.textContent).toContain("Provider");
@@ -264,7 +278,7 @@ describe("workspace UI security behavior", () => {
     await settle();
     const inputs = [...container.querySelectorAll("input")];
     await setInput(inputs[0], "Methods");
-    await click(container, "生成本节草稿", true);
+    await click(container, "运行 证据约束章节", true);
     await settle();
 
     expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("导出 Markdown"))).toBe(false);

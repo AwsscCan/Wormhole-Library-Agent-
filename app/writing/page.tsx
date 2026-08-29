@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel";
 import { AssetDropzone } from "@/components/knowledge/AssetDropzone";
+import { isWritingTemplateId, type WritingTemplateId, writingTemplate, writingTemplates } from "@/lib/writing/workflowTemplates";
 
 type Stage = "draft" | "evidence_link" | "human_review" | "export";
 type Candidate = { id: string; externalEvidenceId: string; title: string; excerpt: string; authors?: string[]; url?: string; provenance: { sourceLabel: string; retrievedAt: string }; verificationStatus: "verified" | "needs_review" | "rejected"; userConfirmedAt?: string };
-type DraftResult = { markdown: string; citations: Array<{ evidenceId: string; marker: string }>; source: "provider" | "deterministic" | "restored"; checkpointId: string; stage: Stage };
+type DraftResult = { markdown: string; citations: Array<{ evidenceId: string; marker: string }>; source: "provider" | "deterministic" | "restored"; checkpointId: string; stage: Stage; templateId: WritingTemplateId };
 type Preset = { id: string; name: string; providerId: string; model: string; temperature: number; maxTokens: number };
 const stageLabel: Record<string, string> = { evidence: "证据集", verified_sources: "已验证文献", outline: "提纲", draft: "草稿", evidence_link: "证据回链", human_review: "人工复核", export: "已导出" };
 
@@ -28,11 +29,14 @@ export default function WritingPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [presets, setPresets] = useState<Preset[]>([]);
+  const [templateId, setTemplateId] = useState<WritingTemplateId>("evidence_section");
+  const [workflowPresetId, setWorkflowPresetId] = useState("");
   const [selectedPresetId, setSelectedPresetId] = useState("");
   const [focus, setFocus] = useState("");
   const [result, setResult] = useState<DraftResult | null>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const template = writingTemplate(templateId);
 
   const loadSessions = useCallback(async () => {
     const response = await fetch("/api/research/sessions", { cache: "no-store" });
@@ -59,7 +63,7 @@ export default function WritingPage() {
         const loadedCandidates = await candidateResponse.json();
         setCandidates(Array.isArray(loadedCandidates) ? loadedCandidates as Candidate[] : []);
       }
-      if (draftResponse.ok) { const draft = await draftResponse.json(); if (draft) setResult(draft as DraftResult); }
+      if (draftResponse.ok) { const draft = await draftResponse.json() as DraftResult | null; if (draft) { const restored = { ...draft, templateId: draft.templateId ?? "evidence_section" }; setResult(restored); setTemplateId(restored.templateId); } }
     } catch { setStatus("无法加载该研究会话的写作状态，请刷新后重试。"); }
   }, []);
 
@@ -68,6 +72,11 @@ export default function WritingPage() {
       .then(([available, loadedPresets]) => { setPresets(Array.isArray(loadedPresets) ? loadedPresets as Preset[] : []); if (available[0]) void selectSession(available[0].id, available); })
       .catch((error) => setStatus(error instanceof Error ? error.message : "无法加载写作工作区。"));
   }, [loadSessions, selectSession]);
+
+  useEffect(() => {
+    const requestedTemplate = new URLSearchParams(window.location.search).get("template") ?? undefined;
+    if (isWritingTemplateId(requestedTemplate)) setTemplateId(requestedTemplate);
+  }, []);
 
   async function discover() {
     if (!session) return;
@@ -102,9 +111,10 @@ export default function WritingPage() {
     if (!session || !focus.trim() || selectedVerified.length < 3) { setStatus("请先选择一个研究会话，确认至少三条证据，并填写本节焦点。"); return; }
     setBusy(true); setStatus("");
     try {
-      const response = await fetch("/api/v3/writing/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: session.id, focus: focus.trim(), evidenceIds: selectedVerified.map((item) => item.externalEvidenceId), ...(selectedPresetId ? { stepPresetId: selectedPresetId } : {}) }) });
+      const response = await fetch("/api/v3/writing/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: session.id, focus: focus.trim(), evidenceIds: selectedVerified.map((item) => item.externalEvidenceId), templateId, ...(workflowPresetId ? { workflowPresetId } : {}), ...(selectedPresetId ? { stepPresetId: selectedPresetId } : {}) }) });
       const data = await response.json(); if (!response.ok) throw new Error(writingError(response, data, "草稿生成失败"));
-      setResult(data as DraftResult); setStatus(data.source === "provider" ? "Provider 已生成草稿，请检查每段引用。" : "未配置可用 Provider，已使用可追溯的 deterministic 草稿。");
+      const draft = { ...(data as DraftResult), templateId: (data as DraftResult).templateId ?? templateId };
+      setResult(draft); setTemplateId(draft.templateId); setStatus(draft.source === "provider" ? "Provider 已生成草稿，请检查每段引用。" : "未配置可用 Provider，已使用可追溯的 deterministic 草稿。");
     } catch (error) { setStatus(error instanceof Error ? error.message : "草稿生成失败，请稍后重试。"); }
     finally { setBusy(false); }
   }
@@ -132,12 +142,12 @@ export default function WritingPage() {
   }
 
   return <div className="mx-auto max-w-6xl space-y-4">
-    <header className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="flex items-center gap-2 font-display text-xl text-ivory"><FileText className="h-5 w-5 text-copper" />证据约束写作工作台</h1><p className="mt-1 text-sm text-steel">研究会话、候选文献、检查点和导出工件都在服务端保存，可随时恢复。</p></div><Link href="/research" className="text-xs text-pulse hover:underline">返回研究会话</Link></header>
+    <header className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="flex items-center gap-2 font-display text-xl text-ivory"><FileText className="h-5 w-5 text-copper" />ModeY 写作工作台</h1><p className="mt-1 text-sm text-steel">模板、证据、阶段检查点和导出工件都在服务端保存，可随时恢复。</p></div><Link href="/research" className="text-xs text-pulse hover:underline">返回研究会话</Link></header>
     {status && <p role="status" className="rounded-md border border-copper/40 bg-copper-faint/30 p-3 text-sm text-copper">{status}</p>}
     <div className="grid gap-4 lg:grid-cols-[260px_1fr_1.1fr]">
       <Panel><PanelHeader icon={FileText} title="sessions · 会话" accent="cyan" /><PanelBody className="space-y-2">{sessions.length === 0 && <p className="text-xs text-steel">还没有研究会话。先去研究页创建一个。</p>}{sessions.map((item) => <button type="button" key={item.id} onClick={() => void selectSession(item.id, sessions)} className={`block w-full rounded-md border p-3 text-left transition-colors ${session?.id === item.id ? "border-pulse/60 bg-pulse-faint/20" : "border-ink-border bg-ink-raise/50 hover:border-pulse/40"}`}><p className="truncate text-sm text-ivory">{item.writingTopic ?? item.researchQuestion}</p><p className="mt-1 text-[10px] text-steel-dim">{item.evidenceIds.length} 条证据 · {item.searches.length} 次检索</p></button>)}</PanelBody></Panel>
       <Panel><PanelHeader icon={Search} title="evidence · 证据篮" accent="copper" right={<Button size="sm" loading={busy} disabled={!session} onClick={discover}><Search className="h-3 w-3" />发现候选</Button>} /><PanelBody className="space-y-2">{!session && <p className="text-xs text-steel">选择研究会话后开始。</p>}{session && <p className="text-xs leading-relaxed text-steel">研究问题：{session.researchQuestion}<br />已确认 {selectedVerified.length} 条，本节至少需要 3 条。</p>}{candidates.map((candidate) => <div key={candidate.id} className="rounded-md border border-ink-border bg-ink-raise/50 p-3"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><p className="text-xs leading-relaxed text-ivory">{candidate.title}</p><p className="mt-1 text-[10px] text-steel-dim">{candidate.authors?.join(" · ") || "作者待核验"} · {candidate.provenance.sourceLabel}</p></div>{candidate.verificationStatus === "verified" ? <Badge tone="cyan"><Check className="h-3 w-3" />已确认</Badge> : <Button size="sm" disabled={busy} onClick={() => void confirm(candidate)}>确认</Button>}</div>{candidate.verificationStatus !== "verified" && <p className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-steel">{candidate.excerpt}</p>}</div>)}</PanelBody></Panel>
-      <div className="space-y-4"><Panel><PanelHeader icon={Sparkles} title="draft · 写作阶段" accent="cyan" right={result && <Badge tone={result.source === "provider" ? "cyan" : "copper"}>{result.source === "provider" ? "Provider" : result.source === "restored" ? "已恢复" : "deterministic"}</Badge>} /><PanelBody className="space-y-3"><div className="flex flex-wrap gap-1.5">{Object.entries(stageLabel).map(([stage, label]) => <span key={stage} className={`rounded border px-2 py-1 text-[10px] ${result?.stage === stage ? "border-pulse/50 text-pulse" : "border-ink-border text-steel-dim"}`}>{label}</span>)}</div><Input value={focus} onChange={(event) => setFocus(event.target.value)} placeholder="本节焦点，例如：比较混合检索的评估方法" disabled={!session} /><select value={selectedPresetId} onChange={(event) => setSelectedPresetId(event.target.value)} className="h-10 w-full rounded-md border border-ink-border bg-ink-raise px-3 text-sm text-ivory"><option value="">未选择模型 · deterministic</option>{presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name} · {preset.model}</option>)}</select><p className="text-xs text-steel">本节已选 {selectedVerified.length} 条已确认证据 · 参考文献总量不设上限。完整 session collection 保留，本节选择不会截断资料库。</p><Button variant="solid" className="w-full" loading={busy} disabled={!session || Boolean(result)} onClick={generate}><Sparkles className="h-4 w-4" />生成本节草稿</Button>{result && <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-steel">当前阶段：{stageLabel[result.stage]}</span>{result.stage === "draft" && <Button size="sm" disabled={busy} onClick={() => void advance("evidence_link")}>建立证据回链</Button>}{result.stage === "evidence_link" && <Button size="sm" disabled={busy} onClick={() => void advance("human_review")}>确认人工复核</Button>}{(result.stage === "human_review" || result.stage === "export") && <Button size="sm" variant="copper" loading={busy} onClick={download}><Download className="h-3.5 w-3.5" />导出 Markdown</Button>}</div>}</PanelBody></Panel>{result && <Panel><PanelHeader icon={FileText} title="artifact · 可审阅工件" /><PanelBody className="space-y-4"><SafeMarkdown markdown={result.markdown} className="space-y-3 text-sm text-steel" /><div className="border-t border-ink-border pt-3"><p className="font-mono text-[10px] uppercase tracking-widest text-steel-dim">citations · 段落证据标记</p><ul className="mt-2 space-y-1 text-xs text-steel">{result.citations.map((citation) => <li key={`${citation.evidenceId}-${citation.marker}`}><code className="text-pulse">{citation.marker}</code> {citation.evidenceId}</li>)}</ul></div><p className="font-mono text-[10px] text-steel-dim">checkpoint: {result.checkpointId}</p></PanelBody></Panel>}</div>
+      <div className="space-y-4"><Panel><PanelHeader icon={Sparkles} title="workflow · 写作阶段" accent="cyan" right={result && <Badge tone={result.source === "provider" ? "cyan" : "copper"}>{result.source === "provider" ? "Provider" : result.source === "restored" ? "已恢复" : "deterministic"}</Badge>} /><PanelBody className="space-y-3"><div className="flex flex-wrap gap-1.5">{Object.entries(stageLabel).map(([stage, label]) => <span key={stage} className={`rounded border px-2 py-1 text-[10px] ${result?.stage === stage ? "border-pulse/50 text-pulse" : "border-ink-border text-steel-dim"}`}>{label}</span>)}</div><label className="block text-xs text-steel">写作模板<select value={templateId} onChange={(event) => setTemplateId(event.target.value as WritingTemplateId)} disabled={Boolean(result)} className="mt-1 h-10 w-full rounded-md border border-ink-border bg-ink-raise px-3 text-sm text-ivory">{writingTemplates.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><p className="text-xs text-steel">{template.description}</p><Input value={focus} onChange={(event) => setFocus(event.target.value)} placeholder={template.focusPlaceholder} disabled={!session || Boolean(result)} /><label className="block text-xs text-steel">工作流模型<select value={workflowPresetId} onChange={(event) => setWorkflowPresetId(event.target.value)} disabled={Boolean(result)} className="mt-1 h-10 w-full rounded-md border border-ink-border bg-ink-raise px-3 text-sm text-ivory"><option value="">未选择模型 · deterministic</option>{presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name} · {preset.model}</option>)}</select></label><label className="block text-xs text-steel">当前步骤模型（优先）<select value={selectedPresetId} onChange={(event) => setSelectedPresetId(event.target.value)} disabled={Boolean(result)} className="mt-1 h-10 w-full rounded-md border border-ink-border bg-ink-raise px-3 text-sm text-ivory"><option value="">沿用工作流模型</option>{presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name} · {preset.model}</option>)}</select></label><p className="text-xs text-steel">本节已选 {selectedVerified.length} 条已确认证据 · 参考文献总量不设上限。完整 session collection 保留，本节选择不会截断资料库。</p><Button variant="solid" className="w-full" loading={busy} disabled={!session || Boolean(result)} onClick={generate}><Sparkles className="h-4 w-4" />运行 {template.name}</Button>{result && <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-steel">当前阶段：{stageLabel[result.stage]}</span>{result.stage === "draft" && <Button size="sm" disabled={busy} onClick={() => void advance("evidence_link")}>建立证据回链</Button>}{result.stage === "evidence_link" && <Button size="sm" disabled={busy} onClick={() => void advance("human_review")}>确认人工复核</Button>}{(result.stage === "human_review" || result.stage === "export") && <Button size="sm" variant="copper" loading={busy} onClick={download}><Download className="h-3.5 w-3.5" />导出 Markdown</Button>}</div>}</PanelBody></Panel>{result && <Panel><PanelHeader icon={FileText} title="artifact · 可审阅工件" /><PanelBody className="space-y-4"><SafeMarkdown markdown={result.markdown} className="space-y-3 text-sm text-steel" /><div className="border-t border-ink-border pt-3"><p className="font-mono text-[10px] uppercase tracking-widest text-steel-dim">citations · 段落证据标记</p><ul className="mt-2 space-y-1 text-xs text-steel">{result.citations.map((citation) => <li key={`${citation.evidenceId}-${citation.marker}`}><code className="text-pulse">{citation.marker}</code> {citation.evidenceId}</li>)}</ul></div><p className="font-mono text-[10px] text-steel-dim">checkpoint: {result.checkpointId}</p></PanelBody></Panel>}</div>
     </div>
     <AssetDropzone />
   </div>;

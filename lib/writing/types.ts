@@ -1,5 +1,6 @@
 import type { CurrentPrincipal } from "@/lib/auth/principal";
 import type { SourceProvenance } from "@/lib/types";
+import type { WritingTemplateId } from "@/lib/writing/workflowTemplates";
 
 export type EvidenceItem = {
   id: string; title: string; excerpt: string; provenance: SourceProvenance; url?: string;
@@ -14,6 +15,7 @@ export type DraftResult = {
   source: "provider" | "deterministic" | "restored";
   checkpointId: string;
   stage: "draft" | "evidence_link" | "human_review" | "export";
+  templateId: WritingTemplateId;
   missingEvidence?: string[];
 };
 export type ResearchSessionReadPort = { id: string; ownerId: string; researchQuestion: string; evidenceIds: string[] };

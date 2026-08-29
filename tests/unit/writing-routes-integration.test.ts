@@ -441,6 +441,29 @@ describe("production writing route integration", () => {
     expect(artifacts.find(({ stage }) => stage === "draft")?.content).toBe(generated.markdown);
   });
 
+  it("persists and restores the ModeY literature-review template with its evidence-bound artifact", async () => {
+    installPorts();
+    const created = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {
+      sessionId: "review-session",
+      focus: "retrieval augmented generation",
+      evidenceIds: ["review-1", "review-2", "review-3"],
+      templateId: "literature_review",
+    }));
+
+    expect(created.status).toBe(201);
+    const draft = await created.json() as { markdown: string; templateId: string };
+    expect(draft.templateId).toBe("literature_review");
+    expect(draft.markdown).toContain("文献综述：retrieval augmented generation");
+
+    const restored = await draftRoute.GET(guestRequest(ownerA, "/api/v3/writing/drafts?sessionId=review-session"));
+    expect(restored.status).toBe(200);
+    await expect(restored.json()).resolves.toMatchObject({
+      templateId: "literature_review",
+      markdown: draft.markdown,
+      source: "restored",
+    });
+  });
+
   it("rejects a session evidence list containing missing records", async () => {
     installPorts();
     const missing = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {

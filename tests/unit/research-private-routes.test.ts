@@ -35,15 +35,13 @@ describe("all private research routes", () => {
     expect(action.status).toBe(200);
   });
 
-  it("return private, no-store even when the identity port is unavailable", async () => {
+  it("keeps non-entry private routes no-store when the identity port is unavailable", async () => {
     const context = { params: Promise.resolve({ sessionId: "session-x" }) };
     const searchContext = { params: Promise.resolve({ sessionId: "session-x", interactionId: "interaction-x" }) };
     const json = (url: string, body: unknown, method = "POST") => new Request(url, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     const responses = await Promise.all([
-      list(new Request("http://local/api/research/sessions")),
-      create(json("http://local/api/research/sessions", { researchQuestion: "private" })),
       read(new Request("http://local/api/research/sessions/session-x"), context),
       patch(json("http://local/api/research/sessions/session-x", { expectedVersion: 0, nodeOverrides: {}, hiddenSystemEdgeIds: [], personalEdges: [] }, "PATCH"), context),
       act(json("http://local/actions", { action: "search", nodeId: "topic", topic: "RAG" }), context),
