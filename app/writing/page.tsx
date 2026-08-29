@@ -65,10 +65,11 @@ export default function WritingPage() {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [paused, setPaused] = useState(false);
-  const selectedCatalog = workflowCatalogTemplate(catalogId);
+  // 文献综述在研究工作区完成；这里仍保留底层模板以恢复历史草稿，但不再作为写作台入口。
+  const selectedCatalog = workflowCatalogTemplate(catalogId === "literature_review" ? "evidence_section" : catalogId);
   const runnerTemplateId = selectedCatalog.runnerTemplateId;
   const template = writingTemplate(runnerTemplateId);
-  const visibleCatalog = workflowCatalog.filter((item) => item.category === category && (!workflowQuery.trim() || `${item.name} ${item.description} ${item.stages.join(" ")}`.toLocaleLowerCase().includes(workflowQuery.trim().toLocaleLowerCase())));
+  const visibleCatalog = workflowCatalog.filter((item) => item.id !== "literature_review" && item.category === category && (!workflowQuery.trim() || `${item.name} ${item.description} ${item.stages.join(" ")}`.toLocaleLowerCase().includes(workflowQuery.trim().toLocaleLowerCase())));
 
   const log = useCallback((message: string, tone: LogEntry["tone"] = "normal") => setLogs((items) => [...items, { at: nowLabel(), message, tone }]), []);
   const loadSessions = useCallback(async () => {
@@ -106,7 +107,7 @@ export default function WritingPage() {
       .catch((error) => setStatus(error instanceof Error ? error.message : "无法加载写作工作区。"));
   }, [loadSessions, selectSession]);
 
-  useEffect(() => { const requested = new URLSearchParams(window.location.search).get("template") ?? undefined; if (requested && workflowCatalog.some((item) => item.id === requested)) { setCatalogId(requested); setCategory(workflowCatalogTemplate(requested).category); } else if (isWritingTemplateId(requested)) { setCatalogId(requested); setCategory(requested === "outline" || requested === "source_to_paper" ? "academic" : "research"); } }, []);
+  useEffect(() => { const requested = new URLSearchParams(window.location.search).get("template") ?? undefined; if (requested === "literature_review") { setCatalogId("evidence_section"); setCategory("research"); } else if (requested && workflowCatalog.some((item) => item.id === requested && item.id !== "literature_review")) { setCatalogId(requested); setCategory(workflowCatalogTemplate(requested).category); } else if (requested && isWritingTemplateId(requested) && requested !== "literature_review") { setCatalogId(requested); setCategory(requested === "outline" || requested === "source_to_paper" ? "academic" : "research"); } }, []);
   function setStep(id: string, state: StepState) { setStepState((current) => ({ ...current, [id]: state })); }
 
   async function deleteSession(item: ResearchSession) {
@@ -215,7 +216,7 @@ export default function WritingPage() {
   }
 
   return <div className="mx-auto max-w-[1440px] space-y-4">
-    <header className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="flex items-center gap-2 font-display text-xl text-ivory"><FileText className="h-5 w-5 text-copper" />写作与综述工作台</h1><p className="mt-1 text-sm text-steel">文献综述、研究写作、上传材料、模型与检查点在同一条可恢复流程中运行。</p></div><Link href="/research" className="text-xs text-pulse hover:underline">返回研究工作区</Link></header>
+    <header className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="flex items-center gap-2 font-display text-xl text-ivory"><FileText className="h-5 w-5 text-copper" />写作工作台</h1><p className="mt-1 text-sm text-steel">把研究工作区选定的证据带入可恢复的写作、复核与导出流程。</p></div><Link href="/research" className="text-xs text-pulse hover:underline">返回研究工作区</Link></header>
     {status && <p role="status" className="border border-copper/40 bg-copper-faint/30 p-3 text-sm text-copper">{status}</p>}
     <div className="grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)_300px]">
       <aside className="space-y-3"><Panel><PanelHeader icon={ListChecks} title="工作流" accent="cyan" /><PanelBody className="space-y-1.5"><Button size="sm" variant="solid" className="w-full" onClick={() => { setResult(null); setDraftText(""); setActiveStep("setup"); setPaused(false); setStatus("已开始新建工作流，请按顺序完成配置。"); }}><Sparkles className="h-3.5 w-3.5" />新建工作流</Button><div className="mt-3 space-y-1">{sessions.map((item) => <div key={item.id} className={`flex border ${session?.id === item.id ? "border-pulse bg-pulse-faint/30" : "border-ink-border bg-ink-raise/50 hover:border-pulse/40"}`}><button type="button" onClick={() => void selectSession(item.id, sessions)} className="min-w-0 flex-1 p-2.5 text-left"><span className="block truncate text-xs text-ivory">{item.writingTopic ?? item.researchQuestion}</span><span className="mt-1 block text-[10px] text-steel-dim">{item.evidenceIds.length} 条证据 · {item.searches.length} 次检索</span></button><button type="button" aria-label={`删除 ${item.writingTopic ?? item.researchQuestion}`} title="删除记录" disabled={busy} onClick={() => void deleteSession(item)} className="w-9 shrink-0 border-l border-ink-border text-steel-dim hover:bg-rosewood/10 hover:text-rosewood disabled:opacity-40"><Trash2 className="mx-auto h-3.5 w-3.5" /></button></div>)}</div></PanelBody></Panel><Panel><PanelHeader icon={Flag} title="运行步骤" accent="copper" /><PanelBody className="space-y-1">{[["setup", "任务配置"], ["materials", "材料"], ["evidence", "证据篮"], ["outline", "提纲"], ["draft", "初稿"], ["review", "人工复核"], ["export", "产物"]].map(([id, label]) => <button type="button" key={id} onClick={() => setActiveStep(id)} className={`flex w-full items-center gap-2 border-l-2 px-2 py-2 text-left text-xs ${activeStep === id ? "border-pulse bg-pulse-faint/20 text-pulse" : "border-transparent text-steel"}`}><span className={`h-1.5 w-1.5 rounded-full ${stepState[id] === "done" ? "bg-pulse" : stepState[id] === "paused" ? "bg-copper" : stepState[id] === "error" ? "bg-rosewood" : "bg-ink-edge"}`} />{label}<ChevronRight className="ml-auto h-3 w-3 opacity-50" /></button>)}</PanelBody></Panel></aside>

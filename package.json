@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "productName": "Wormhole Library Agent",
+  "description": "A recoverable research workspace for federated search, knowledge maps, memory, and evidence-bound writing.",
+  "author": "Wormhole Library Agent contributors",
+  "main": "desktop/main.js",
   "scripts": {
     "dev": "next dev",
     "desktop": "node desktop/launch.js",
+    "package:desktop": "npm run build && electron-builder --win nsis",
     "build": "next build",
     "package:web": "npm run build && node scripts/package-web.mjs",
     "start": "next start",
@@ -41,6 +45,7 @@
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
     "electron": "^33.3.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.18.0",
     "eslint-config-next": "^15.1.6",
     "jsdom": "^26.1.0",
@@ -53,5 +58,24 @@
   },
   "allowScripts": {
     "electron@33.4.11": true
+  },
+  "build": {
+    "appId": "com.wormhole.libraryagent",
+    "productName": "Wormhole Library Agent",
+    "directories": { "output": "dist/desktop" },
+    "npmRebuild": false,
+    "files": ["desktop/**/*", "package.json"],
+    "extraResources": [
+      { "from": ".next/standalone", "to": "app-server" },
+      { "from": ".next/static", "to": "app-server/.next/static" },
+      { "from": "prisma", "to": "app-server/prisma", "filter": ["**/*"] }
+    ],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "signAndEditExecutable": false },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Wormhole Library Agent"
+    }
   }
 }

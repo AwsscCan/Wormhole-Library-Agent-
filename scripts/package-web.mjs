@@ -23,6 +23,10 @@ if (existsSync(path.join(root, "public"))) {
 await cp(path.join(root, "prisma"), path.join(output, "prisma"), { recursive: true });
 await cp(path.join(root, ".env.example"), path.join(output, ".env.example"));
 await cp(path.join(root, "docs", "WEB-DEPLOYMENT.md"), path.join(output, "WEB-DEPLOYMENT.md"));
+for (const document of ["PROJECT-INTRODUCTION.md", "DEMO-VIDEO-SCRIPT.md", "FINAL-INTEGRATION-CHECK-2026-08-29.md"]) {
+  const source = path.join(root, "docs", document);
+  if (existsSync(source)) await cp(source, path.join(output, document));
+}
 await writeFile(path.join(output, "START.txt"), [
   "Wormhole Library Agent - standalone Web package",
   "",

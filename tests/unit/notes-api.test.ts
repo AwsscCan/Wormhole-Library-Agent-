@@ -1,15 +1,16 @@
 import { mkdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { encodeGuestForTest } from "@/lib/auth/principal";
 
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
 
-const temporaryRoot = resolve(process.cwd(), ".tmp");
-const databasePath = resolve(temporaryRoot, `notes-api-${process.pid}.db`);
-const databaseURL = `file:./../.tmp/${databasePath.split(sep).at(-1)}`;
+const temporaryRoot = join(tmpdir(), "wormhole-library-agent-tests");
+const databasePath = join(temporaryRoot, `notes-api-${process.pid}.db`);
+const databaseURL = `file:${databasePath.replace(/\\/g, "/")}`;
 const databaseFiles = [databasePath, `${databasePath}-journal`, `${databasePath}-shm`, `${databasePath}-wal`];
 const testOrigin = "http://notes-api.test";
 

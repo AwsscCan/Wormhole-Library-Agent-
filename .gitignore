@@ -25,3 +25,4 @@ upgrade-*.db
 .DS_Store
 coverage/
 .tmp/
+.npm-cache/

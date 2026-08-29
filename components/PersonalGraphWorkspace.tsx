@@ -12,6 +12,7 @@ import type { HybridMemoryInsights } from "@/lib/research/memory";
 import type { MergedGraph, ResearchSession, SourceTransparentResource, SystemGraphNodeKind } from "@/lib/research/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OpenLibraryStarMap } from "@/components/OpenLibraryStarMap";
 import { cn } from "@/lib/utils";
 
 type AtlasKind = SystemGraphNodeKind | "memory";
@@ -24,7 +25,7 @@ function PersonalNode({ data, selected }: NodeProps<FlowNode>) {
   const brightness = Math.max(data.brightness ?? 0.45, data.memoryWeight ?? 0);
   const repeated = (data.searchFrequency ?? 0) > 1;
   const visualWidth = Math.min(188, Math.max(72, 32 + [...data.label].reduce((width, character) => width + (/[^\x00-\xff]/.test(character) ? 9 : 5.5), 0)));
-  return <div className="group atlas-node h-[22px]" style={{ width: visualWidth, opacity: data.highlighted === false ? 0.16 : 0.5 + brightness * 0.5 }}>
+  return <div className="group atlas-node h-[22px] cursor-pointer" style={{ width: visualWidth, opacity: data.highlighted === false ? 0.16 : 0.5 + brightness * 0.5 }}>
     <Handle type="target" position={Position.Left} className="atlas-handle !h-1.5 !w-1.5 !border-0 !bg-pulse opacity-0 transition-opacity group-hover:opacity-70" />
     <div className={cn("atlas-node-core atlas-star-surface flex h-[22px] w-full items-center gap-1.5 border border-ink-border/45 bg-ink/65 px-1.5 font-mono text-[8px] text-steel backdrop-blur-[2px] transition-colors", data.kind === "topic" && "border-pulse/25 text-pulse", data.kind === "resource" && "border-copper/20 text-copper", data.kind === "memory" && "border-copper/30 text-copper", selected && "border-pulse/55 bg-pulse-faint/20 text-ivory ring-1 ring-pulse/15")} style={{ boxShadow: repeated || data.memoryWeight ? `0 0 ${4 + brightness * 11}px color-mix(in srgb, var(--theme-accent) ${Math.round(12 + brightness * 24)}%, transparent)` : undefined }} title={`${kindName[data.kind]} · ${data.label}`}>
       <span className={cn("h-1 w-1 shrink-0 rounded-full bg-ink-edge", data.kind === "topic" || data.kind === "concept" || data.kind === "search" ? "bg-pulse" : "", data.kind === "resource" || data.kind === "memory" ? "bg-copper" : "", data.kind === "wormhole" ? "bg-rosewood" : "")} style={{ boxShadow: `0 0 ${3 + brightness * 5}px currentColor` }} />
@@ -44,16 +45,6 @@ function FocusController({ nodeId }: { nodeId?: string }) {
     const node = getNode(nodeId);
     if (node) void setCenter(node.position.x, node.position.y, { zoom: 1.25, duration: 450 });
   }, [getNode, nodeId, setCenter]);
-  return null;
-}
-
-function CatalogueViewportController({ active, nodeCount }: { active: boolean; nodeCount: number }) {
-  const { fitView } = useReactFlow();
-  useEffect(() => {
-    if (!active || nodeCount < 2) return;
-    const timer = window.setTimeout(() => void fitView({ padding: 0.06, duration: 420, minZoom: 0.62, maxZoom: 1.25 }), 80);
-    return () => window.clearTimeout(timer);
-  }, [active, fitView, nodeCount]);
   return null;
 }
 
@@ -313,19 +304,18 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
     <div className="atlas-canvas relative rf-cockpit h-[calc(100vh-10rem)] min-h-[590px] overflow-hidden border-y border-ink-border bg-ink-panel/50">
       <div className="absolute left-3 top-3 z-10 flex items-center gap-2 border border-ink-border bg-ink/92 px-2.5 py-1.5"><MapIcon className="h-3.5 w-3.5 text-pulse" /><span className="font-display text-xs text-ivory">Knowledge Atlas</span><span className="font-mono text-[8px] text-steel-dim">{publicGraphHash.slice(0, 8)} · v{session.personalGraph.version}</span></div>
       <div className="absolute right-3 top-3 z-10 flex flex-wrap justify-end gap-1 border border-ink-border bg-ink/92 p-1"><button type="button" onClick={() => { setMapMode("personal"); setSelectedNodeId(focusedNodeId ?? "topic"); }} className={cn("px-2.5 py-1.5 text-[10px]", mapMode === "personal" ? "bg-pulse-faint text-pulse" : "text-steel")}>我的星图</button><button type="button" onClick={() => { setMapMode("catalogue"); setSelectedNodeId("catalogue-topic"); setSelectedEdgeId(null); }} className={cn("px-2.5 py-1.5 text-[10px]", mapMode === "catalogue" ? "bg-copper-faint text-copper" : "text-steel")}>馆藏总图</button><button type="button" aria-pressed={showMemory} onClick={() => setShowMemory((value) => !value)} className={cn("flex items-center gap-1 px-2.5 py-1.5 text-[10px]", showMemory ? "bg-copper-faint text-copper" : "text-steel")}><BrainCircuit className="h-3 w-3" />记忆图层</button></div>
-      {mapMode === "catalogue" && <div className="absolute left-3 top-12 z-10 flex items-center gap-2 border border-ink-border bg-ink/92 p-2"><Search className="h-3.5 w-3.5 text-copper" /><input value={catalogueQuery} onChange={(event) => setCatalogueQuery(event.target.value)} placeholder="点亮类别或馆藏" className="w-44 bg-transparent text-xs text-ivory outline-none" /></div>}
+      {mapMode === "catalogue" && <div className="absolute left-3 top-[7.1rem] z-10 border-l-2 border-copper/60 bg-ink/80 px-2 py-1 text-[9px] text-steel">实时 Open Library 馆藏分类 · 点击任意子星继续下钻</div>}
       {focusUnavailable && <div role="alert" className="absolute left-3 top-10 z-10 rounded border border-copper/40 bg-ink/95 px-3 py-2 text-xs text-copper">目标资源 {focusUnavailable} 已失效或尚未投影；请回工作台重新生成。</div>}
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} connectionLineType={ConnectionLineType.Bezier} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onNodeClick={(_, node) => { setSelectedNodeId(node.id); setSelectedEdgeId(null); }} onEdgeClick={(_, edge) => { setSelectedEdgeId(edge.id); setSelectedNodeId(null); }} fitView fitViewOptions={{ padding: 0.08, minZoom: 0.48, maxZoom: 1.15 }} minZoom={0.2} maxZoom={2} deleteKeyCode={null} nodesConnectable={mapMode === "personal"} panOnDrag>
+      {mapMode === "catalogue" ? <OpenLibraryStarMap onPick={setCatalogueQuery} /> : <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} connectionLineType={ConnectionLineType.Bezier} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onNodeClick={(_, node) => { setSelectedNodeId(node.id); setSelectedEdgeId(null); }} onEdgeClick={(_, edge) => { setSelectedEdgeId(edge.id); setSelectedNodeId(null); }} fitView fitViewOptions={{ padding: 0.08, minZoom: 0.48, maxZoom: 1.15 }} minZoom={0.2} maxZoom={2} deleteKeyCode={null} nodesConnectable={mapMode === "personal"} panOnDrag>
         <Background variant={BackgroundVariant.Dots} gap={24} size={0.7} color="var(--atlas-grid-dot)" />
         <FocusController nodeId={focusedNodeId} />
-        <CatalogueViewportController active={mapMode === "catalogue"} nodeCount={nodes.length} />
         <Controls showInteractive={false} />
-      </ReactFlow>
+      </ReactFlow>}
     </div>
     <aside className="space-y-3">
       <div className="border border-ink-border bg-ink-panel p-3">
         <div className="flex items-center justify-between"><span className="font-mono text-[10px] uppercase text-steel">{mapMode === "personal" ? "个人知识投影" : "馆藏知识脉络"}</span><span className={cn("text-[10px]", dirty ? "text-copper" : "text-pulse")}>{dirty ? "未保存" : "已同步"}</span></div>
-        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[9px] text-steel-dim"><span><b className="block text-sm text-ivory">{nodes.filter((node) => !node.hidden).length}</b>节点</span><span><b className="block text-sm text-ivory">{edges.length}</b>关系</span><span><b className="block text-sm text-copper">{memory?.retrieval.matches.length ?? 0}</b>记忆命中</span></div>
+        {mapMode === "personal" ? <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[9px] text-steel-dim"><span><b className="block text-sm text-ivory">{nodes.filter((node) => !node.hidden).length}</b>节点</span><span><b className="block text-sm text-ivory">{edges.length}</b>关系</span><span><b className="block text-sm text-copper">{memory?.retrieval.matches.length ?? 0}</b>记忆命中</span></div> : <div className="mt-3 border-l-2 border-copper/60 pl-3 text-[10px] leading-relaxed text-steel">分类、主题与书目来自 Open Library 实时接口。点击节点后，当前父分类会保留在路径中。</div>}
         {mapMode === "personal" && <Button variant="solid" className="mt-3 w-full" loading={saving} disabled={!dirty} onClick={save}><Save className="h-3.5 w-3.5" />保存个人知识层</Button>}
         {message && <p role="status" className="mt-2 text-xs leading-relaxed text-steel">{message}</p>}
       </div>
@@ -336,7 +326,7 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
         <div className="mt-1 flex justify-between text-[9px] text-steel-dim"><span>相近</span><span>语义距离</span><span>遥远</span></div>
       </div>
 
-      {selected && <div className="space-y-3 border border-ink-border bg-ink-panel p-3">
+      {mapMode === "personal" && selected && <div className="space-y-3 border border-ink-border bg-ink-panel p-3">
         <div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase text-steel-dim">{kindName[selected.data.kind]}</span><LockKeyhole className="h-3 w-3 text-pulse" /></div>
         <div><h2 className="text-sm leading-relaxed text-ivory">{selected.data.label}</h2>{selected.data.note && <p className="mt-1 text-[10px] leading-relaxed text-steel-dim">{selected.data.note}</p>}</div>
         {selected.data.memoryReasons?.length ? <div className="border-l-2 border-copper/60 pl-3"><div className="mb-1 flex items-center gap-1 text-[10px] text-copper"><BrainCircuit className="h-3 w-3" />记忆如何影响此节点</div>{selected.data.memoryReasons.map((reason) => <p key={reason} className="text-[10px] leading-relaxed text-steel">{reason}</p>)}</div> : null}
@@ -351,7 +341,7 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
         </div>
       </div>}
 
-      {selectedEdge && <div className="border border-ink-border bg-ink-panel p-3"><p className="text-xs text-steel">关系：{String(selectedEdge.data?.relation ?? selectedEdge.label ?? "语义关联")}</p>{selectedEdge.data?.memoryLayer ? <p className="mt-1 text-[10px] text-copper">这条边来自当前 RAG 召回，不写入个人覆盖层。</p> : <Button size="sm" variant="danger" className="mt-2 w-full" onClick={removeSelectedEdge}><Trash2 className="h-3 w-3" />{selectedEdge.data?.system ? "在个人层隐藏" : "删除个人关联"}</Button>}</div>}
+      {mapMode === "personal" && selectedEdge && <div className="border border-ink-border bg-ink-panel p-3"><p className="text-xs text-steel">关系：{String(selectedEdge.data?.relation ?? selectedEdge.label ?? "语义关联")}</p>{selectedEdge.data?.memoryLayer ? <p className="mt-1 text-[10px] text-copper">这条边来自当前 RAG 召回，不写入个人覆盖层。</p> : <Button size="sm" variant="danger" className="mt-2 w-full" onClick={removeSelectedEdge}><Trash2 className="h-3 w-3" />{selectedEdge.data?.system ? "在个人层隐藏" : "删除个人关联"}</Button>}</div>}
 
       {nodes.some((node) => node.hidden) && <div className="rounded-lg border border-ink-border bg-ink-panel p-3"><div className="mb-2 flex items-center gap-1 font-mono text-[9px] uppercase text-steel-dim"><Eye className="h-3 w-3" />hidden nodes</div>{nodes.filter((node) => node.hidden).map((node) => <button key={node.id} className="block w-full truncate py-1 text-left text-xs text-steel hover:text-pulse" onClick={() => { setSelectedNodeId(node.id); setNodes((items) => items.map((item) => item.id === node.id ? { ...item, hidden: false } : item)); setDirty(true); }}>恢复 · {node.data.label}</button>)}</div>}
 

@@ -11,7 +11,7 @@ const LINKS = [
   { href: "/", label: "探索台", en: "EXPLORE", icon: Telescope },
   { href: "/research", label: "研究工作区", en: "RESEARCH", icon: Map },
   { href: "/memory", label: "记忆核心", en: "MEMORY", icon: Brain },
-  { href: "/writing", label: "写作与综述", en: "WRITING", icon: PenLine },
+  { href: "/writing", label: "写作工作台", en: "WRITING", icon: PenLine },
   { href: "/notes", label: "研究笔记", en: "NOTES", icon: NotebookPen },
   { href: "/living-library", label: "活馆藏", en: "LIVING LIB", icon: BookUser },
   { href: "/settings/providers", label: "模型设置", en: "MODELS", icon: Settings2 },

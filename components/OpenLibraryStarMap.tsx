@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { ArrowLeft, ExternalLink, LibraryBig } from "lucide-react";
+import { ArrowLeft, ExternalLink, LibraryBig, Search } from "lucide-react";
 import { Background, BackgroundVariant, Handle, Position, ReactFlow, type Edge, type Node, type NodeProps, type NodeTypes } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { OPEN_LIBRARY_ROOT_SUBJECTS, openLibrarySubjectId, type OpenLibrarySubjectResult } from "@/lib/catalog/openLibrarySubjects";
@@ -21,9 +21,10 @@ function LibraryStar({ data }: NodeProps<LibraryStarNode>) {
 
 const nodeTypes: NodeTypes = { "library-star": LibraryStar };
 
-export function OpenLibraryStarMap({ onPick }: { onPick?: (label: string) => void }) {
+export function OpenLibraryStarMap({ onPick, className }: { onPick?: (label: string) => void; className?: string }) {
   const [trail, setTrail] = useState<Array<{ id: string; label: string }>>([]);
   const [result, setResult] = useState<OpenLibrarySubjectResult | null>(null);
+  const [subjectQuery, setSubjectQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -53,6 +54,14 @@ export function OpenLibraryStarMap({ onPick }: { onPick?: (label: string) => voi
     const target = next[next.length - 1];
     if (target) void requestSubject(target.id).then(setResult).catch((cause) => setError(cause instanceof Error ? cause.message : "分类读取失败"));
     else setResult(null);
+  }
+
+  function submitSubject(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const label = subjectQuery.trim();
+    if (!label || loading) return;
+    const root = OPEN_LIBRARY_ROOT_SUBJECTS.find((subject) => subject.label === label || subject.id === label);
+    void openSubject(root?.id ?? openLibrarySubjectId(label), label);
   }
 
   const graph = useMemo(() => {
@@ -86,13 +95,18 @@ export function OpenLibraryStarMap({ onPick }: { onPick?: (label: string) => voi
     return { nodes, edges };
   }, [result, openSubject]);
 
-  return <div className="rf-cockpit relative h-full w-full">
+  return <div className={cn("rf-cockpit relative h-full w-full", className)}>
     <div className="absolute left-3 top-11 z-10 flex items-center gap-2 border border-ink-border bg-ink/90 px-2 py-1 text-[10px] text-steel">
       {trail.length > 0 && <button type="button" onClick={back} aria-label="返回上一级分类" className="text-pulse"><ArrowLeft className="h-3.5 w-3.5" /></button>}
       <LibraryBig className="h-3.5 w-3.5 text-copper" />
       <span>{trail.length ? trail.map((item) => item.label).join(" / ") : "Open Library 全部分类"}</span>
       {loading && <span className="text-pulse">读取中…</span>}
     </div>
+    <form onSubmit={submitSubject} className="absolute left-3 top-[4.5rem] z-10 flex h-8 items-center gap-1 border border-ink-border bg-ink/92 px-2">
+      <Search className="h-3.5 w-3.5 shrink-0 text-copper" />
+      <input value={subjectQuery} onChange={(event) => setSubjectQuery(event.target.value)} placeholder="查询 Open Library 分类" aria-label="查询 Open Library 分类" className="w-44 bg-transparent text-xs text-ivory outline-none placeholder:text-steel-dim" />
+      <button type="submit" aria-label="打开分类" className="px-1.5 text-[10px] text-pulse hover:text-ivory">打开</button>
+    </form>
     {error && <div role="alert" className="absolute left-3 top-20 z-10 border border-rosewood/40 bg-ink/95 px-3 py-2 text-xs text-rosewood">{error}</div>}
     <ReactFlow nodes={graph.nodes} edges={graph.edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.12 }} minZoom={0.25} maxZoom={2} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag>
       <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="var(--atlas-grid-dot)" />

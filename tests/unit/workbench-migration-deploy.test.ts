@@ -1,9 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+
+const temporaryRoot = path.join(tmpdir(), `wormhole-workbench-migration-${process.pid}`);
+mkdirSync(temporaryRoot, { recursive: true });
 
 /**
  * Validate every generated path before best-effort cleanup. A managed sandbox
@@ -11,12 +15,10 @@ import { PrismaClient } from "@prisma/client";
  * a valid deployment result into a false negative or bypass its safety shim.
  */
 function deleteFile(filePath: string): void {
-  const root = path.resolve(process.cwd());
   const resolved = path.resolve(filePath);
   const parent = path.dirname(resolved);
   const filename = path.basename(resolved);
-  const allowed = (parent === root && filename.startsWith("shadow-") && filename.endsWith(".db"))
-    || (parent === path.join(root, "prisma") && /^(deploy|upgrade)-.+\.db$/.test(filename));
+  const allowed = parent === temporaryRoot && /^(deploy|shadow|upgrade)-.+\.db$/.test(filename);
   if (!allowed) throw new Error(`Refusing to clean unexpected migration test path: ${resolved}`);
   try { rmSync(resolved, { force: true }); } catch { /* sandbox cleanup is best-effort */ }
 }
@@ -28,9 +30,9 @@ describe("standard Prisma deployment chain", () => {
     expect(readFileSync(path.join(process.cwd(), "prisma/schema.prisma"), "utf8")).toContain("model MemorySnapshot");
     const filename = `deploy-${process.pid}-${Date.now()}.db`;
     const shadowFilename = `shadow-${process.pid}-${Date.now()}.db`;
-    const databasePath = path.join(process.cwd(), "prisma", filename);
-    const shadowPath = path.join(process.cwd(), shadowFilename);
-    const databaseUrl = `file:./${filename}`;
+    const databasePath = path.join(temporaryRoot, filename);
+    const shadowPath = path.join(temporaryRoot, shadowFilename);
+    const databaseUrl = `file:${databasePath.replace(/\\/g, "/")}`;
     const prismaCli = createRequire(import.meta.url).resolve("prisma/build/index.js");
     try {
       // The managed Windows sandbox cannot let Prisma atomically create a new
@@ -43,7 +45,7 @@ describe("standard Prisma deployment chain", () => {
       expect(output).toContain("All migrations have been successfully applied");
       writeFileSync(shadowPath, "");
       const diff = execFileSync(process.execPath, [prismaCli, "migrate", "diff", "--from-migrations", "prisma/migrations",
-        "--to-schema-datamodel", "prisma/schema.prisma", "--shadow-database-url", `file:./${shadowFilename}`, "--exit-code"], {
+        "--to-schema-datamodel", "prisma/schema.prisma", "--shadow-database-url", `file:${shadowPath.replace(/\\/g, "/")}`, "--exit-code"], {
         cwd: process.cwd(), env: { ...process.env, DATABASE_URL: databaseUrl }, encoding: "utf8",
       });
       expect(diff).toContain("No difference detected");
@@ -52,7 +54,7 @@ describe("standard Prisma deployment chain", () => {
 
   it("baselines an existing schema and preserves identity rows while deploying 03/05", async () => {
     const filename = `upgrade-${process.pid}-${Date.now()}.db`;
-    const databasePath = path.join(process.cwd(), "prisma", filename);
+    const databasePath = path.join(temporaryRoot, filename);
     const absoluteUrl = `file:${databasePath.replace(/\\/g, "/")}`;
     writeFileSync(databasePath, "");
     const first = new PrismaClient({ datasources: { db: { url: absoluteUrl } } });
@@ -64,7 +66,7 @@ describe("standard Prisma deployment chain", () => {
 
     const prismaCli = createRequire(import.meta.url).resolve("prisma/build/index.js");
     try {
-      const env = { ...process.env, DATABASE_URL: `file:./${filename}` };
+      const env = { ...process.env, DATABASE_URL: absoluteUrl };
       const resolved = execFileSync(process.execPath, [prismaCli, "migrate", "resolve", "--applied", "202608200000_initial_schema"], { cwd: process.cwd(), env, encoding: "utf8" });
       const deployed = execFileSync(process.execPath, [prismaCli, "migrate", "deploy"], { cwd: process.cwd(), env, encoding: "utf8" });
       expect(resolved).toContain("marked as applied");

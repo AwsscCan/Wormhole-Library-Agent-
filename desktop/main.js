@@ -14,6 +14,7 @@ const path = require("path");
 const PORT = Number(process.env.WORMHOLE_PORT || 3000);
 const APP_URL = `http://localhost:${PORT}`;
 const ROOT = path.join(__dirname, "..");
+const PACKAGED_SERVER_ROOT = path.join(process.resourcesPath, "app-server");
 
 let serverProcess = null;
 let ownServer = false; // 只有自己拉起的 server 才由我们负责关闭
@@ -36,12 +37,21 @@ async function ensureServer() {
   if (await serverIsUp()) return; // 已有 dev server，复用
 
   ownServer = true;
-  serverProcess = spawn("npm", ["run", "dev"], {
-    cwd: ROOT,
-    shell: true,
-    stdio: "ignore",
-    env: { ...process.env, PORT: String(PORT) },
-  });
+  if (app.isPackaged) {
+    const serverEntry = path.join(PACKAGED_SERVER_ROOT, "server.js");
+    serverProcess = spawn(process.execPath, [serverEntry], {
+      cwd: PACKAGED_SERVER_ROOT,
+      stdio: "ignore",
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_ENV: "production", HOSTNAME: "127.0.0.1", PORT: String(PORT) },
+    });
+  } else {
+    serverProcess = spawn("npm", ["run", "dev"], {
+      cwd: ROOT,
+      shell: true,
+      stdio: "ignore",
+      env: { ...process.env, PORT: String(PORT) },
+    });
+  }
 
   // 最多等 90 秒（首次编译可能较慢）
   for (let i = 0; i < 90; i++) {

@@ -1,12 +1,13 @@
 import { createRequire } from "node:module";
 import { mkdir, readFile, rm } from "node:fs/promises";
-import { dirname, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
-const path = resolve(process.cwd(), ".tmp", `writing-prisma-${process.pid}.db`);
-const url = `file:./../.tmp/${path.split(sep).at(-1)}`;
+const path = resolve(tmpdir(), "wormhole-library-agent-tests", `writing-prisma-${process.pid}.db`);
+const url = `file:${path.replace(/\\/g, "/")}`;
 const files = [path, `${path}-journal`, `${path}-shm`, `${path}-wal`];
 const migrations = [
   resolve(process.cwd(), "prisma", "migrations", "202608200000_initial_schema", "migration.sql"),

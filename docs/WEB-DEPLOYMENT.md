@@ -26,3 +26,19 @@ node server.js
 Public search requires outbound network access. Model-backed writing and AI Living Library require a provider configured by the user. Personal university catalogues also require a lawful endpoint and any access permission issued by that institution.
 
 Review `docs/DEPLOYMENT-GATES.md` in the source repository before a public production deployment.
+
+## Windows desktop package
+
+The repository also produces a Windows installer. The installer contains the
+Electron shell and the built Next standalone server, so it does not require a
+checkout or a local Node.js installation on the target machine.
+
+```powershell
+npm run package:desktop
+```
+
+The installer is written to `dist/desktop/`. The first launch starts the local
+server on port 3000; set `WORMHOLE_PORT` before launching when that port is
+already occupied. The desktop package still needs the same database and model
+provider configuration as the Web deployment. Do not publish a package with
+development secrets embedded in it.

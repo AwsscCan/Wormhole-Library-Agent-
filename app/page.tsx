@@ -151,7 +151,7 @@ export default function HomePage() {
               </div>
 
               <div className="grid grid-cols-2 border border-ink-border bg-ink-raise/45 p-1" aria-label="探索方式">
-                <button type="button" onClick={() => setLaunchMode("agent")} className={cn("flex h-8 items-center justify-center gap-1.5 text-xs", launchMode === "agent" ? "bg-pulse-faint text-pulse" : "text-steel")}><BrainCircuit className="h-3.5 w-3.5" />Agent 研究</button>
+                <button type="button" onClick={() => setLaunchMode("agent")} className={cn("flex h-8 items-center justify-center gap-1.5 text-xs", launchMode === "agent" ? "bg-pulse-faint text-pulse" : "text-steel")}><BrainCircuit className="h-3.5 w-3.5" />AI 全量搜索</button>
                 <button type="button" onClick={() => setLaunchMode("search")} className={cn("flex h-8 items-center justify-center gap-1.5 text-xs", launchMode === "search" ? "bg-pulse-faint text-pulse" : "text-steel")}><Search className="h-3.5 w-3.5" />直接检索</button>
               </div>
 
@@ -198,7 +198,7 @@ export default function HomePage() {
 
               {launchMode === "agent" && <div className="space-y-3 border-t border-ink-border pt-3.5">
                 <div className="grid grid-cols-3 gap-1 border border-ink-border bg-ink-raise/45 p-1">
-                  <button type="button" onClick={() => setOutput("search_brief")} className={cn("flex min-h-9 items-center justify-center gap-1 px-1 text-[10px]", output === "search_brief" ? "bg-copper-faint text-copper" : "text-steel")}><Search className="h-3 w-3" />全量速览</button>
+                  <button type="button" onClick={() => setOutput("search_brief")} className={cn("flex min-h-9 items-center justify-center gap-1 px-1 text-[10px]", output === "search_brief" ? "bg-copper-faint text-copper" : "text-steel")}><Search className="h-3 w-3" />AI 全量总结</button>
                   <button type="button" onClick={() => setOutput("summary")} className={cn("flex min-h-9 items-center justify-center gap-1 px-1 text-[10px]", output === "summary" ? "bg-copper-faint text-copper" : "text-steel")}><FileText className="h-3 w-3" />资料概要</button>
                   <button type="button" onClick={() => setOutput("literature_review")} className={cn("flex min-h-9 items-center justify-center gap-1 px-1 text-[10px]", output === "literature_review" ? "bg-copper-faint text-copper" : "text-steel")}><NotebookPen className="h-3 w-3" />初步综述</button>
                 </div>
@@ -223,7 +223,7 @@ export default function HomePage() {
                 onClick={() => launch()}
               >
                 <Search className="h-4 w-4" />
-                {busy ? (launchMode === "agent" ? "Agent 正在拆解并检索…" : "定位知识坐标…") : (launchMode === "agent" ? "让 Agent 开始研究" : "启动检索")}
+                {busy ? (launchMode === "agent" ? "AI 正在拆解目标并检索…" : "定位知识坐标…") : (launchMode === "agent" ? "开始 AI 全量搜索" : "启动检索")}
               </Button>
 
               {error && <p className="text-xs text-rosewood">{error}</p>}
@@ -282,15 +282,14 @@ export default function HomePage() {
       </motion.div>
 
       {agentResult && <Panel className="lg:col-span-2">
-        <PanelHeader icon={BrainCircuit} title="agent research · 目标研究结果" accent="cyan" right={<span className="font-mono text-[9px] text-steel-dim">{agentResult.generation === "provider" ? "模型综合" : "可追溯本地综合"}</span>} />
+        <PanelHeader icon={BrainCircuit} title="AI 搜索总结 · 全部候选" accent="cyan" right={<span className="font-mono text-[9px] text-steel-dim">{agentResult.generation === "provider" ? "模型综合" : "可追溯本地综合"}</span>} />
         <PanelBody className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
           <div className="min-w-0 border border-ink-border bg-ink-raise/35 p-4"><SafeMarkdown markdown={agentResult.markdown} /></div>
           <div className="space-y-4">
-            <section><h2 className="mb-2 text-xs text-ivory">Agent 实际执行的查询</h2><ol className="space-y-2">{agentResult.plan.queries.map((step, index) => <li key={step.query} className="border-l-2 border-pulse/45 pl-3 text-xs text-steel"><strong className="block text-ivory">{index + 1}. {step.query}</strong><span className="text-[10px] text-steel-dim">{step.purpose}</span></li>)}</ol></section>
-            <section><h2 className="mb-2 text-xs text-ivory">扫描 {agentResult.corpusSize} 条 · 自动初选 {agentResult.selected.length} 条</h2><div className="max-h-56 space-y-1 overflow-y-auto">{agentResult.selected.map((item) => <div key={item.id} className="flex items-start justify-between gap-2 border-b border-ink-border/70 py-2"><div className="min-w-0"><p className="line-clamp-2 text-xs text-ivory">{item.title}</p><p className="mt-0.5 font-mono text-[9px] text-copper">{item.sourceLabel}</p></div>{item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer noopener" className="shrink-0 text-[10px] text-pulse">来源</a>}</div>)}</div></section>
+            <section><h2 className="mb-2 text-xs text-ivory">AI 拆解出的检索路径</h2><ol className="space-y-2">{agentResult.plan.queries.map((step, index) => <li key={step.query} className="border-l-2 border-pulse/45 pl-3 text-xs text-steel"><strong className="block text-ivory">{index + 1}. {step.query}</strong><span className="text-[10px] text-steel-dim">{step.purpose}</span></li>)}</ol></section>
+            <section><h2 className="mb-2 text-xs text-ivory">已扫描 {agentResult.corpusSize} 条 · 按相关性初选 {agentResult.selected.length} 条</h2><p className="mb-2 text-[10px] leading-relaxed text-steel-dim">总结基于所有候选的题名、作者、来源和可用摘要线索；正式引用仍需打开来源逐条核验。</p><div className="max-h-56 space-y-1 overflow-y-auto">{agentResult.selected.map((item) => <div key={item.id} className="flex items-start justify-between gap-2 border-b border-ink-border/70 py-2"><div className="min-w-0"><p className="line-clamp-2 text-xs text-ivory">{item.title}</p><p className="mt-0.5 font-mono text-[9px] text-copper">{item.sourceLabel}</p></div>{item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer noopener" className="shrink-0 text-[10px] text-pulse">来源</a>}</div>)}</div></section>
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
               <Link href={agentResult.mapHref} className="flex h-9 items-center justify-center gap-1 border border-pulse/45 text-xs text-pulse hover:bg-pulse-faint/30"><Map className="h-3.5 w-3.5" />查看星图</Link>
-              <Link href={agentResult.writingHref} className="flex h-9 items-center justify-center gap-1 border border-copper/45 text-xs text-copper hover:bg-copper-faint/30"><FileText className="h-3.5 w-3.5" />进入写作</Link>
               <Link href="/notes" className="flex h-9 items-center justify-center gap-1 border border-ink-border text-xs text-steel hover:text-ivory"><NotebookPen className="h-3.5 w-3.5" />已存笔记</Link>
             </div>
           </div>

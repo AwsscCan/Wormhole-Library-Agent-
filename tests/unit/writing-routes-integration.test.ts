@@ -1,14 +1,15 @@
 import { createRequire } from "node:module";
 import { mkdir, readFile, rm } from "node:fs/promises";
-import { dirname, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeGuestForTest } from "@/lib/auth/principal";
 import type { EvidenceItem, ResearchSessionReadPort, WritingStage } from "@/lib/writing/types";
 
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
-const databasePath = resolve(process.cwd(), ".tmp", `writing-routes-${process.pid}.db`);
-const databaseUrl = `file:./../.tmp/${databasePath.split(sep).at(-1)}`;
+const databasePath = join(tmpdir(), "wormhole-library-agent-tests", `writing-routes-${process.pid}.db`);
+const databaseUrl = `file:${databasePath.replace(/\\/g, "/")}`;
 const databaseFiles = [databasePath, `${databasePath}-journal`, `${databasePath}-shm`, `${databasePath}-wal`];
 const migrationPaths = [
   resolve(process.cwd(), "prisma", "migrations", "202608200000_initial_schema", "migration.sql"),

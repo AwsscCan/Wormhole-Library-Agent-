@@ -1,13 +1,14 @@
 import { createRequire } from "node:module";
 import { execFile } from "node:child_process";
 import { mkdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
-const temporaryRoot = resolve(process.cwd(), ".tmp");
+const temporaryRoot = resolve(tmpdir(), "wormhole-library-agent-tests");
 const freshPath = resolve(temporaryRoot, `writing-migration-fresh-${process.pid}.db`);
 const upgradePath = resolve(temporaryRoot, `writing-migration-upgrade-${process.pid}.db`);
 const cliFreshPath = resolve(temporaryRoot, `writing-migrate-cli-fresh-${process.pid}.db`);
@@ -22,7 +23,7 @@ const prismaCli = resolve(process.cwd(), "node_modules", "prisma", "build", "ind
 const executeFile = promisify(execFile);
 
 function databaseUrl(path: string) {
-  return `file:./../.tmp/${path.split(/[\\/]/).at(-1)}`;
+  return `file:${path.replace(/\\/g, "/")}`;
 }
 
 async function runPrisma(path: string, args: string[]) {

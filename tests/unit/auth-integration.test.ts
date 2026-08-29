@@ -1,15 +1,16 @@
 import { mkdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const sqliteModuleName = "node:sqlite";
 const { DatabaseSync } = require(sqliteModuleName) as typeof import("node:sqlite");
 
-const temporaryRoot = resolve(process.cwd(), ".tmp");
-const databasePath = resolve(temporaryRoot, `auth-integration-${process.pid}.db`);
-const databaseURL = `file:./../.tmp/${databasePath.split(sep).at(-1)}`;
+const temporaryRoot = join(tmpdir(), "wormhole-library-agent-tests");
+const databasePath = join(temporaryRoot, `auth-integration-${process.pid}.db`);
+const databaseURL = `file:${databasePath.replace(/\\/g, "/")}`;
 const databaseFiles = [databasePath, `${databasePath}-journal`, `${databasePath}-shm`, `${databasePath}-wal`];
 const testOrigin = "http://auth-integration.test";
 

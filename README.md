@@ -10,9 +10,9 @@ PaperWorm 仅指 Wormhole Library Agent 中的论文虫洞功能，不是产品�
 - 账户系统：邮箱密码注册、登录、退出；当前版本不要求邮箱验证。
 - 研究工作区：首页检索会创建持久化 `ResearchSession`，保存检索快照、证据篮、虫洞和个人图编辑。
 - 来源透明馆藏：显示来源状态和 provenance；外部来源不可用时明确降级到本地种子馆藏。
-- 证据约束写作：发现候选、人工确认、选择模型预设、生成草稿、证据回链、人工复核、Markdown 导出和 checkpoint 恢复。
+- 证据约束写作：研究工作区完成全量总结和初步综述；写作台负责发现候选、人工确认、选择模型预设、生成草稿、证据回链、人工复核、Markdown 导出和 checkpoint 恢复。
 - 私有工具：账户隔离的 Markdown 笔记、Provider 配置、模型预设和当前身份记忆页。
-- 探索工作台：个人图、历史记忆上下文、推荐反馈和工作台恢复。
+- 探索工作台：AI 目标拆解、全量候选总结、个人图、历史记忆上下文、每日推荐、推荐反馈和工作台恢复。
 - 外观设置：在统一设置中心切换深夜纸墨、山水墨卷和抽象构成，选择会跨页面持久保留。
 
 `/explore/[interactionId]`、`/api/search` 等 V1 路径只为兼容旧演示保留。新的用户流程从 `/` 或 `/research` 进入，不依赖易失的内存 interaction。
@@ -68,7 +68,7 @@ npm run db:seed
 npm run dev
 ```
 
-打开 [http://localhost:3000](http://localhost:3000)。Electron 壳可通过 `npm run desktop` 启动，但浏览器 Web 应用是完整体验入口。
+打开 [http://localhost:3000](http://localhost:3000)。Electron 开发壳可通过 `npm run desktop` 启动；生成可分发的 Windows 安装包使用 `npm run package:desktop`。
 
 ## 打包 Web 应用
 
@@ -103,6 +103,13 @@ npm run lint
 npm run test:unit
 npm run build
 ```
+
+## 交付材料
+
+- [项目简介](docs/PROJECT-INTRODUCTION.md)：项目目标、用户场景、技术方案、完成情况和使用边界。
+- [演示视频稿](docs/DEMO-VIDEO-SCRIPT.md)：从 AI 全量搜索到星图、记忆、写作、Living Library 和打包交付的完整录制脚本。
+- `npm run package:web`：生成可部署的 standalone Web 包及 ZIP。
+- `npm run package:desktop`：生成 Windows NSIS 安装包，安装包携带构建后的服务，不依赖目标机源码。
 
 ## 降级与边界
 
