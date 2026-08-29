@@ -23,3 +23,4 @@ upgrade-*.db
 # misc
 .DS_Store
 coverage/
+.tmp/

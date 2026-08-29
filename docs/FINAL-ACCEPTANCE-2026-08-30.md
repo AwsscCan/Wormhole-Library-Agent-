@@ -9,7 +9,7 @@ Branch: `codex/final-integration`
 - `npx tsc --noEmit`: passed.
 - `npm run lint`: passed with no ESLint warnings or errors.
 - `npm run build`: passed; 38 application pages and API routes generated.
-- Browser verification on `http://localhost:3005`: home search, research sessions, daily recommendations, writing workbench, settings themes, and source links opened successfully.
+- Browser verification on `http://localhost:3008`: home search, research sessions, daily recommendations, writing workbench, settings themes, and source links opened successfully.
 
 ## Findings
 
