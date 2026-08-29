@@ -39,7 +39,7 @@ function StarNodeView({ data }: NodeProps<StarFlowNode>) {
       transition={{ delay: data.index * 0.028, duration: 0.38, ease: "easeOut" }}
       onClick={() => data.onPick?.(data.label)}
       className={cn(
-        "group flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-1 transition-colors",
+        "atlas-star-surface group flex h-[22px] cursor-pointer items-center gap-1.5 border px-1.5 transition-colors",
         state === "hit" &&
           "border-pulse/70 bg-pulse-faint/60 shadow-glow-cyan-sm",
         state === "linked" && "border-pulse/30 bg-ink-raise",
@@ -57,7 +57,7 @@ function StarNodeView({ data }: NodeProps<StarFlowNode>) {
       />
       <span
         className={cn(
-          "max-w-[130px] truncate font-mono text-[10.5px] tracking-wide transition-colors",
+          "max-w-[130px] truncate font-mono text-[8px] transition-colors",
           state === "hit" && "text-ivory",
           state === "linked" && "text-steel",
           state === "idle" && "text-steel-dim group-hover:text-steel",
@@ -109,8 +109,8 @@ export function StarMap({
       target: e.target,
       animated: e.lit,
       style: e.lit
-        ? { stroke: "#33D6E2", strokeWidth: 1.4, opacity: 0.85 }
-        : { stroke: "#2A3A5C", strokeWidth: 1, opacity: 0.45 },
+        ? { stroke: "var(--atlas-edge-personal)", strokeWidth: 1.2, opacity: 0.78 }
+        : { stroke: "var(--atlas-edge-system)", strokeWidth: 0.75, opacity: 0.38 },
     }));
     return { nodes: flowNodes, edges: flowEdges };
   }, [query, onPick]);
@@ -138,7 +138,7 @@ export function StarMap({
         elementsSelectable={false}
         panOnDrag
       >
-        <Background variant={BackgroundVariant.Dots} gap={30} size={1} color="#1C2740" />
+        <Background variant={BackgroundVariant.Dots} gap={28} size={1} color="var(--atlas-grid-dot)" />
       </ReactFlow>
       )}
     </div>

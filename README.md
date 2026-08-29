@@ -13,6 +13,7 @@ PaperWorm 仅指 Wormhole Library Agent 中的论文虫洞功能，不是产品�
 - 证据约束写作：发现候选、人工确认、选择模型预设、生成草稿、证据回链、人工复核、Markdown 导出和 checkpoint 恢复。
 - 私有工具：账户隔离的 Markdown 笔记、Provider 配置、模型预设和当前身份记忆页。
 - 探索工作台：个人图、历史记忆上下文、推荐反馈和工作台恢复。
+- 外观设置：在统一设置中心切换深夜纸墨、山水墨卷和抽象构成，选择会跨页面持久保留。
 
 `/explore/[interactionId]`、`/api/search` 等 V1 路径只为兼容旧演示保留。新的用户流程从 `/` 或 `/research` 进入，不依赖易失的内存 interaction。
 
@@ -68,6 +69,22 @@ npm run dev
 ```
 
 打开 [http://localhost:3000](http://localhost:3000)。Electron 壳可通过 `npm run desktop` 启动，但浏览器 Web 应用是完整体验入口。
+
+## 打包 Web 应用
+
+项目包含服务端 API，因此 Web 交付物是可部署的 Next.js standalone 服务，不是只能展示静态页面的导出目录。
+
+```bash
+npm run package:web
+```
+
+构建完成后，运行包位于 `dist/wormhole-library-agent-web/`。配置生产环境变量和数据库迁移后，在该目录执行：
+
+```bash
+node server.js
+```
+
+公开部署前请同时阅读 [Web 部署说明](docs/WEB-DEPLOYMENT.md) 和 [部署门禁](docs/DEPLOYMENT-GATES.md)。
 
 ## 验收路径
 

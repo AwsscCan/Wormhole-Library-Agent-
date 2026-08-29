@@ -7,6 +7,7 @@
     "dev": "next dev",
     "desktop": "node desktop/launch.js",
     "build": "next build",
+    "package:web": "npm run build && node scripts/package-web.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",

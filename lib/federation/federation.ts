@@ -3,7 +3,7 @@ import { dedupeCandidates, type DedupeCandidate } from "./dedupe";
 import { searchOpenAlexFederated, type OpenAlexFederatedOptions } from "./openAlexFederated";
 import { searchOpenLibrary, type OpenLibraryAdapterOptions } from "./openLibraryAdapter";
 import type { FederationFailure, FederationResult, SourceOutcome } from "./types";
-import { rankFederatedItems } from "./relevance";
+import { selectFederatedItems } from "./relevance";
 
 export type SeedSearch = (query: { topic: string; limit: number }) => Promise<ResourceCard[]>;
 export interface FederateQuery { topic: string; limit?: number; }
@@ -44,6 +44,7 @@ export async function federateSearch(query: FederateQuery, options: FederateOpti
   } = options;
 
   const limit = query.limit ?? 12;
+  const candidateLimit = Math.min(100, Math.max(24, limit * 3));
   const retrievedAt = now();
   const outcomes: SourceOutcome[] = [];
   if (!includeOpenAlex) outcomes.push({ kind: "openalex", status: "disabled" });
@@ -52,7 +53,7 @@ export async function federateSearch(query: FederateQuery, options: FederateOpti
 
   const tasks: Array<Promise<{ candidates: DedupeCandidate[]; failure?: FederationFailure }>> = [];
   if (includeOpenAlex) {
-    tasks.push(searchOpenAlexFederated({ topic: query.topic, limit }, { ...openAlex, now }).then((res) => {
+    tasks.push(searchOpenAlexFederated({ topic: query.topic, limit: candidateLimit }, { ...openAlex, now }).then((res) => {
       if (res.ok) {
         outcomes.push({ kind: "openalex", status: res.candidates.length > 0 ? "success" : "empty" });
         return { candidates: [...res.candidates] };
@@ -62,7 +63,7 @@ export async function federateSearch(query: FederateQuery, options: FederateOpti
     }));
   }
   if (includeOpenLibrary) {
-    tasks.push(searchOpenLibrary({ topic: query.topic, limit }, { ...openLibrary, now }).then((res) => {
+    tasks.push(searchOpenLibrary({ topic: query.topic, limit: candidateLimit }, { ...openLibrary, now }).then((res) => {
       if (res.ok) {
         outcomes.push({ kind: "openlibrary", status: res.candidates.length > 0 ? "success" : "empty" });
         return { candidates: [...res.candidates] };
@@ -72,7 +73,7 @@ export async function federateSearch(query: FederateQuery, options: FederateOpti
     }));
   }
   if (includeSeed) {
-    tasks.push(seedSearch({ topic: query.topic, limit }).then((cards) => {
+    tasks.push(seedSearch({ topic: query.topic, limit: candidateLimit }).then((cards) => {
       outcomes.push({ kind: "seed", status: cards.length > 0 ? "success" : "empty" });
       return { candidates: cards.map((c) => seedCardToCandidate(c, retrievedAt)) };
     }).catch((error: unknown) => {
@@ -85,6 +86,6 @@ export async function federateSearch(query: FederateQuery, options: FederateOpti
   const candidates = settled.flatMap((s) => s.candidates);
   const failures = settled.map((s) => s.failure).filter((f): f is FederationFailure => f !== undefined);
   const { items } = dedupeCandidates(candidates);
-  const ranked = rankFederatedItems(items, query.topic).slice(0, limit);
+  const ranked = selectFederatedItems(items, query.topic, limit);
   return { items: ranked, failures, degraded: ranked.length === 0 && failures.length > 0, sourceOutcomes: outcomes };
 }

@@ -162,7 +162,9 @@ export class LibraryAgentOrchestrator {
       query: req.query,
       conceptIds,
       language,
-      limit: memory.reading.maxResults,
+      // Six items made the catalogue look like a fixed demo. Pull a useful
+      // evidence window and let the UI progressively disclose it.
+      limit: Math.max(24, Math.min(48, memory.reading.maxResults * 4)),
       taskType: req.taskType,
       level: req.level,
       memory,

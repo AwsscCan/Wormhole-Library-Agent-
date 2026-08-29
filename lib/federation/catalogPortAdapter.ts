@@ -114,6 +114,7 @@ export function createSourceTransparentCatalogAdapter(options: SourceTransparent
           retrievedAt: record.retrievedAt,
           externalId: record.externalId,
         },
+        additionalProvenance: record.additionalSources.map(toProvenance),
       } satisfies SourceTransparentResource));
       let message: string | undefined;
       if (sourceStatus === "unavailable") {

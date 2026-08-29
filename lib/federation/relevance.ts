@@ -25,5 +25,36 @@ export function federatedRelevanceScore(item: Pick<EvidenceItem, "title" | "exce
 }
 
 export function rankFederatedItems(items: readonly EvidenceItem[], query: string) {
-  return [...items].sort((left, right) => federatedRelevanceScore(right, query) - federatedRelevanceScore(left, query));
+  return [...items].sort((left, right) => {
+    const score = federatedRelevanceScore(right, query) - federatedRelevanceScore(left, query);
+    return score || left.id.localeCompare(right.id);
+  });
+}
+
+/**
+ * Keep the final list relevance-sorted while preventing one large provider
+ * from consuming every visible slot. Quotas only choose the result window;
+ * the returned window is sorted again by the same relevance score.
+ */
+export function selectFederatedItems(items: readonly EvidenceItem[], query: string, limit: number) {
+  const ranked = rankFederatedItems(items, query);
+  if (ranked.length <= limit) return ranked;
+
+  const selected = new Map<string, EvidenceItem>();
+  const quota = limit >= 4 ? Math.min(6, Math.max(1, Math.floor(limit / 4))) : 0;
+  for (const kind of ["openlibrary", "user"] as const) {
+    let count = 0;
+    for (const item of ranked) {
+      if (count >= quota) break;
+      if (!item.sources.some((source) => source.kind === kind)) continue;
+      selected.set(item.id, item);
+      count += 1;
+    }
+  }
+
+  for (const item of ranked) {
+    if (selected.size >= limit) break;
+    selected.set(item.id, item);
+  }
+  return rankFederatedItems([...selected.values()], query).slice(0, limit);
 }

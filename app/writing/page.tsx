@@ -102,7 +102,7 @@ export default function WritingPage() {
 
   useEffect(() => {
     Promise.all([loadSessions(), fetch("/api/v3/model-presets", { cache: "no-store" }).then((response) => response.ok ? response.json() : [])])
-      .then(([available, loadedPresets]) => { setPresets(Array.isArray(loadedPresets) ? loadedPresets as Preset[] : []); if (available[0]) void selectSession(available[0].id, available); })
+      .then(([available, loadedPresets]) => { const requestedSession = new URLSearchParams(window.location.search).get("sessionId"); const initial = available.find((item) => item.id === requestedSession) ?? available[0]; setPresets(Array.isArray(loadedPresets) ? loadedPresets as Preset[] : []); if (initial) void selectSession(initial.id, available); })
       .catch((error) => setStatus(error instanceof Error ? error.message : "无法加载写作工作区。"));
   }, [loadSessions, selectSession]);
 

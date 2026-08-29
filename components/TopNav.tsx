@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Telescope, Brain, BookUser, Landmark, PenLine, NotebookPen, Settings2, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthStatus } from "@/components/auth/AuthStatus";
+import { themeFromCookie } from "@/lib/preferences/theme";
 
 const LINKS = [
   { href: "/", label: "探索台", en: "EXPLORE", icon: Telescope },
@@ -19,8 +20,7 @@ const LINKS = [
 export function TopNav() {
   const pathname = usePathname();
   useEffect(() => {
-    document.documentElement.dataset.theme = "cockpit";
-    document.cookie = "wl_theme=; Max-Age=0; Path=/; SameSite=Lax";
+    document.documentElement.dataset.theme = themeFromCookie(document.cookie);
   }, []);
   return (
     <nav className="sticky top-0 z-40 border-b border-ink-border bg-ink/85 backdrop-blur-sm">

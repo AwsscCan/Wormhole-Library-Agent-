@@ -108,4 +108,25 @@ describe("federateSearch", () => {
     expect(result.items).toHaveLength(2);
     expect(result.items[0]?.title).toBe("Retrieval Augmented Generation Evaluation Benchmark");
   });
+
+  it("keeps Open Library visible when OpenAlex fills the candidate pool", async () => {
+    const openAlexResults = Array.from({ length: 30 }, (_, index) => ({
+      id: `https://openalex.org/W${index}`,
+      display_name: `Knowledge Management Research ${index}`,
+      authorships: [],
+    }));
+    const openLibraryDocs = Array.from({ length: 10 }, (_, index) => ({
+      key: `/works/OL${index}W`,
+      title: `Knowledge Management Handbook ${index}`,
+    }));
+    const result = await federateSearch({ topic: "knowledge management", limit: 12 }, {
+      includeSeed: false,
+      openAlex: { transport: okTransport({ results: openAlexResults }), now: NOW },
+      openLibrary: { transport: okTransport({ docs: openLibraryDocs }), now: NOW },
+      now: NOW,
+    });
+
+    expect(result.items).toHaveLength(12);
+    expect(result.items.filter((item) => item.sources.some((source) => source.kind === "openlibrary")).length).toBeGreaterThanOrEqual(3);
+  });
 });

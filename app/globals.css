@@ -29,6 +29,46 @@
     --atlas-edge-holding: #B27A4C;
     --atlas-grid-dot: #25333a;
   }
+  html[data-theme="inkwash"] {
+    --theme-accent: #245f62;
+    --theme-accent-dim: #174447;
+    --theme-accent-faint: #c9d9d5;
+    --theme-warm: #9b4b3f;
+    --theme-warm-faint: #ead5cd;
+    --theme-bg: #e8e3d7;
+    --theme-panel: #f3efe6;
+    --theme-raise: #ddd7c9;
+    --theme-border: #aaa497;
+    --theme-edge: #74766f;
+    --theme-text: #202421;
+    --theme-muted: #505b56;
+    --theme-muted-dim: #707771;
+    --atlas-edge-system: #85877f;
+    --atlas-edge-personal: #245f62;
+    --atlas-edge-memory: #9b4b3f;
+    --atlas-edge-holding: #806e45;
+    --atlas-grid-dot: #b7b1a3;
+  }
+  html[data-theme="construct"] {
+    --theme-accent: #1f4f99;
+    --theme-accent-dim: #173c75;
+    --theme-accent-faint: #d5e0ef;
+    --theme-warm: #d64b38;
+    --theme-warm-faint: #f1d7ce;
+    --theme-bg: #f2efe6;
+    --theme-panel: #fffdf7;
+    --theme-raise: #e6e0d4;
+    --theme-border: #827d73;
+    --theme-edge: #2e3033;
+    --theme-text: #17191c;
+    --theme-muted: #4f5359;
+    --theme-muted-dim: #70747a;
+    --atlas-edge-system: #6f7378;
+    --atlas-edge-personal: #1f4f99;
+    --atlas-edge-memory: #d64b38;
+    --atlas-edge-holding: #ab7c20;
+    --atlas-grid-dot: #b6b0a4;
+  }
   body {
     @apply bg-ink text-ivory antialiased;
     /* 分层背景：极淡电青氛围 + 铜金氛围 + 细网格，克制不抢戏 */
@@ -36,6 +76,47 @@
     background-size: 44px 44px;
     background-attachment: fixed;
   }
+  html[data-theme="inkwash"] body {
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
+    background-image:
+      repeating-linear-gradient(7deg, rgba(44, 54, 49, 0.035) 0, rgba(44, 54, 49, 0.035) 1px, transparent 1px, transparent 9px),
+      repeating-linear-gradient(93deg, rgba(113, 91, 70, 0.025) 0, rgba(113, 91, 70, 0.025) 1px, transparent 1px, transparent 17px);
+    background-size: auto;
+  }
+  html[data-theme="construct"] body {
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
+    background-image:
+      linear-gradient(rgba(31, 79, 153, 0.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(214, 75, 56, 0.075) 1px, transparent 1px),
+      linear-gradient(135deg, transparent 49.6%, rgba(23, 25, 28, 0.045) 49.7%, rgba(23, 25, 28, 0.045) 50.3%, transparent 50.4%);
+    background-size: 52px 52px, 52px 52px, 104px 104px;
+  }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink-panel"] { background-color: var(--theme-panel) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink-raise"] { background-color: var(--theme-raise) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink/"] { background-color: color-mix(in srgb, var(--theme-bg) 88%, transparent) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class~="bg-ink"] { background-color: var(--theme-bg) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="border-ink-border"] { border-color: var(--theme-border) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="border-ink-edge"] { border-color: var(--theme-edge) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-ivory"] { color: var(--theme-text) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-steel-dim"] { color: var(--theme-muted-dim) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-steel"] { color: var(--theme-muted) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-pulse"] { color: var(--theme-accent) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-copper"] { color: var(--theme-warm) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="border-pulse"] { border-color: var(--theme-accent) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="border-copper"] { border-color: var(--theme-warm) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-pulse-faint"],
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-pulse/"] { background-color: var(--theme-accent-faint) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class~="bg-pulse"] { background-color: var(--theme-accent) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-copper-faint"],
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-copper/"] { background-color: var(--theme-warm-faint) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class~="bg-copper"] { background-color: var(--theme-warm) !important; }
+  html[data-theme="inkwash"] nav.sticky,
+  html[data-theme="inkwash"] .theme-choice { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }
+  html[data-theme="construct"] nav.sticky,
+  html[data-theme="construct"] .theme-choice { box-shadow: 3px 3px 0 rgba(23, 25, 28, 0.14); }
+  html[data-theme="construct"] .theme-choice { border-radius: 0 !important; }
   ::selection {
     background: color-mix(in srgb, var(--theme-accent) 28%, transparent);
   }
@@ -58,6 +139,11 @@
 }
 
 @layer components {
+  .atlas-star-surface {
+    border-radius: 3px;
+    letter-spacing: 0;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-text) 2%, transparent);
+  }
   /* 驾驶舱滑块（探索距离控制器） */
   .cockpit-range {
     @apply w-full appearance-none bg-transparent cursor-pointer;

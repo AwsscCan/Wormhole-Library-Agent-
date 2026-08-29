@@ -9,6 +9,8 @@ interface OpenLibraryDoc {
   first_publish_year?: number;
   isbn?: string[];
   doi?: string[];
+  first_sentence?: string | string[];
+  subject?: string[];
 }
 
 interface OpenLibrarySearchResponse { docs?: OpenLibraryDoc[]; }
@@ -23,12 +25,15 @@ function toCandidate(doc: OpenLibraryDoc, retrievedAt: number): DedupeCandidate 
   const title = doc.title?.trim();
   if (!title) return null;
   const workId = doc.key.replace(/^\/works\//, "");
+  const sentence = Array.isArray(doc.first_sentence) ? doc.first_sentence[0] : doc.first_sentence;
+  const excerpt = [sentence, doc.subject?.slice(0, 8).join(" · ")].filter(Boolean).join(" — ").slice(0, 1200);
   return {
     title,
     authors: doc.author_name ?? [],
     year: doc.first_publish_year ?? null,
     doi: doc.doi?.[0],
     isbn: doc.isbn?.[0],
+    ...(excerpt ? { excerpt } : {}),
     url: `https://openlibrary.org${doc.key}`,
     source: { kind: "openlibrary", label: "Open Library", sourceId: workId, retrievedAt },
   };
@@ -37,7 +42,7 @@ function toCandidate(doc: OpenLibraryDoc, retrievedAt: number): DedupeCandidate 
 export async function searchOpenLibrary(query: OpenLibraryQuery, options: OpenLibraryAdapterOptions = {}): Promise<AdapterResponse> {
   const { baseUrl = "https://openlibrary.org", timeoutMs = 8000, transport = defaultTransport, now = () => Date.now() } = options;
   const limit = Math.min(Math.max(query.limit ?? 12, 1), 100);
-  const url = `${baseUrl}/search.json?q=${encodeURIComponent(query.topic)}&limit=${limit}&fields=key,title,author_name,first_publish_year,isbn,doi`;
+  const url = `${baseUrl}/search.json?q=${encodeURIComponent(query.topic)}&limit=${limit}&fields=key,title,author_name,first_publish_year,isbn,doi,first_sentence,subject`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

@@ -3,13 +3,13 @@ import type { ResourceCard } from "@/lib/types";
 import { federateSearch, type FederateOptions } from "@/lib/federation/federation";
 import { dedupeCandidates, type DedupeCandidate } from "@/lib/federation/dedupe";
 import { listCatalogSources } from "./sourceRepository";
-import type { SourceKind, SourceOutcome } from "@/lib/federation/types";
-import { rankFederatedItems } from "@/lib/federation/relevance";
+import type { SourceKind, SourceOutcome, SourceRef } from "@/lib/federation/types";
+import { selectFederatedItems } from "@/lib/federation/relevance";
 
 export type CatalogGatewayStatus = SourceOutcome["status"];
-export type CatalogGatewayRecord = ResourceCard & { sourceKind: SourceKind; sourceLabel: string; retrievedAt: string; externalId: string };
+export type CatalogGatewayRecord = ResourceCard & { sourceKind: SourceKind; sourceLabel: string; retrievedAt: string; externalId: string; additionalSources: SourceRef[] };
 export type CatalogGatewaySource = { kind: SourceKind; label: string; status: CatalogGatewayStatus };
-export type CatalogSearchResult = { records: CatalogGatewayRecord[]; sources: CatalogGatewaySource[]; degraded: boolean };
+export type CatalogSearchResult = { records: CatalogGatewayRecord[]; sources: CatalogGatewaySource[]; degraded: boolean; totalCandidates: number };
 
 const SOURCE_LABELS: Record<SourceKind, string> = { openalex: "OpenAlex", openlibrary: "Open Library", seed: "本地种子", user: "个人馆藏" };
 const SOURCE_PRIORITY: Record<SourceKind, number> = { openalex: 0, openlibrary: 1, seed: 2, user: 3 };
@@ -42,7 +42,9 @@ async function searchPersonalSource(source: { id: string; name: string; protocol
 }
 
 export async function searchCatalogGateway(input: { query: string; limit?: number; ownerId?: string }, options: FederateOptions = {}): Promise<CatalogSearchResult> {
-  const result = await federateSearch({ topic: input.query, limit: input.limit }, options);
+  const limit = input.limit ?? 12;
+  const upstreamLimit = Math.min(100, Math.max(24, limit * 3));
+  const result = await federateSearch({ topic: input.query, limit: upstreamLimit }, options);
   let customSources: Awaited<ReturnType<typeof listCatalogSources>> = [];
   let customSourceListFailed = false;
   if (input.ownerId) {
@@ -55,20 +57,22 @@ export async function searchCatalogGateway(input: { query: string; limit?: numbe
       customSourceListFailed = true;
     }
   }
-  const customResults = await Promise.allSettled(customSources.map((source) => searchPersonalSource(source, input.query, input.limit ?? 12, Date.now())));
+  const customResults = await Promise.allSettled(customSources.map((source) => searchPersonalSource(source, input.query, upstreamLimit, Date.now())));
   const customOutcomes: CatalogGatewaySource[] = customResults.map((outcome, index) => ({ kind: "user", label: customSources[index].name, status: outcome.status === "fulfilled" ? outcome.value.length ? "success" : "empty" : "failed" }));
   const customCandidates = customResults.flatMap((outcome) => outcome.status === "fulfilled" ? outcome.value : []);
   const baseCandidates: DedupeCandidate[] = result.items.flatMap((item) => item.sources.map((source) => ({ title: item.title, authors: item.authors, year: item.year, excerpt: item.excerpt, doi: item.doi, isbn: item.isbn, url: item.url, source })));
   const merged = dedupeCandidates([...baseCandidates, ...customCandidates]).items;
   const sources = [...(result.sourceOutcomes ?? []).map((source) => ({ kind: source.kind, label: SOURCE_LABELS[source.kind], status: source.status })), ...(customSourceListFailed ? [{ kind: "user" as const, label: "个人馆藏配置", status: "failed" as const }] : []), ...customOutcomes];
-  const ranked = rankFederatedItems(merged, input.query);
-  const records = ranked.slice(0, input.limit ?? 12).map((item) => {
-    const primary = [...item.sources].sort((left, right) => SOURCE_PRIORITY[left.kind] - SOURCE_PRIORITY[right.kind])[0]!;
-    const sourceLabel = primary.label || SOURCE_LABELS[primary.kind];
+  const ranked = selectFederatedItems(merged, input.query, limit);
+  const records = ranked.map((item) => {
+    const sortedSources = [...item.sources].sort((left, right) => SOURCE_PRIORITY[left.kind] - SOURCE_PRIORITY[right.kind]);
+    const primary = sortedSources[0]!;
+    const sourceLabel = [...new Set(sortedSources.map((source) => source.label || SOURCE_LABELS[source.kind]))].join(" + ");
     return {
       id: item.id, type: resourceType(item), title: item.title, authors: [...item.authors], ...(item.year === null ? {} : { year: item.year }),
       language: /[\u4e00-\u9fff]/.test(item.title) ? "zh" : "en", why: item.excerpt ?? `来源「${sourceLabel}」检索命中。`, availability: availability(primary.kind), difficulty: primary.kind === "seed" ? "undergrad" : "research", concepts: [], qualityScore: primary.kind === "seed" ? 0.6 : 0.85, ...(item.url ? { sourceUrl: item.url } : {}), sourceKind: primary.kind, sourceLabel, retrievedAt: new Date(item.retrievedAt).toISOString(), externalId: primary.sourceId,
+      additionalSources: sortedSources.slice(1),
     } satisfies CatalogGatewayRecord;
   });
-  return { records, sources, degraded: sources.some((source) => source.status === "failed") };
+  return { records, sources, degraded: sources.some((source) => source.status === "failed"), totalCandidates: merged.length };
 }
