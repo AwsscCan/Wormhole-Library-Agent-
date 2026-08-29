@@ -1,12 +1,16 @@
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { execFile } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distRoot = path.join(root, "dist");
 const output = path.join(distRoot, "wormhole-library-agent-web");
+const archive = path.join(distRoot, "Wormhole-Library-Agent-Web.zip");
 const standalone = path.join(root, ".next", "standalone");
+const run = promisify(execFile);
 
 if (!existsSync(path.join(standalone, "server.js"))) {
   throw new Error("Missing .next/standalone/server.js. Run npm run build first.");
@@ -38,4 +42,16 @@ await writeFile(path.join(output, "START.txt"), [
   "See WEB-DEPLOYMENT.md for production gates.",
 ].join("\n"), "utf8");
 
-console.log(output);
+await rm(archive, { force: true });
+if (process.platform === "win32") {
+  await run("powershell.exe", [
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "Compress-Archive -Path (Join-Path $env:PACKAGE_WEB_SOURCE '*') -DestinationPath $env:PACKAGE_WEB_ARCHIVE -Force",
+  ], { env: { ...process.env, PACKAGE_WEB_SOURCE: output, PACKAGE_WEB_ARCHIVE: archive } });
+} else {
+  await run("zip", ["-qr", archive, "."], { cwd: output });
+}
+
+console.log(archive);
