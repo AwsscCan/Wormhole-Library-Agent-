@@ -30,6 +30,15 @@ const languageOptions = [
   { id: "en_first", label: "英文优先" },
 ] as const;
 
+async function apiFailure(response: Response, fallback: string) {
+  try {
+    const data = await response.json() as { error?: { message?: unknown } };
+    return typeof data.error?.message === "string" ? data.error.message : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function isHttpsBaseUrl(baseUrl: string) {
   try { return new URL(baseUrl).protocol === "https:"; } catch { return false; }
 }
@@ -135,7 +144,7 @@ export function ProviderSettings() {
     setStatus("");
     try {
       const response = await fetch(editingId ? `/api/v3/providers/${editingId}` : "/api/v3/providers", { method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (!response.ok) { setStatus("保存失败；请检查字段或服务器端加密配置。"); return; }
+      if (!response.ok) { setStatus(`保存失败：${await apiFailure(response, "请检查字段或服务器端配置")}`); return; }
       resetProviderForm();
       setStatus("Provider 配置已保存。密钥不会再次显示。");
       await load();
@@ -149,7 +158,7 @@ export function ProviderSettings() {
   async function deleteProvider(providerId: string) {
     try {
       const response = await fetch(`/api/v3/providers/${providerId}`, { method: "DELETE" });
-      if (!response.ok) { setStatus("删除失败，请重新加载后再试。"); return; }
+      if (!response.ok) { setStatus(`删除失败：${await apiFailure(response, "请重新加载后再试")}`); return; }
       if (editingId === providerId) resetProviderForm();
       setStatus("Provider 已删除，关联预设将由服务端一致性规则处理。");
       await load();
@@ -162,7 +171,7 @@ export function ProviderSettings() {
     setStatus("正在测试连接…");
     try {
       const response = await fetch(`/api/v3/providers/${providerId}/connection-test`, { method: "POST" });
-      setStatus(response.ok ? "连接测试成功。" : "连接测试未通过或尚未启用；未显示服务端细节。");
+      setStatus(response.ok ? "连接测试成功。" : `连接测试未通过：${await apiFailure(response, "请检查 Provider 和 API Key")}`);
     } catch {
       setStatus("连接测试无法完成，请检查网络后重试。");
     }
@@ -176,7 +185,7 @@ export function ProviderSettings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiKey: "" }),
       });
-      if (!response.ok) { setStatus("密钥清除失败，请重新加载后再试。"); return; }
+      if (!response.ok) { setStatus(`密钥清除失败：${await apiFailure(response, "请重新加载后再试")}`); return; }
       setStatus("Provider 密钥已清除。");
       await load();
     } catch {
@@ -188,7 +197,7 @@ export function ProviderSettings() {
     if (!presetForm.name.trim() || !presetForm.providerId || !presetForm.model.trim()) { setStatus("请填写预设名称、Provider 与模型。"); return; }
     try {
       const response = await fetch("/api/v3/model-presets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: presetForm.name, providerId: presetForm.providerId, model: presetForm.model, temperature: Number(presetForm.temperature), maxTokens: Number(presetForm.maxTokens) }) });
-      if (!response.ok) { setStatus("预设保存失败，请检查字段。"); return; }
+      if (!response.ok) { setStatus(`预设保存失败：${await apiFailure(response, "请检查字段")}`); return; }
       setPresetForm((current) => ({ ...current, name: "", model: "" }));
       setStatus("模型预设已保存。");
       await load();
