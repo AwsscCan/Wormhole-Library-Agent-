@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { Telescope, Brain, BookUser, Landmark, ScrollText, PenLine, NotebookPen, Settings2, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthStatus } from "@/components/auth/AuthStatus";
@@ -18,6 +19,10 @@ const LINKS = [
 
 export function TopNav() {
   const pathname = usePathname();
+  useEffect(() => {
+    const theme = document.cookie.split("; ").find((part) => part.startsWith("wl_theme="))?.split("=")[1];
+    if (theme) document.documentElement.dataset.theme = theme;
+  }, []);
   return (
     <nav className="sticky top-0 z-40 border-b border-ink-border bg-ink/85 backdrop-blur-sm">
       <div className="mx-auto flex max-w-[1400px] flex-wrap items-center px-3 xl:h-14 xl:flex-nowrap xl:gap-4 xl:px-5">

@@ -16,6 +16,7 @@ type Conversation = {
 export function ConversationPanel({ livingBook, onClose }: { livingBook: LivingBookCard | null; onClose: () => void }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [opening, setOpening] = useState("");
+  const [topic, setTopic] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export function ConversationPanel({ livingBook, onClose }: { livingBook: LivingB
     try {
       const response = await fetch("/api/v3/living-book/conversations", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ livingBookId: selectedBook.id, message: opening }),
+        body: JSON.stringify({ livingBookId: selectedBook.id, message: topic ? `[交流主题：${topic}]\n${opening}` : opening }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error?.message ?? "无法创建交流请求");
@@ -77,7 +78,8 @@ export function ConversationPanel({ livingBook, onClose }: { livingBook: LivingB
       {!acceptsAsyncQuestions && <p className="mt-4 text-xs leading-relaxed text-steel">这册活书没有开放文字答疑。可通过其标注的交流方式申请联系。</p>}
 
       {acceptsAsyncQuestions && !conversation && <div className="mt-4 space-y-3">
-        <p className="text-xs leading-relaxed text-steel">写下第一个问题。对方接受前，身份与联系方式仍保持隔离。</p>
+        <p className="text-xs leading-relaxed text-steel">选择希望交流的主题并写下第一个问题。对方接受前，身份与联系方式仍保持隔离。</p>
+        <select value={topic} onChange={(event) => setTopic(event.target.value)} className="h-10 w-full border border-ink-border bg-ink px-2 text-sm text-ivory"><option value="">选择交流主题</option>{selectedBook.expertiseConcepts.map((concept) => <option key={concept.id} value={concept.name}>{concept.name}</option>)}</select>
         <textarea value={opening} onChange={(event) => setOpening(event.target.value)} maxLength={4000} rows={6} placeholder="我正在研究……想请教……" className="w-full resize-y border border-ink-border bg-ink p-2.5 text-sm text-ivory outline-none placeholder:text-steel-dim focus:border-pulse/60" />
         <Button variant="copper" size="sm" loading={loading} onClick={createRequest}><Send className="h-3.5 w-3.5" />提交交流请求</Button>
       </div>}

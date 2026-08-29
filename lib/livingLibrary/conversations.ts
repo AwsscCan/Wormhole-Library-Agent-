@@ -3,6 +3,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { principalOwnerKey } from "@/lib/research/principal";
 import type { CurrentPrincipal } from "@/lib/auth/principal";
 import livingBooksSeed from "@/data/seed-living-books.json";
+import { AI_LIVING_BOOK_ID } from "@/lib/livingLibrary/constants";
 
 type ConversationStatus = "pending" | "accepted" | "declined" | "closed";
 type SenderRole = "requester" | "living_book";
@@ -19,12 +20,18 @@ function profileFor(livingBookId: string) {
 }
 
 export function canRequestAsyncConversation(livingBookId: string): boolean {
+  if (livingBookId === AI_LIVING_BOOK_ID) return true;
   const profile = profileFor(livingBookId);
   return Boolean(
     profile
       && profile.consentState.startsWith("discoverable")
       && profile.willingTypes.includes("async_answer"),
   );
+}
+
+function aiReply(question: string): string {
+  const topic = question.replace(/\[[^\]]+\]/g, "").replace(/\s+/g, " ").trim().slice(0, 180);
+  return `我是 Wormhole AI 馆员。针对「${topic || "这个问题"}」，我会先帮你拆成可检索的概念、优先给出可打开的来源，并标注哪些结论需要你回到原文核验。你也可以让我把下一步整理成研究问题、阅读计划或写作提纲。`;
 }
 
 export function normalizeSharedUrl(value: string): string | null {
@@ -78,11 +85,13 @@ export async function createConversationRequest(principal: CurrentPrincipal, liv
   }
   const body = openingMessage.trim();
   if (!body || body.length > 4_000) throw new LivingBookConversationError("BAD_REQUEST", "Opening message must contain 1 to 4000 characters");
+  const isAiLibrarian = livingBookId === AI_LIVING_BOOK_ID;
   const record = await getPrisma().livingBookConversation.create({
     data: {
       requesterOwnerId: owner(principal),
       livingBookId,
-      messages: { create: { senderRole: "requester", body } },
+      status: isAiLibrarian ? "accepted" : "pending",
+      messages: { create: isAiLibrarian ? [{ senderRole: "requester", body }, { senderRole: "living_book", body: aiReply(body) }] : { senderRole: "requester", body } },
     },
     include: conversationInclude,
   });
@@ -106,6 +115,9 @@ export async function sendConversationMessage(principal: CurrentPrincipal, conve
   const message = body.trim();
   if (!message || message.length > 8_000) throw new LivingBookConversationError("BAD_REQUEST", "Message must contain 1 to 8000 characters");
   await getPrisma().livingBookMessage.create({ data: { conversationId, senderRole: "requester", body: message } });
+  if (conversation.livingBookId === AI_LIVING_BOOK_ID) {
+    await getPrisma().livingBookMessage.create({ data: { conversationId, senderRole: "living_book", body: aiReply(message) } });
+  }
   await getPrisma().livingBookConversation.update({ where: { id: conversation.id }, data: { updatedAt: new Date() } });
   return toConversationDto(await ownedConversation(principal, conversationId));
 }

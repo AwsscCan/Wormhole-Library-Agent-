@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Cable, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { Cable, Languages, Palette, Plus, Save, Sparkles, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,16 @@ const deepSeekProvider: ProviderFields = {
   wireApi: "chat_completions",
 };
 const loadFailure = "暂时无法读取配置；请确认当前账户权限和服务状态。";
+const themeOptions = [
+  { id: "cockpit", label: "深海电青", color: "#33D6E2" },
+  { id: "jade", label: "松石绿", color: "#52C28A" },
+  { id: "crimson", label: "绛红琥珀", color: "#E46F5B" },
+] as const;
+const languageOptions = [
+  { id: "any", label: "不偏好" },
+  { id: "zh_first", label: "中文优先" },
+  { id: "en_first", label: "英文优先" },
+] as const;
 
 function isHttpsBaseUrl(baseUrl: string) {
   try { return new URL(baseUrl).protocol === "https:"; } catch { return false; }
@@ -32,6 +42,8 @@ export function ProviderSettings() {
   const [presetForm, setPresetForm] = useState({ name: "", providerId: "", model: "", temperature: "0.2", maxTokens: "1200" });
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [theme, setTheme] = useState("cockpit");
+  const [language, setLanguage] = useState("any");
   const apiKeyInput = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -50,7 +62,20 @@ export function ProviderSettings() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    const values = Object.fromEntries(document.cookie.split("; ").filter(Boolean).map((part) => part.split("=")));
+    setTheme(values.wl_theme ?? "cockpit");
+    setLanguage(values.wl_language ?? "any");
+  }, []);
+
+  function saveAppearance(nextTheme: string, nextLanguage: string) {
+    setTheme(nextTheme); setLanguage(nextLanguage);
+    document.documentElement.dataset.theme = nextTheme;
+    document.cookie = `wl_theme=${nextTheme}; Max-Age=31536000; Path=/; SameSite=Lax`;
+    document.cookie = `wl_language=${nextLanguage}; Max-Age=31536000; Path=/; SameSite=Lax`;
+    setStatus("外观与检索语言偏好已保存；后续检索会优先采用此语种。");
+  }
 
   function resetProviderForm() {
     setEditingId(null);
@@ -142,6 +167,7 @@ export function ProviderSettings() {
   return <div className="mx-auto max-w-5xl space-y-4">
     <header><h1 className="flex items-center gap-2 font-display text-xl text-ivory"><Cable className="h-5 w-5 text-copper" />Provider 与模型配置</h1><p className="mt-1 text-sm text-steel">密钥为一次性写入字段：提交后立即从浏览器输入框清除，列表仅显示配置状态。</p></header>
     {status && <p className="rounded-md border border-copper/40 bg-copper-faint/30 p-3 text-sm text-copper">{status}</p>}
+    <Panel><PanelHeader icon={Palette} title="workspace · 外观与语言" accent="copper" /><PanelBody className="grid gap-4 md:grid-cols-[1fr_1fr]"><div><p className="mb-2 text-xs text-steel">主题色</p><div className="flex flex-wrap gap-2">{themeOptions.map((option) => <button type="button" key={option.id} aria-label={`主题 ${option.label}`} onClick={() => saveAppearance(option.id, language)} className={`flex items-center gap-2 border px-3 py-2 text-xs ${theme === option.id ? "border-pulse text-ivory" : "border-ink-border text-steel"}`}><span className="h-3.5 w-3.5 rounded-sm" style={{ backgroundColor: option.color }} />{option.label}</button>)}</div></div><label className="text-xs text-steel"><span className="mb-2 flex items-center gap-1"><Languages className="h-3.5 w-3.5" />检索语言偏好</span><select value={language} onChange={(event) => saveAppearance(theme, event.target.value)} className="h-10 w-full border border-ink-border bg-ink-raise px-3 text-sm text-ivory">{languageOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label></PanelBody></Panel>
     <div className="grid gap-4 lg:grid-cols-[1fr_1fr]"><Panel><PanelHeader icon={Save} title={editingId ? "provider · 编辑" : "provider · 新建"} accent="cyan" right={editingId ? <Button size="sm" onClick={resetProviderForm}>取消</Button> : undefined} /><PanelBody className="space-y-3">{!editingId && <Button className="w-full" onClick={useDeepSeekPreset}><Sparkles className="h-4 w-4" />使用 DeepSeek 快速配置</Button>}<Input value={providerForm.name} placeholder="Provider 名称" onChange={(event) => setProviderForm((current) => ({ ...current, name: event.target.value }))} /><Input value={providerForm.baseUrl} type="url" placeholder="https://api.example.com" onChange={(event) => setProviderForm((current) => ({ ...current, baseUrl: event.target.value }))} /><Input value={providerForm.model} placeholder="模型 ID" onChange={(event) => setProviderForm((current) => ({ ...current, model: event.target.value }))} /><select value={providerForm.wireApi} onChange={(event) => setProviderForm((current) => ({ ...current, wireApi: event.target.value as WireApi }))} className="h-11 w-full rounded-md border border-ink-border bg-ink-raise px-3 text-sm text-ivory"><option value="chat_completions">OpenAI Chat Completions</option><option value="responses">OpenAI Responses</option><option value="anthropic_messages">Anthropic Messages</option></select><Input ref={apiKeyInput} type="password" autoComplete="new-password" placeholder={editingId ? "可选：替换 API Key" : "API Key（可选，提交后清除）"} /><Button variant="solid" className="w-full" loading={saving} onClick={saveProvider}><Save className="h-4 w-4" />保存 Provider</Button></PanelBody></Panel>
       <Panel><PanelHeader title="providers · 当前账户" accent="copper" /><PanelBody className="space-y-2">{providers.map((provider) => <div key={provider.id} className="rounded-md border border-ink-border bg-ink-raise/60 p-3"><div className="flex items-start justify-between gap-2"><div><p className="text-sm text-ivory">{provider.name}</p><p className="mt-1 break-all font-mono text-[10px] text-steel-dim">{provider.baseUrl} · {provider.model}</p></div><Badge tone={provider.hasApiKey ? "cyan" : "steel"}>{provider.hasApiKey ? "已配置密钥" : "未配置密钥"}</Badge></div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={() => { setEditingId(provider.id); setProviderForm({ name: provider.name, baseUrl: provider.baseUrl, model: provider.model, wireApi: provider.wireApi }); if (apiKeyInput.current) apiKeyInput.current.value = ""; }}>编辑</Button><Button size="sm" onClick={() => testConnection(provider.id)}>测试连接</Button>{provider.hasApiKey && <Button size="sm" variant="danger" onClick={() => clearProviderKey(provider.id)}>清除密钥</Button>}<Button size="sm" variant="danger" onClick={() => deleteProvider(provider.id)}><Trash2 className="h-3.5 w-3.5" />删除</Button></div></div>)}{!providers.length && <p className="text-sm text-steel">尚无 Provider 配置。</p>}</PanelBody></Panel></div>
     <Panel><PanelHeader icon={Plus} title="model presets · 模型预设" accent="cyan" /><PanelBody className="grid gap-3 md:grid-cols-5"><Input value={presetForm.name} placeholder="预设名称" onChange={(event) => setPresetForm((current) => ({ ...current, name: event.target.value }))} /><select value={presetForm.providerId} onChange={(event) => setPresetForm((current) => ({ ...current, providerId: event.target.value }))} className="h-11 rounded-md border border-ink-border bg-ink-raise px-3 text-sm text-ivory"><option value="">选择 Provider</option>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select><Input value={presetForm.model} placeholder="模型 ID" onChange={(event) => setPresetForm((current) => ({ ...current, model: event.target.value }))} /><Input value={presetForm.temperature} type="number" min="0" max="2" step="0.1" onChange={(event) => setPresetForm((current) => ({ ...current, temperature: event.target.value }))} /><div className="flex gap-2"><Input value={presetForm.maxTokens} type="number" min="1" max="200000" onChange={(event) => setPresetForm((current) => ({ ...current, maxTokens: event.target.value }))} /><Button variant="solid" onClick={savePreset}>保存</Button></div><div className="md:col-span-5 space-y-1">{presets.map((preset) => <p key={preset.id} className="font-mono text-xs text-steel">{preset.name} · {preset.model} · T={preset.temperature} · {preset.maxTokens} tokens</p>)}</div></PanelBody></Panel>

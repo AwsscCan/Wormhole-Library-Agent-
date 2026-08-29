@@ -9,6 +9,9 @@
    ============================================================ */
 
 @layer base {
+  :root { --theme-accent: #33D6E2; --theme-accent-dim: #17919E; --theme-warm: #D9A050; --theme-bg: #0A0E16; }
+  html[data-theme="jade"] { --theme-accent: #52C28A; --theme-accent-dim: #27865C; --theme-warm: #D3B44A; --theme-bg: #0A1512; }
+  html[data-theme="crimson"] { --theme-accent: #E46F5B; --theme-accent-dim: #A9463A; --theme-warm: #D7A04A; --theme-bg: #171012; }
   body {
     @apply bg-ink text-ivory antialiased;
     /* 分层背景：极淡电青氛围 + 铜金氛围 + 细网格，克制不抢戏 */
@@ -20,6 +23,11 @@
     background-size: auto, auto, 44px 44px, 44px 44px;
     background-attachment: fixed;
   }
+  html[data-theme] body { background-color: var(--theme-bg) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) .text-pulse { color: var(--theme-accent) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) .text-copper { color: var(--theme-warm) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) .border-pulse { border-color: var(--theme-accent) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) .border-copper { border-color: var(--theme-warm) !important; }
 
   ::selection {
     background: rgba(51, 214, 226, 0.28);

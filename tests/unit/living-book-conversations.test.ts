@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canRequestAsyncConversation, normalizeSharedUrl } from "@/lib/livingLibrary/conversations";
+import { AI_LIVING_BOOK_ID } from "@/lib/livingLibrary/constants";
 
 describe("Living Book conversation guards", () => {
   it("only opens an asynchronous request for a visible profile that opted into answers", () => {
@@ -7,6 +8,7 @@ describe("Living Book conversation guards", () => {
     expect(canRequestAsyncConversation("lb_005")).toBe(false);
     expect(canRequestAsyncConversation("lb_private_example")).toBe(false);
     expect(canRequestAsyncConversation("missing")).toBe(false);
+    expect(canRequestAsyncConversation(AI_LIVING_BOOK_ID)).toBe(true);
   });
 
   it("accepts ordinary source links and rejects executable or malformed URLs", () => {

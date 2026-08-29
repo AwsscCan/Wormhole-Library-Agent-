@@ -12,13 +12,18 @@ import { Button } from "@/components/ui/button";
 import { LivingBookCard } from "@/components/LivingBookCard";
 import { ConversationPanel } from "@/components/living-library/ConversationPanel";
 import livingBooksSeed from "@/data/seed-living-books.json";
+import { AI_LIVING_BOOK_ID } from "@/lib/livingLibrary/constants";
 
 const DEMO_USER = "demo-user";
+const MY_TOPICS = ["AI Agent", "信息检索", "知识管理", "多智能体", "认知心理学"];
+const AI_BOOK: LivingBookCardData = { id: AI_LIVING_BOOK_ID, displayMode: "named", displayName: "Wormhole AI 馆员", headline: "演示用 AI 活馆藏：一定会接受文字答疑，并明确标识为自动回复。", expertiseConcepts: [{ id: "ai_agent", name: "AI Agent" }, { id: "information_retrieval", name: "信息检索" }, { id: "writing", name: "研究写作" }], willingTypes: ["async_answer"], expertiseLevel: "mentor", contactState: "accepted" };
 
 export default function LivingLibraryPage() {
   const [optIn, setOptIn] = useState(false);
   const [books, setBooks] = useState<LivingBookCardData[]>([]);
   const [selectedBook, setSelectedBook] = useState<LivingBookCardData | null>(null);
+  const [myTopics, setMyTopics] = useState<string[]>(["知识管理"]);
+  const [myWilling, setMyWilling] = useState<string[]>(["async_answer"]);
 
   useEffect(() => {
     // 骨架期直接读 seed 中 consent 允许的数据（与 fallback engine 同一 consent 规则）
@@ -41,7 +46,7 @@ export default function LivingLibraryPage() {
         availabilityNote: lb.availabilityNote ?? undefined,
         contactState: "request_required" as const,
       }));
-    setBooks(visible);
+    setBooks([AI_BOOK, ...visible]);
   }, []);
 
   return (
@@ -61,9 +66,9 @@ export default function LivingLibraryPage() {
         <Panel className="self-start">
           <PanelHeader icon={BookUser} title="my volume · 我的档案" accent="copper" />
           <PanelBody className="space-y-3 pt-3">
-            <p className="text-xs leading-relaxed text-steel">
-              把自己登记为一册可发现的活书：其他同学可以按主题匿名找到你（演示功能）。
-            </p>
+            <p className="text-xs leading-relaxed text-steel">把自己登记为一册可发现的活书。你的档案不会混在发现列表里，而是在这里以匿名预览呈现。</p>
+            <div className="space-y-1.5"><p className="text-[10px] text-steel-dim">我的专长主题</p>{MY_TOPICS.map((topic) => <label key={topic} className="flex items-center gap-2 text-xs text-steel"><input type="checkbox" checked={myTopics.includes(topic)} onChange={() => setMyTopics((items) => items.includes(topic) ? items.filter((item) => item !== topic) : [...items, topic])} />{topic}</label>)}</div>
+            <div className="space-y-1.5"><p className="text-[10px] text-steel-dim">愿意交流的方式</p>{[["async_answer", "文字答疑"], ["coffee_chat", "15min 交流"], ["reading_guide", "领读入门"]].map(([id, label]) => <label key={id} className="flex items-center gap-2 text-xs text-steel"><input type="checkbox" checked={myWilling.includes(id)} onChange={() => setMyWilling((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id])} />{label}</label>)}</div>
             <Button
               variant={optIn ? "copper" : "ghost"}
               className="w-full"
@@ -76,6 +81,7 @@ export default function LivingLibraryPage() {
               <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-pulse-dim" />
               可随时暂停或注销。匿名模式下不展示姓名，只展示专长领域与可提供的帮助类型。
             </p>
+            {optIn && <p className="border border-pulse/25 bg-pulse-faint/20 p-2 text-[10px] text-steel">匿名预览：{myTopics.length ? myTopics.join(" · ") : "请至少选择一个专长主题"} · {myWilling.length ? "已开放交流方式" : "尚未开放交流方式"}</p>}
           </PanelBody>
         </Panel>
 
