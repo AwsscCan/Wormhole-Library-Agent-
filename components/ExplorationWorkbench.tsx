@@ -187,12 +187,12 @@ export function ExplorationWorkbench({ initialState, initialView = "reading", fo
   return <div className="space-y-4">
     <section className="rounded-lg border border-ink-border bg-ink-panel p-4">
       <div className="flex flex-wrap items-end gap-3">
-        <label className="text-xs text-steel">意外度
+        <label className="text-xs text-steel">每日推荐意外度
           <select value={state.surpriseLevel} onChange={(event) => change({ surpriseLevel: event.target.value as WorkbenchState["surpriseLevel"] })} className="ml-2 rounded border border-ink-border bg-ink-raise px-2 py-1.5 text-ivory">
             <option value="low">低 · 80/20/0</option><option value="medium">中 · 60/30/10</option><option value="high">高 · 40/35/25</option>
           </select>
         </label>
-        <Button variant="solid" loading={busy} onClick={generate}><Sparkles className="h-4 w-4" />生成探索项</Button>
+        <Button variant="solid" loading={busy} onClick={generate}><Sparkles className="h-4 w-4" />生成今日探索项</Button>
         <Button className="ml-auto" loading={busy} disabled={!dirty} onClick={save}><Save className="h-4 w-4" />保存用户层</Button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-steel-dim">

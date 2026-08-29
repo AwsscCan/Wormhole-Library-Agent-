@@ -7,19 +7,20 @@ import {
   type Connection, type Edge, type EdgeChange, type Node, type NodeChange, type NodeProps, type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Eye, EyeOff, Library, Link2, LockKeyhole, Pin, PinOff, Save, Search, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Library, Link2, LockKeyhole, Orbit, Pin, PinOff, Save, Search, Trash2 } from "lucide-react";
 import type { MergedGraph, ResearchSession, SourceTransparentResource, SystemGraphNodeKind } from "@/lib/research/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type GraphData = { label: string; kind: SystemGraphNodeKind; note?: string; pinned: boolean; resourceId?: string; recommendationProjection?: true };
+type GraphData = { label: string; kind: SystemGraphNodeKind; note?: string; pinned: boolean; resourceId?: string; recommendationProjection?: true; searchFrequency?: number; brightness?: number };
 type FlowNode = Node<GraphData, "personal">;
 
 function PersonalNode({ data, selected }: NodeProps<FlowNode>) {
-  return <div className={cn("max-w-[210px] rounded-md border bg-ink-panel px-3 py-2 shadow-hair", selected ? "border-pulse shadow-glow-cyan-sm" : "border-ink-edge", data.kind === "resource" && "border-copper/60", data.kind === "wormhole" && "border-rosewood/60", data.recommendationProjection && "border-dashed border-pulse/70")}>
+  const brightness = data.brightness ?? 0.6;
+  return <div style={{ opacity: 0.45 + brightness * 0.55, boxShadow: data.searchFrequency && data.searchFrequency > 1 ? `0 0 ${5 + brightness * 12}px rgba(51, 214, 226, ${0.14 + brightness * 0.25})` : undefined }} className={cn("max-w-[210px] rounded-md border bg-ink-panel px-3 py-2 shadow-hair", selected ? "border-pulse shadow-glow-cyan-sm" : "border-ink-edge", data.kind === "resource" && "border-copper/60", data.kind === "wormhole" && "border-rosewood/60", data.recommendationProjection && "border-dashed border-pulse/70")}>
     <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-ink !bg-pulse" />
-    <div className="flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider text-steel-dim"><span>{data.recommendationProjection ? "private suggestion" : data.kind.replace("_", " ")}</span>{data.pinned && <Pin className="h-2.5 w-2.5 text-copper" />}</div>
+    <div className="flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider text-steel-dim"><span>{data.recommendationProjection ? "private suggestion" : data.kind.replace("_", " ")}</span>{data.searchFrequency && data.searchFrequency > 1 && <span className="text-pulse">x{data.searchFrequency}</span>}{data.pinned && <Pin className="h-2.5 w-2.5 text-copper" />}</div>
     <div className="truncate text-xs text-ivory">{data.label}</div>
     {data.note && <div className="mt-1 line-clamp-2 text-[9px] text-steel">{data.note}</div>}
     <Handle type="source" position={Position.Right} className="!h-2 !w-2 !border-ink !bg-pulse" />
@@ -37,10 +38,10 @@ function FocusController({ nodeId }: { nodeId?: string }) {
   return null;
 }
 
-function toFlow(graph: MergedGraph) {
+function toFlow(graph: MergedGraph, distanceScale: number) {
   const nodes: FlowNode[] = graph.nodes.map((node) => ({
-    id: node.id, type: "personal", position: node.position, hidden: node.hidden, draggable: !node.pinned,
-    data: { label: node.label, kind: node.kind, note: node.note, pinned: node.pinned, resourceId: node.resourceId, recommendationProjection: node.recommendationProjection },
+    id: node.id, type: "personal", position: node.id === "topic" || node.pinned ? node.position : { x: Math.round(node.position.x * distanceScale), y: Math.round(node.position.y * distanceScale) }, hidden: node.hidden, draggable: !node.pinned,
+    data: { label: node.label, kind: node.kind, note: node.note, pinned: node.pinned, resourceId: node.resourceId, recommendationProjection: node.recommendationProjection, searchFrequency: node.activity?.searchFrequency, brightness: node.activity?.brightness },
   }));
   const edges: Edge[] = graph.edges.map((edge) => ({
     id: edge.id, source: edge.source, target: edge.target,
@@ -54,10 +55,11 @@ function toFlow(graph: MergedGraph) {
 
 export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGraphHash, focusedNodeId, focusUnavailable }: { initialSession: ResearchSession; initialGraph: MergedGraph; publicGraphHash: string; focusedNodeId?: string; focusUnavailable?: string }) {
   const router = useRouter();
+  const [distanceScale, setDistanceScale] = useState(1);
   const initial = useMemo(() => {
-    const flow = toFlow(initialGraph);
+    const flow = toFlow(initialGraph, distanceScale);
     return { ...flow, nodes: flow.nodes.map((node) => ({ ...node, selected: node.id === focusedNodeId })) };
-  }, [focusedNodeId, initialGraph]);
+  }, [distanceScale, focusedNodeId, initialGraph]);
   const [session, setSession] = useState(initialSession);
   const [nodes, setNodes] = useState<FlowNode[]>(initial.nodes);
   const [edges, setEdges] = useState<Edge[]>(initial.edges);
@@ -70,6 +72,13 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
   const [libraryResults, setLibraryResults] = useState<SourceTransparentResource[]>([]);
   const selected = nodes.find((node) => node.id === selectedNodeId);
   const selectedEdge = edges.find((edge) => edge.id === selectedEdgeId);
+
+  useEffect(() => {
+    if (dirty) return;
+    const flow = toFlow(initialGraph, distanceScale);
+    setNodes(flow.nodes.map((node) => ({ ...node, selected: node.id === selectedNodeId })));
+    setEdges(flow.edges);
+  }, [dirty, distanceScale, initialGraph, selectedNodeId]);
 
   const onNodesChange = useCallback((changes: NodeChange<FlowNode>[]) => { setNodes((current) => applyNodeChanges(changes, current)); if (changes.some((change) => change.type === "position" || change.type === "remove")) setDirty(true); }, []);
   const onEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => { setEdges((current) => applyEdgeChanges(changes, current)); if (changes.some((change) => change.type === "remove")) setDirty(true); }, []);
@@ -144,6 +153,12 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
         <div className="flex items-center justify-between"><span className="font-mono text-[10px] uppercase tracking-wider text-steel">workspace layer</span><span className={cn("text-[10px]", dirty ? "text-copper" : "text-pulse")}>{dirty ? "unsaved" : "saved"}</span></div>
         <Button variant="solid" className="mt-3 w-full" loading={saving} disabled={!dirty} onClick={save}><Save className="h-3.5 w-3.5" />保存个人工作层</Button>
         {message && <p role="status" className="mt-2 text-xs leading-relaxed text-steel">{message}</p>}
+      </div>
+
+      <div className="rounded-lg border border-ink-border bg-ink-panel p-3">
+        <div className="flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-wider text-steel"><span className="flex items-center gap-1"><Orbit className="h-3 w-3" />map distance</span><span className="text-pulse">{distanceScale.toFixed(2)}x</span></div>
+        <input type="range" min="0.65" max="1.6" step="0.05" value={distanceScale} onChange={(event) => setDistanceScale(Number(event.target.value))} className="cockpit-range mt-2" aria-label="星图距离" />
+        <p className="mt-1 text-[10px] leading-relaxed text-steel-dim">离中心越远代表与既有知识越不相似；重复检索的节点会更亮。</p>
       </div>
 
       {selected && <div className="space-y-3 rounded-lg border border-ink-border bg-ink-panel p-3">

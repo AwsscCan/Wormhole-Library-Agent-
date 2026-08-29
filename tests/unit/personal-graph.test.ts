@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSystemGraph,
   createNodeAction,
+  deriveSearchActivity,
   hashPublicGraph,
   mergePersonalGraph,
 } from "@/lib/research/personalGraph";
@@ -69,5 +70,25 @@ describe("personal topic graph", () => {
     expect(createNodeAction("library", session.id, "RAG")).toEqual({
       action: "library", sessionId: "session-1", topic: "RAG",
     });
+  });
+
+  it("puts a novel search farther from the topic and makes repeated knowledge brighter", () => {
+    const activitySession: ResearchSession = {
+      ...session,
+      searches: [
+        session.searches[0],
+        { interactionId: "int-2", query: "hybrid retrieval", at: "2026-08-25T12:00:00.000Z", concepts: [{ id: "concept-rag", name: "RAG" }], resources: [] },
+        { interactionId: "int-3", query: "mechanism design incentives", at: "2026-08-26T12:00:00.000Z", concepts: [{ id: "concept-game", name: "Game theory" }], resources: [] },
+      ],
+    };
+    const activity = deriveSearchActivity(activitySession);
+    expect(activity.get("int-3")!.novelty).toBeGreaterThan(activity.get("int-2")!.novelty);
+    expect(activity.get("int-2")!.brightness).toBeGreaterThan(activity.get("int-3")!.brightness);
+
+    const graph = buildSystemGraph(activitySession);
+    const repeated = graph.nodes.find((node) => node.id === "search:int-2")!;
+    const novel = graph.nodes.find((node) => node.id === "search:int-3")!;
+    expect(Math.hypot(novel.position.x, novel.position.y)).toBeGreaterThan(Math.hypot(repeated.position.x, repeated.position.y));
+    expect(repeated.activity?.brightness).toBeGreaterThan(novel.activity?.brightness ?? 0);
   });
 });

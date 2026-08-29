@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Search, Compass, Radio } from "lucide-react";
+import { Search, Compass, Radio, Orbit } from "lucide-react";
 import { Panel, PanelHeader, PanelBody } from "@/components/ui/panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,7 @@ export default function HomePage() {
   const [taskType, setTaskType] = useState("project");
   const [level, setLevel] = useState("beginner");
   const [slider, setSlider] = useState(50);
+  const [exploreAfterSearch, setExploreAfterSearch] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,7 +72,7 @@ export default function HomePage() {
           topic: finalQuery,
           taskType,
           level,
-          sliderValue: slider,
+          ...(exploreAfterSearch ? { sliderValue: slider } : {}),
         }),
       });
       const action = await actionResponse.json();
@@ -158,7 +159,12 @@ export default function HomePage() {
               </div>
 
               <div className="border-t border-ink-border pt-3.5">
-                <SerendipitySlider value={slider} onChange={setSlider} />
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-steel">
+                  <input type="checkbox" checked={exploreAfterSearch} onChange={(event) => setExploreAfterSearch(event.target.checked)} className="h-3.5 w-3.5 accent-pulse" />
+                  <Orbit className="h-3.5 w-3.5 text-pulse" />
+                  搜索后继续发散探索
+                </label>
+                {exploreAfterSearch && <div className="mt-3"><SerendipitySlider value={slider} onChange={setSlider} /></div>}
               </div>
 
               <Button

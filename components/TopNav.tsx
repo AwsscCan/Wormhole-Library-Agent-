@@ -1,13 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Telescope, Brain, BookUser, Landmark, ScrollText, PenLine, NotebookPen, Settings2 } from "lucide-react";
+import { Telescope, Brain, BookUser, Landmark, ScrollText, PenLine, NotebookPen, Settings2, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AuthStatus } from "@/components/auth/AuthStatus";
 
 const LINKS = [
   { href: "/", label: "探索台", en: "EXPLORE", icon: Telescope },
-  { href: "/research", label: "研究工作区", en: "RESEARCH", icon: Telescope },
+  { href: "/research", label: "研究工作区", en: "RESEARCH", icon: Map },
   { href: "/memory", label: "记忆核心", en: "MEMORY", icon: Brain },
   { href: "/review", label: "文献综述", en: "REVIEW", icon: ScrollText },
   { href: "/writing", label: "写作工作台", en: "WRITING", icon: PenLine },
@@ -34,7 +34,7 @@ export function TopNav() {
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <div className="hidden items-center gap-2 border-l border-ink-border pl-4 2xl:flex">
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-pulse shadow-glow-cyan-sm" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-copper">demo catalog</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-copper">source-aware catalog</span>
           </div>
           <AuthStatus />
         </div>

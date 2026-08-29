@@ -98,6 +98,14 @@ export type SystemGraphNodeKind =
   | "wormhole"
   | "living_book";
 
+/** Derived from private session activity. It never contains source text or identity. */
+export type GraphActivity = {
+  searchFrequency: number;
+  novelty: number;
+  /** Normalized 0.35..1 visual prominence derived from search frequency. */
+  brightness: number;
+};
+
 export type SystemGraphNode = {
   id: string;
   label: string;
@@ -105,6 +113,7 @@ export type SystemGraphNode = {
   position: GraphPosition;
   resourceId?: string;
   recommendationProjection?: true;
+  activity?: GraphActivity;
 };
 
 export type SystemGraphEdge = {
