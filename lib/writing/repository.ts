@@ -212,7 +212,7 @@ export async function resumeWriting(ownerId: string, sessionId: string): Promise
   return last ? checkpointDto(last) : null;
 }
 
-/** The first persisted stage records the selected ModeY-style template. */
+/** The first persisted stage records the selected writing template. */
 export async function resumeWritingTemplate(ownerId: string, sessionId: string): Promise<WritingTemplateId> {
   const artifact = await getPrisma().writingArtifact.findFirst({
     where: { ownerId, sessionId, stage: "evidence" },

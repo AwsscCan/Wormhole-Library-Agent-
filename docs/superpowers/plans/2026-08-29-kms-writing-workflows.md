@@ -1,14 +1,14 @@
-# Wormhole Knowledge Management and ModeY Integration Implementation Plan
+# Wormhole Knowledge Management and Writing Workflow Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a source-grounded Wormhole knowledge-management application with real catalogue search, owner-scoped knowledge assets, ModeY-style writing workflows, meaningful maps, visible memory, working LaTeX preview, distinct navigation, and saved themes.
+**Goal:** Build a source-grounded Wormhole knowledge-management application with real catalogue search, owner-scoped knowledge assets, multi-stage writing workflows, meaningful maps, visible memory, working LaTeX preview, distinct navigation, and saved themes.
 
 **Architecture:** A single catalogue gateway replaces divergent search and writing discovery paths. Persistent source, asset, workflow, and knowledge-event records supply the maps and writing workbench. The UI is a Next.js projection over those services, with source truth, owner isolation, and safe degradation carried through every route.
 
 **Tech Stack:** Next.js 15, React 19, TypeScript, Prisma/SQLite, Zod, Vitest, React Flow, KaTeX, server-side fetch.
 
-**Spec:** `docs/superpowers/specs/2026-08-29-kms-modey-integration-design.md`
+**Spec:** `docs/superpowers/specs/2026-08-29-kms-writing-workflows-design.md`
 
 ## Global Constraints
 
@@ -31,7 +31,7 @@
 - `lib/catalog/sourceRepository.ts`: owner/institution source configuration, encrypted credential storage, and health state.
 - `lib/knowledge/assets.ts`: asset validation, retention, extraction state, and owner-scoped persistence.
 - `lib/knowledge/events.ts`: append-only knowledge events and personal-map projection inputs.
-- `lib/workflows/*`: ModeY-derived template, run, step, checkpoint, artifact, and model-resolution services.
+- `lib/workflows/*`: project-native template, run, step, checkpoint, artifact, and model-resolution services.
 - `lib/livingLibrary/conversations.ts`: consent-gated messages, resource sharing, and revocable asset grants.
 - `components/catalog/*`, `components/knowledge/*`, `components/workflows/*`: source cards, connection wizard, asset picker, workflow workbench, and map controls.
 - `lib/notes/mathMarkdown.ts` and `components/notes/*`: safe Markdown plus KaTeX rendering and editor preview.
@@ -151,7 +151,7 @@ Commit: `feat: add personal and institution catalog sources`
 
 Commit: `feat: add retained knowledge assets and safe upload`
 
-## Task 5: Port the ModeY Workflow Contract
+## Task 5: Implement the Writing Workflow Contract
 
 **Files:**
 - Create: `lib/workflows/templates.ts`, `lib/workflows/repository.ts`, `lib/workflows/service.ts`, `app/api/v3/workflows/route.ts`, `app/api/v3/workflows/[runId]/route.ts`, `components/workflows/WorkflowWorkbench.tsx`, `components/workflows/WorkflowSetup.tsx`, `components/workflows/WorkflowStages.tsx`, `tests/unit/workflow-service.test.ts`
@@ -159,19 +159,19 @@ Commit: `feat: add retained knowledge assets and safe upload`
 
 **Interfaces:**
 - Produces `createWorkflowRun`, `advanceWorkflowStep`, `resolveCheckpoint`, and `rerunWorkflowStep`.
-- Imports a narrowed TypeScript representation of ModeY `workflow-templates.json` with evidence section, literature review, outline, and source-to-paper templates.
+- Defines typed workflow templates for evidence sections, literature reviews, outlines, and source-to-paper writing.
 
 - [ ] **Step 1: Write failing tests for step order, checkpoint pause/feedback/rerun, asset attachment, and artifact provenance.**
 
 - [ ] **Step 2: Implement workflow persistence and state transitions with explicit per-step outcomes.**
 
-- [ ] **Step 3: Replace the writing page with the ModeY-derived operational layout and preserve existing evidence-draft data.**
+- [ ] **Step 3: Replace the writing page with the project workbench layout and preserve existing evidence-draft data.**
 
 - [ ] **Step 4: Redirect `/review` into the literature-review template and remove its separate generation path.**
 
 - [ ] **Step 5: Run focused tests and commit.**
 
-Commit: `feat: add ModeY-style writing workbench`
+Commit: `feat: add multi-stage writing workbench`
 
 ## Task 6: Implement Model Routing, DeepSeek, and CC Switch Import
 

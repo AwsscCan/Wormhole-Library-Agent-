@@ -55,8 +55,8 @@ export type WorkflowCatalogTemplate = {
 };
 
 /**
- * ModeY's workflow directory is intentionally kept as a catalogue separate
- * from the four evidence-runner templates. This preserves the familiar
+ * The full workflow directory is intentionally kept as a catalogue separate
+ * from the four evidence-runner templates. This preserves the complete
  * workflow selection surface without claiming that a browser-only runner can
  * execute local code, compile PDFs, or draw figures.
  */

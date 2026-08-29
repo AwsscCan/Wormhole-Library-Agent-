@@ -1,4 +1,4 @@
-# Wormhole Knowledge Management and ModeY Integration Design
+# Wormhole Knowledge Management and Writing Workflow Design
 
 ## Goal
 
@@ -10,11 +10,10 @@ map views. It must provide a working real-time LaTeX preview in notes and
 writing artifacts. It must not present seed data, deterministic text, an
 unavailable upstream, or an unrendered formula as if it were a live capability.
 
-The design reuses the user-owned ModeY reconstruction at
-`C:\Users\白鹭惊\Documents\Codex\2026-08-08\https-github-com-123-qw-as\ModeY` at
-source level where its recovered contracts apply. It does not copy Modex
-licensing, encrypted-skill loading, or secrets from Modex, CC Switch, or another
-application.
+All workflow contracts are defined and implemented inside Wormhole Library
+Agent. External provider catalogues may be imported only through explicit,
+redacted interfaces; credentials, licensing mechanisms, and private runtime
+state from other applications are never copied.
 
 ## Confirmed Product Rules
 
@@ -50,27 +49,27 @@ application.
    has no file intake, workflow template, workflow-wide assignment, per-step
    assignment, run log, or artifacts surface.
 6. The current note surface does not deliver a reliable real-time LaTeX preview.
-   It therefore fails the editor/preview contract that ModeY already models for
-   text artifacts and must be diagnosed before replacement.
+   It therefore fails the product's editor/preview contract for text artifacts
+   and must be diagnosed before replacement.
 
-## Reused ModeY Contracts
+## Writing Workflow Contracts
 
-The ModeY source provides the implementation model for the following contracts:
+The project defines the following typed contracts:
 
-- `resources/workflow-templates.json`: workflow template ID, ordered step IDs,
-  expected output paths, checkpoint presence, and checkpoint type.
-- `backend/modey_backend.py`: workflow record fields for `model_preset_id`,
-  `step_models`, `enable_checkpoints`, checkpoint resolution, step reruns,
-  artifact inventory, and attachment workspace isolation.
-- `web/app.js`: the new-workflow interaction order: input material, parameters,
-  checkpoint switch, workflow model select, optional per-step overrides, run;
-  plus progress, artifact, log, and checkpoint interactions.
-- Its CC Switch catalogue model: read a redacted provider/model catalogue, import
-  selected provider-model tuples explicitly, and never return credentials.
+- The workflow template catalogue records template IDs, ordered step IDs,
+  expected outputs, checkpoint presence, and checkpoint types.
+- Workflow runs record `model_preset_id`, `step_models`, checkpoint settings,
+  checkpoint resolution, step reruns, artifact inventory, and isolated
+  attachment workspaces.
+- The workbench interaction contract covers input material, parameters,
+  checkpoint controls, workflow model selection, optional per-step overrides,
+  execution, progress, artifacts, logs, and checkpoint feedback.
+- Provider catalogue import reads only redacted provider/model metadata, imports
+  selected tuples explicitly, and never returns credentials.
 
-Wormhole remains a Next.js/Prisma application. ModeY Python/Electron processes
-are not embedded into the web runtime. Reuse means porting the recovered data
-contracts and interaction behavior into typed TypeScript service boundaries.
+Wormhole is a Next.js/Prisma application. Workflow data and interaction
+behavior are implemented through typed TypeScript service boundaries in the web
+runtime.
 
 ## Architecture
 
@@ -152,7 +151,7 @@ attachable but are clearly marked unreadable to the text-writing agent.
 ### Writing Workbench
 
 The current evidence-draft path becomes one workflow template rather than the
-entire writing product. The workbench uses the ModeY interaction order:
+entire writing product. The workbench uses this interaction order:
 
 1. Select a template and enter the topic or prompt.
 2. Attach temporary files or private knowledge assets.

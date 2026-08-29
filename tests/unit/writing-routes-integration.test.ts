@@ -441,7 +441,7 @@ describe("production writing route integration", () => {
     expect(artifacts.find(({ stage }) => stage === "draft")?.content).toBe(generated.markdown);
   });
 
-  it("persists and restores the ModeY literature-review template with its evidence-bound artifact", async () => {
+  it("persists and restores the literature-review template with its evidence-bound artifact", async () => {
     installPorts();
     const created = await draftRoute.POST(jsonRequest(ownerA, "/api/v3/writing/drafts", "POST", {
       sessionId: "review-session",
