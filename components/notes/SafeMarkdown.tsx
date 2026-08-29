@@ -90,7 +90,7 @@ export function SafeMarkdown({ markdown, className }: SafeMarkdownProps) {
       continue;
     }
     flushList();
-    if (!line.trim()) return;
+    if (!line.trim()) continue;
     const heading = /^(#{1,3})\s+(.+)$/.exec(line);
     if (heading) {
       const Heading = heading[1].length === 1 ? "h2" : heading[1].length === 2 ? "h3" : "h4";

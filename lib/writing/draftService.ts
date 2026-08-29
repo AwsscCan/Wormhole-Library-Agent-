@@ -20,6 +20,9 @@ import {
   persistStage,
   resumeWriting,
   resumeWritingTemplate,
+  resumeWritingMetadata,
+  resetWritingRun,
+  updateDraftArtifact,
 } from "@/lib/writing/repository";
 import type {
   DraftResult,
@@ -30,6 +33,7 @@ import type {
   WritingStage,
 } from "@/lib/writing/types";
 import { type WritingTemplateId, writingTemplate } from "@/lib/writing/workflowTemplates";
+import { getKnowledgeAssetContexts, type KnowledgeAssetContext } from "@/lib/knowledge/assets";
 
 export { WritingPortsUnavailableError as WritingDependencyUnavailableError };
 
@@ -92,28 +96,37 @@ async function loadCompleteSessionEvidence(
   return loaded as EvidenceItem[];
 }
 
-function deterministicMarkdown(templateId: WritingTemplateId, focus: string, evidence: EvidenceItem[]): string {
-  const citedSentences = evidence.map((item) => factualSentence(item.excerpt, item.id)).join(" ");
-  if (templateId === "literature_review") {
-    return `# 文献综述：${focus}\n\n## 已核验文献\n\n${evidence.map((item) => `- ${item.title} [${item.id}]`).join("\n")}\n\n## 综合讨论\n\n${citedSentences}`;
-  }
-  if (templateId === "outline") {
-    return `# ${focus}\n\n## 研究背景\n\n${citedSentences}\n\n## 待展开章节\n\n1. 问题界定\n2. 相关工作\n3. 方法与证据\n4. 讨论与结论`;
-  }
-  if (templateId === "source_to_paper") {
-    return `# ${focus}\n\n## 来源与论据\n\n${citedSentences}\n\n## 初稿结构\n\n### 引言\n\n### 方法\n\n### 讨论`;
-  }
-  return `## ${focus}\n\n${citedSentences}`;
+function materialSection(materials: KnowledgeAssetContext[]): string {
+  const readable = materials.filter((material) => material.extractedText?.trim());
+  if (!readable.length) return materials.length ? "\n\n> 已附加资料，但当前格式未提取出可检索文本；请打开原文件核验。" : "";
+  return `\n\n## 附加资料\n\n${readable.map((material) => `- **${material.originalName}**：${material.extractedText!.slice(0, 500).replace(/\r?\n/g, " ")}`).join("\n")}`;
 }
 
-function evidencePrompt(templateId: WritingTemplateId, focus: string, evidence: EvidenceItem[]): string {
+function deterministicMarkdown(templateId: WritingTemplateId, focus: string, evidence: EvidenceItem[], materials: KnowledgeAssetContext[]): string {
+  const citedSentences = evidence.map((item) => factualSentence(item.excerpt, item.id)).join(" ");
+  if (templateId === "literature_review") {
+    return `# 文献综述：${focus}\n\n## 已核验文献\n\n${evidence.map((item) => `- ${item.title} [${item.id}]`).join("\n")}\n\n## 综合讨论\n\n${citedSentences}${materialSection(materials)}`;
+  }
+  if (templateId === "outline") {
+    return `# ${focus}\n\n## 研究背景\n\n${citedSentences}${materialSection(materials)}\n\n## 待展开章节\n\n1. 问题界定\n2. 相关工作\n3. 方法与证据\n4. 讨论与结论`;
+  }
+  if (templateId === "source_to_paper") {
+    return `# ${focus}\n\n## 来源与论据\n\n${citedSentences}${materialSection(materials)}\n\n## 初稿结构\n\n### 引言\n\n### 方法\n\n### 讨论`;
+  }
+  return `## ${focus}\n\n${citedSentences}${materialSection(materials)}`;
+}
+
+function evidencePrompt(templateId: WritingTemplateId, focus: string, evidence: EvidenceItem[], materials: KnowledgeAssetContext[], options: { language: string; citationStyle: string; tone: string; customRequirements: string }): string {
   return [
     "Write a concise Markdown section grounded only in the allowed evidence JSON below.",
     "Every factual sentence must end with an allowed evidence marker in the exact form [evidence-id].",
     "Never cite, mention, infer from, or invent evidence outside this JSON.",
     `Workflow template: ${writingTemplate(templateId).name}.`,
     `Section focus: ${focus}`,
+    `Output language: ${options.language}. Tone: ${options.tone}. Citation style: ${options.citationStyle}.`,
+    options.customRequirements ? `Additional requirements: ${options.customRequirements}` : "",
     `Allowed evidence JSON: ${JSON.stringify(evidence.map(({ id, title, excerpt, provenance }) => ({ id, title, excerpt, provenance })))}`,
+    `Selected material extracts: ${JSON.stringify(materials.map(({ id, originalName, extractedText }) => ({ id, originalName, extractedText: extractedText?.slice(0, 20_000) })))}`,
   ].join("\n");
 }
 
@@ -142,6 +155,8 @@ async function providerMarkdown(input: {
   focus: string;
   evidence: EvidenceItem[];
   templateId: WritingTemplateId;
+  materials: KnowledgeAssetContext[];
+  options: { language: string; citationStyle: string; tone: string; customRequirements: string; enableCheckpoints?: boolean; improvementLoop?: boolean };
   stepPresetId?: string;
   workflowPresetId?: string;
   rolePresetId?: string;
@@ -155,7 +170,7 @@ async function providerMarkdown(input: {
       model: preset.model,
       temperature: preset.temperature,
       maxTokens: preset.maxTokens,
-    }, evidencePrompt(input.templateId, input.focus, input.evidence));
+    }, evidencePrompt(input.templateId, input.focus, input.evidence, input.materials, input.options));
     const citedIds = evidenceMarkers(markdown, new Set(input.evidence.map(({ id }) => id)));
     return citedIds ? { markdown, citedIds } : null;
   } catch {
@@ -222,6 +237,7 @@ export async function resumeEvidenceDraft(input: { principal: CurrentPrincipal; 
     checkpointId: artifact.checkpoint.id,
     stage: artifact.checkpoint.stage,
     templateId: await resumeWritingTemplate(ownerId, input.sessionId),
+    ...(await resumeWritingMetadata(ownerId, input.sessionId)),
   };
 }
 
@@ -232,10 +248,11 @@ async function advanceToDraft(
   focus: string,
   templateId: WritingTemplateId,
   markdown: string,
+  metadata: { assetIds: string[]; options: unknown },
 ): Promise<WritingCheckpoint> {
   const ownerId = principalOwnerKey(principal);
   const stages: Array<{ stage: WritingStage; content: string }> = [
-    { stage: "evidence", content: JSON.stringify({ evidenceIds, templateId }) },
+    { stage: "evidence", content: JSON.stringify({ evidenceIds, templateId, ...metadata }) },
     { stage: "verified_sources", content: JSON.stringify(evidenceIds) },
     { stage: "outline", content: `## ${focus}` },
     { stage: "draft", content: markdown },
@@ -262,6 +279,9 @@ export async function generateEvidenceDraft(input: {
   workflowPresetId?: string;
   rolePresetId?: string;
   userDefaultPresetId?: string;
+  assetIds?: string[];
+  options?: { language?: "zh" | "en" | "auto"; citationStyle?: "evidence_marker" | "apa" | "gb7714"; tone?: "academic" | "concise" | "explanatory"; customRequirements?: string; enableCheckpoints?: boolean; improvementLoop?: boolean };
+  rerun?: boolean;
 }): Promise<DraftResult> {
   if (input.evidenceIds.length < 3) {
     throw new WritingError("BAD_REQUEST", "At least three verified evidence items are required");
@@ -279,7 +299,9 @@ export async function generateEvidenceDraft(input: {
   if (selectedEvidence.some((item) => item.verificationStatus !== "verified" || !item.userConfirmedAt)) {
     throw new WritingError("BAD_REQUEST", "Selected evidence must be verified and user confirmed");
   }
-  const activeCheckpoint = await resumeWriting(principalOwnerKey(input.principal), input.sessionId);
+  const ownerId = principalOwnerKey(input.principal);
+  if (input.rerun) await resetWritingRun(ownerId, input.sessionId);
+  const activeCheckpoint = await resumeWriting(ownerId, input.sessionId);
   if (activeCheckpoint && ["draft", "evidence_link", "human_review", "export"].includes(activeCheckpoint.stage)) {
     throw new WritingError("BAD_REQUEST", "This research session already has a server-owned draft artifact");
   }
@@ -290,8 +312,10 @@ export async function generateEvidenceDraft(input: {
     .slice(0, 12)
     .map(({ item }) => item);
   const templateId = input.templateId ?? "evidence_section";
-  const generated = await providerMarkdown({ ...input, templateId, evidence: verified });
-  const markdown = generated?.markdown ?? deterministicMarkdown(templateId, input.focus, verified);
+  const materials = await getKnowledgeAssetContexts(input.principal, input.assetIds ?? []);
+  const options = { language: input.options?.language ?? "auto", citationStyle: input.options?.citationStyle ?? "evidence_marker", tone: input.options?.tone ?? "academic", customRequirements: input.options?.customRequirements ?? "", enableCheckpoints: input.options?.enableCheckpoints ?? false, improvementLoop: input.options?.improvementLoop ?? false } as const;
+  const generated = await providerMarkdown({ ...input, templateId, evidence: verified, materials, options });
+  const markdown = generated?.markdown ?? deterministicMarkdown(templateId, input.focus, verified, materials);
   const checkpoint = await advanceToDraft(
     input.principal,
     input.sessionId,
@@ -299,6 +323,7 @@ export async function generateEvidenceDraft(input: {
     input.focus,
     templateId,
     markdown,
+    { assetIds: input.assetIds ?? [], options },
   );
   return {
     markdown,
@@ -309,6 +334,11 @@ export async function generateEvidenceDraft(input: {
     stage: "draft",
     templateId,
   };
+}
+
+export async function saveEvidenceDraft(input: { principal: CurrentPrincipal; sessionId: string; content: string }): Promise<WritingCheckpoint> {
+  await requireOwnedResearchSession(input.principal, input.sessionId);
+  return updateDraftArtifact(principalOwnerKey(input.principal), input.sessionId, input.content);
 }
 
 export async function advanceDraftReview(input: {

@@ -92,4 +92,15 @@ describe("ResearchSessionStore", () => {
     })).rejects.toMatchObject({ code: "CONFLICT" });
   });
 
+  it("projects upload and writing activity into the session graph source stream", async () => {
+    const { service } = fixture();
+    const session = await service.create("member:alice", { researchQuestion: "Activity projection" });
+    await service.recordActivity("member:alice", session.id, { kind: "upload", title: "rag-notes.md", resourceId: "asset:1" });
+    const updated = await service.recordActivity("member:alice", session.id, { kind: "writing", title: "文献综述 · RAG retrieval", resourceId: "artifact:1" });
+    expect(updated.searches).toHaveLength(2);
+    expect(updated.searches[0].resources[0]).toMatchObject({ id: "asset:1", sourceLabel: "私有知识库" });
+    expect(updated.searches[1].resources[0]).toMatchObject({ id: "artifact:1", sourceLabel: "写作产物" });
+    expect(updated.searches[1].concepts.length).toBeGreaterThan(0);
+  });
+
 });

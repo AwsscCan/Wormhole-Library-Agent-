@@ -20,5 +20,6 @@ describe("writing workspace contract", () => {
     expect(source).not.toContain("dangerouslySetInnerHTML");
     expect(source).toContain("noreferrer noopener");
     expect(source).toContain("html: false");
+    expect(source).toContain("if (!line.trim()) continue;");
   });
 });

@@ -3,7 +3,7 @@ import { ResearchError } from "./types";
 
 /** Read-only cross-package port. Package 01 owns cookie/session validation. */
 export interface CurrentPrincipalPort { read(request: Request): Promise<CurrentPrincipal | null>; }
-const ports = globalThis as unknown as { __package01CurrentPrincipalPort?: CurrentPrincipalPort };
+const ports = globalThis as unknown as { __package01CurrentPrincipalPort?: CurrentPrincipalPort; __package01TestPrincipalPort?: boolean };
 
 /** Called by package 01 integration bootstrap; package 03 never parses credentials itself. */
 export function bindPackage01CurrentPrincipalPort(port: CurrentPrincipalPort) { ports.__package01CurrentPrincipalPort = port; }
@@ -18,5 +18,7 @@ export function principalOwnerKey(principal: CurrentPrincipal): string { return 
 export function installCurrentPrincipalPortForTests(port: CurrentPrincipalPort) {
   if (process.env.VITEST !== "true" && process.env.NODE_ENV !== "test") throw new Error("Test principal injection is disabled outside tests");
   bindPackage01CurrentPrincipalPort(port);
+  ports.__package01TestPrincipalPort = true;
 }
-export function clearCurrentPrincipalPortForTests() { delete ports.__package01CurrentPrincipalPort; }
+export function hasTestCurrentPrincipalPort() { return ports.__package01TestPrincipalPort === true; }
+export function clearCurrentPrincipalPortForTests() { delete ports.__package01CurrentPrincipalPort; delete ports.__package01TestPrincipalPort; }

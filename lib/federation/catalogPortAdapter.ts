@@ -9,7 +9,8 @@ import type {
   TopicLibraryResult,
 } from "@/lib/research/types";
 import type { Availability, Difficulty, Language, ResourceCard, ResourceType } from "@/lib/types";
-import { federateSearch, type FederateOptions } from "./federation";
+import type { FederateOptions } from "./federation";
+import { searchCatalogGateway } from "@/lib/catalog/gateway";
 import type { EvidenceItem, SourceKind, SourceRef } from "./types";
 
 const PROVENANCE_KIND: Record<SourceKind, SourceProvenance["sourceKind"]> = {
@@ -75,19 +76,45 @@ export interface SourceTransparentCatalogOptions { federate?: FederateOptions; }
 
 export function createSourceTransparentCatalogAdapter(options: SourceTransparentCatalogOptions = {}): SourceTransparentCatalogPort {
   return {
-    async searchTopic({ query, limit }) {
+    async searchTopic({ query, limit, ownerId }) {
       const base = options.federate ?? {};
       const federateOptions: FederateOptions = {
         ...base,
         includeOpenAlex: base.includeOpenAlex ?? !boolEnv("OPENALEX_DISABLED"),
         includeOpenLibrary: base.includeOpenLibrary ?? !boolEnv("OPENLIBRARY_DISABLED"),
         includeSeed: base.includeSeed ?? true,
+        ownerId,
       };
-      const result = await federateSearch({ topic: query, limit }, federateOptions);
-      const outcomes = [...(result.sourceOutcomes ?? [])];
+      // Use the gateway here as well as in the legacy search adapter. This is
+      // the important owner-scoped path for the research workspace: personal
+      // OPAC/SRU/OAI-PMH sources must not disappear when the user searches from
+      // a map node or starts a writing evidence run.
+      const result = await searchCatalogGateway({ query, limit, ownerId }, federateOptions);
+      const outcomes = result.sources.map((source) => ({ kind: source.kind, status: source.status }));
       const { sourceStatus, degraded } = deriveSourceStatus(outcomes);
       const sources: CatalogSourceStatus[] = outcomes.map((o) => ({ kind: PROVENANCE_KIND[o.kind], label: SOURCE_LABELS[o.kind], status: o.status }));
-      const resources = result.items.map(toSourceTransparentResource);
+      const resources = result.records.map((record) => ({
+        id: record.id,
+        type: record.type,
+        title: record.title,
+        authors: [...record.authors],
+        year: record.year,
+        language: record.language,
+        why: record.why,
+        location: record.location,
+        callNumber: record.callNumber,
+        availability: record.availability,
+        difficulty: record.difficulty,
+        concepts: record.concepts,
+        qualityScore: record.qualityScore,
+        sourceUrl: record.sourceUrl,
+        provenance: {
+          sourceKind: PROVENANCE_KIND[record.sourceKind],
+          sourceLabel: record.sourceLabel,
+          retrievedAt: record.retrievedAt,
+          externalId: record.externalId,
+        },
+      } satisfies SourceTransparentResource));
       let message: string | undefined;
       if (sourceStatus === "unavailable") {
         message = outcomes.every((o) => o.status === "disabled")

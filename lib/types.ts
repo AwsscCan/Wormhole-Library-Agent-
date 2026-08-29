@@ -347,6 +347,7 @@ export interface ApiError {
 /** 队友02：馆藏适配器接口（lib/catalog/adapter.ts 实现） */
 export interface CatalogAdapter {
   searchCatalog(input: {
+    userId?: string;
     query: string;
     conceptIds?: string[];
     resourceTypes?: ResourceType[];

@@ -22,11 +22,13 @@ export function LivingBookCard({
   userId,
   className,
   onConversation,
+  isSelf = false,
 }: {
   livingBook: LivingBookCardData;
   userId: string;
   className?: string;
   onConversation?: (livingBook: LivingBookCardData) => void;
+  isSelf?: boolean;
 }) {
   const [state, setState] = useState<"idle" | "sending" | "pending">("idle");
   const anonymous = livingBook.displayMode !== "named" || !livingBook.displayName;
@@ -104,7 +106,9 @@ export function LivingBookCard({
           <ShieldCheck className="h-3 w-3 shrink-0 text-pulse-dim" />
           <span className="truncate">双方同意前不互换身份与联系方式</span>
         </span>
-        {state === "pending" ? (
+        {isSelf ? (
+          <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-copper">我的卷册</span>
+        ) : state === "pending" ? (
           <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-pulse">
             ✓ request pending
           </span>

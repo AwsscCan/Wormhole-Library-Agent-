@@ -3,11 +3,12 @@ import {
   generateEvidenceDraft,
   resumeEvidenceDraft,
   requireOwnedResearchSession,
+  saveEvidenceDraft,
   WritingDependencyUnavailableError,
   WritingError,
 } from "@/lib/writing/draftService";
 import { apiError, parseBody } from "@/lib/validation/api";
-import { createDraftSchema } from "@/lib/validation/schemas";
+import { createDraftSchema, saveDraftSchema } from "@/lib/validation/schemas";
 import {
   privateWritingResponse,
   rejectWritingUserId,
@@ -50,6 +51,21 @@ export async function POST(request: Request) {
   try {
     const draft = await generateEvidenceDraft({ ...parsed.data, principal });
     return privateWritingResponse(NextResponse.json(draft, { status: 201 }), principal);
+  } catch (error) {
+    return failure(error, principal);
+  }
+}
+
+export async function PATCH(request: Request) {
+  const rejected = rejectWritingUserId(request);
+  if (rejected) return rejected;
+  const principal = await requireWritingPrincipal(request);
+  if (principal instanceof Response) return principal;
+  const parsed = await parseBody(request, saveDraftSchema);
+  if (!parsed.ok) return privateWritingResponse(parsed.response, principal);
+  try {
+    const checkpoint = await saveEvidenceDraft({ principal, ...parsed.data });
+    return privateWritingResponse(NextResponse.json(checkpoint), principal);
   } catch (error) {
     return failure(error, principal);
   }

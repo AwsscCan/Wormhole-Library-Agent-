@@ -4,7 +4,7 @@ import type { ResearchSessionService } from "@/lib/research/sessionStore";
 import { getResearchSessionService } from "@/lib/research/sessionStore";
 import { ResearchError } from "@/lib/research/types";
 import { validateEvidenceGraph } from "./links";
-import type { WorkbenchResourceProjection, WorkbenchState, WorkbenchUpdateInput } from "./types";
+import type { RecommendationSnapshot, WorkbenchResourceProjection, WorkbenchState, WorkbenchUpdateInput } from "./types";
 
 type WorkbenchRow = {
   sessionId: string; ownerId: string; stateJson: string; version: number; createdAt: Date | string; updatedAt: Date | string;
@@ -135,6 +135,25 @@ export class WorkbenchService {
       if (await this.store.update(ownerId, sessionId, current.version, next) === "updated") return next;
     }
     throw new ResearchError("CONFLICT", "Workbench changed while projecting recommendation resources");
+  }
+
+  async saveDailyRecommendation(ownerId: string, sessionId: string, snapshot: RecommendationSnapshot, projections: WorkbenchResourceProjection[]) {
+    await this.research.get(ownerId, sessionId);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const current = await this.get(ownerId, sessionId);
+      const next: WorkbenchState = {
+        ...current,
+        dailyRecommendation: snapshot,
+        resourceProjections: {
+          ...current.resourceProjections,
+          ...Object.fromEntries(projections.map((projection) => [projection.resourceId, projection])),
+        },
+        version: current.version + 1,
+        updatedAt: this.deps.now(),
+      };
+      if (await this.store.update(ownerId, sessionId, current.version, next) === "updated") return next;
+    }
+    throw new ResearchError("CONFLICT", "Workbench changed while saving daily recommendations");
   }
 }
 

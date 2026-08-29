@@ -396,6 +396,19 @@ model ExplorationWorkbench {
   @@index([ownerId, updatedAt])
 }
 
+model LivingBookWorkspaceProfile {
+  id               String   @id @default(cuid())
+  ownerId          String   @unique
+  displayMode      String   @default("anonymous")
+  topicsJson       String   @default("[]")
+  willingTypesJson String   @default("[]")
+  optIn            Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
+
+  @@index([ownerId, optIn])
+}
+
 /// V3.3 package 04 private memory snapshot. The memory service owns the JSON
 /// shape and uses raw SQL so P04 can restore its ledger/index/inference state
 /// without exposing private snippets through Prisma client models elsewhere.
@@ -423,6 +436,24 @@ model KnowledgeAsset {
   @@index([ownerId, expiresAt])
 }
 
+model CatalogSource {
+  id                    String   @id @default(cuid())
+  ownerId               String
+  name                  String
+  scope                 String   @default("personal")
+  protocol              String
+  endpoint              String
+  mappingJson           String   @default("{}")
+  encryptedCredentials String?
+  status                String   @default("configured")
+  lastCheckedAt         DateTime?
+  lastMessage           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([ownerId, updatedAt])
+}
+
 
 /// A consent-gated discussion between a workspace owner and a Living Book.
 /// Owner keys use the existing member:/guest: convention rather than browser
@@ -430,6 +461,7 @@ model KnowledgeAsset {
 model LivingBookConversation {
   id                  String                    @id @default(cuid())
   requesterOwnerId    String
+  targetOwnerId       String?
   livingBookId        String
   status              String                    @default("pending")
   createdAt           DateTime                  @default(now())
@@ -439,6 +471,7 @@ model LivingBookConversation {
   assetGrants         LivingBookAssetGrant[]
 
   @@index([requesterOwnerId, updatedAt])
+  @@index([targetOwnerId, status, updatedAt])
   @@index([livingBookId, status])
 }
 

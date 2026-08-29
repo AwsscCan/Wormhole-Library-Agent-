@@ -1,7 +1,7 @@
 import type { TopicLibraryResult } from "./types";
 
 export interface SourceTransparentCatalogPort {
-  searchTopic(input: { query: string; limit?: number }): Promise<TopicLibraryResult>;
+  searchTopic(input: { query: string; limit?: number; ownerId?: string }): Promise<TopicLibraryResult>;
 }
 
 const ports = globalThis as unknown as { __package02SourceCatalogPort?: SourceTransparentCatalogPort };
@@ -11,7 +11,7 @@ export function bindPackage02SourceCatalogPort(port: SourceTransparentCatalogPor
   ports.__package02SourceCatalogPort = port;
 }
 
-export async function queryTopicLibrary(input: { query: string; limit?: number }): Promise<TopicLibraryResult> {
+export async function queryTopicLibrary(input: { query: string; limit?: number; ownerId?: string }): Promise<TopicLibraryResult> {
   const port = ports.__package02SourceCatalogPort;
   if (!port) return {
     resources: [], sourceStatus: "unavailable", degraded: true,

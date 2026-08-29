@@ -1,0 +1,5 @@
+import { NextResponse } from "next/server";
+import { guestCookieHeader } from "@/lib/auth/principal";
+import { requirePrincipal } from "@/lib/auth/requirePrincipal";
+import { CatalogSourceError, testCatalogSource } from "@/lib/catalog/sourceRepository";
+export async function POST(request: Request, context: { params: Promise<{ sourceId: string }> }) { const resolved = await requirePrincipal(request); if (!("principal" in resolved)) return resolved.response; try { const { sourceId } = await context.params; const data = await testCatalogSource(resolved.principal, sourceId); const result = NextResponse.json(data, { headers: { "Cache-Control": "private, no-store" } }); const cookie = guestCookieHeader(resolved.principal, request); if (cookie) result.headers.append("Set-Cookie", cookie); return result; } catch (error) { const status = error instanceof CatalogSourceError ? error.code === "NOT_FOUND" ? 404 : error.code === "FORBIDDEN" ? 403 : 400 : 500; return NextResponse.json({ error: { code: error instanceof CatalogSourceError ? error.code : "INTERNAL_ERROR", message: error instanceof CatalogSourceError ? error.message : "无法测试馆藏来源。" } }, { status }); } }

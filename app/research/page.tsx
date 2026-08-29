@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Map, Plus, RotateCcw } from "lucide-react";
+import { BookOpen, Map, Plus, RotateCcw, Sparkles, ArrowRight } from "lucide-react";
 import type { ResearchSession } from "@/lib/research/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,18 +14,41 @@ export default function ResearchPage() {
   const [writingTopic, setWritingTopic] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [daily, setDaily] = useState<{ sessionId: string; recommendations: Array<{ id: string; title: string; provenance: { sourceLabel: string }; explanation: { relationship: string }; sourceUrl?: string }>; source: { degraded: boolean; labels: string[] }; cached?: boolean } | null>(null);
 
-  async function load() {
+  async function load(): Promise<ResearchSession[]> {
     setError(null);
     try {
       const response = await fetch("/api/research/sessions", { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.message ?? "无法读取研究会话");
       setSessions(data.sessions);
+      return data.sessions as ResearchSession[];
     } catch (cause) { setError(cause instanceof Error ? cause.message : "无法读取研究会话"); }
+    return [];
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load().then(async (loaded) => {
+      let first = loaded[0];
+      if (!first) {
+        const response = await fetch("/api/research/sessions", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ researchQuestion: "当前研究热点与跨学科知识", writingTopic: "每日推荐" }),
+        });
+        if (response.ok) {
+          first = await response.json() as ResearchSession;
+          setSessions([first]);
+        }
+      }
+      if (!first) return;
+      const recommendationResponse = await fetch(`/api/research/sessions/${encodeURIComponent(first.id)}/recommendations`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ surpriseLevel: "low", limit: 4 }),
+      });
+      if (recommendationResponse.ok) setDaily(await recommendationResponse.json());
+    }).catch(() => undefined);
+  }, []);
 
   async function create() {
     if (!question.trim()) return;
@@ -85,6 +108,19 @@ export default function ResearchPage() {
           ))}
         </PanelBody>
       </Panel>
+
+      {daily && <Panel className="lg:col-span-2">
+        <PanelHeader icon={Sparkles} title="today · 今日推荐" accent="copper" right={<Link href={`/research/${encodeURIComponent(daily.sessionId)}/workbench`} className="flex items-center gap-1 text-xs text-pulse hover:underline">打开推荐工作台 <ArrowRight className="h-3.5 w-3.5" /></Link>} />
+        <PanelBody className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {daily.recommendations.map((item) => <article key={item.id} className="border border-ink-border bg-ink-raise/60 p-3">
+            <div className="font-mono text-[9px] uppercase text-copper">{item.provenance.sourceLabel}</div>
+            <h3 className="mt-1 line-clamp-2 text-sm text-ivory">{item.title}</h3>
+            <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-steel">{item.explanation.relationship}</p>
+            {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer noopener" className="mt-2 inline-block text-[11px] text-pulse hover:underline">打开来源</a>}
+          </article>)}
+          {!daily.recommendations.length && <p className="text-xs text-steel">今天还没有匹配结果。进入工作台后可以调整发散度重新探索。</p>}
+        </PanelBody>
+      </Panel>}
     </div>
   );
 }

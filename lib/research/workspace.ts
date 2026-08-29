@@ -7,7 +7,7 @@ import type { TopicLibraryResult } from "./types";
 
 type WorkspaceDependencies = {
   search(input: SearchRequest): Promise<SearchResponse>;
-  library(input: { query: string; limit?: number }): Promise<TopicLibraryResult>;
+  library(input: { query: string; limit?: number; ownerId?: string }): Promise<TopicLibraryResult>;
 };
 
 export class ResearchWorkspace {
@@ -43,7 +43,7 @@ export class ResearchWorkspace {
 
     if (input.action === "library") {
       let result: TopicLibraryResult;
-      try { result = await this.deps.library({ query: input.topic, limit: 12 }); }
+      try { result = await this.deps.library({ query: input.topic, limit: 12, ownerId }); }
       catch (error) { throw new ResearchError("SOURCE_FAILURE", error instanceof Error ? error.message : "Catalog source unavailable"); }
       if (result.resources.length > 0) {
         const concepts = [...new Map(result.resources.flatMap((resource) => resource.concepts).map((concept) => [concept.id, concept])).values()];

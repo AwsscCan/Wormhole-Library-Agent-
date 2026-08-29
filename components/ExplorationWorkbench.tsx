@@ -49,6 +49,21 @@ export function ExplorationWorkbench({ initialState, initialView = "reading", fo
     document.getElementById(focusedNoteId)?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [focusedNoteId]);
 
+  useEffect(() => {
+    if (recommendations.length > 0 || initialState.dailyRecommendation) {
+      const cached = initialState.dailyRecommendation;
+      if (cached) {
+        setRecommendations(cached.recommendations);
+        setSource(cached.source);
+        setMemory(cached.memory);
+      }
+      return;
+    }
+    void generate();
+    // The first visit is the daily-recommendation entry point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialState.sessionId]);
+
   function change(patch: Partial<WorkbenchState>) { setState((current) => ({ ...current, ...patch })); setDirty(true); }
   function changePlan(patch: Partial<WorkbenchState["readingPlan"]>) {
     change({ readingPlan: { ...state.readingPlan, ...patch } });

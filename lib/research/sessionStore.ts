@@ -139,6 +139,19 @@ export class ResearchSessionService {
   async recordLibrarySearch(ownerId: string, id: string, search: SessionSearch) { return this.mutate(ownerId, id, (session) => ({ ...session, searches: [...session.searches.filter((item) => item.interactionId !== search.interactionId), search].slice(-20), updatedAt: this.deps.now() })); }
   async addEvidence(ownerId: string, id: string, resourceId: string) { return this.mutate(ownerId, id, (session) => ({ ...session, evidenceIds: [...new Set([...session.evidenceIds, resourceId])], updatedAt: this.deps.now() })); }
   async recordWormholes(ownerId: string, id: string, wormholes: SessionWormhole[]) { return this.mutate(ownerId, id, (session) => ({ ...session, wormholes, updatedAt: this.deps.now() })); }
+  async recordActivity(ownerId: string, id: string, input: { kind: "upload" | "writing"; title: string; resourceId?: string }) {
+    const title = input.title.trim().slice(0, 300);
+    if (!title) return this.get(ownerId, id);
+    const concepts = [...new Set(title.toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => word.length > 1))].slice(0, 8)
+      .map((word) => ({ id: `activity:${word}`, name: word, domain: input.kind === "upload" ? "private-material" : "writing" }));
+    const interactionId = `${input.kind}-${this.deps.id("activity")}`;
+    const resourceId = input.resourceId ?? `${input.kind}:${encodeURIComponent(title)}`;
+    return this.mutate(ownerId, id, (session) => ({ ...session,
+      interactionIds: [...new Set([...session.interactionIds, interactionId])],
+      searches: [...session.searches, { interactionId, query: title, at: this.deps.now(), concepts, resources: [{ id: resourceId, title, concepts, sourceLabel: input.kind === "upload" ? "私有知识库" : "写作产物" }] }].slice(-20),
+      updatedAt: this.deps.now(),
+    }));
+  }
   private async mutate(ownerId: string, id: string, update: (session: ResearchSession) => ResearchSession) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const session = await this.get(ownerId, id); const next = update(session);

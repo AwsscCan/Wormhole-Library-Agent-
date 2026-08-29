@@ -42,6 +42,7 @@ const providerFields = {
 export const createProviderSchema = z.object(providerFields).strict();
 export const updateProviderSchema = z.object({ name: providerFields.name.optional(), baseUrl: providerFields.baseUrl.optional(), model: providerFields.model.optional(), wireApi: providerFields.wireApi.optional(), apiKey: providerFields.apiKey }).strict().refine((value) => Object.keys(value).length > 0, "At least one provider field must be provided");
 export const createModelPresetSchema = z.object({ name: z.string().min(1).max(120), providerId: z.string().min(1), model: z.string().min(1).max(200), temperature: z.number().min(0).max(2), maxTokens: z.number().int().min(1).max(200_000) }).strict();
+export const ccSwitchImportSchema = z.object({ mode: z.enum(["claude", "codex"]), selections: z.array(z.object({ providerId: z.string().min(1).max(200), modelId: z.string().min(1).max(200) }).strict()).min(1).max(100) }).strict();
 const optionalPresetId = z.string().min(1).optional();
 export const createDraftSchema = z.object({
   sessionId: z.string().min(1),
@@ -52,7 +53,18 @@ export const createDraftSchema = z.object({
   workflowPresetId: optionalPresetId,
   rolePresetId: optionalPresetId,
   userDefaultPresetId: optionalPresetId,
+  assetIds: z.array(z.string().min(1)).max(20).default([]),
+  options: z.object({
+    language: z.enum(["zh", "en", "auto"]).default("auto"),
+    citationStyle: z.enum(["evidence_marker", "apa", "gb7714"]).default("evidence_marker"),
+    tone: z.enum(["academic", "concise", "explanatory"]).default("academic"),
+    customRequirements: z.string().max(2_000).default(""),
+    enableCheckpoints: z.boolean().default(false),
+    improvementLoop: z.boolean().default(false),
+  }).default({}),
+  rerun: z.boolean().optional(),
 }).strict();
+export const saveDraftSchema = z.object({ sessionId: z.string().min(1), content: z.string().min(1).max(100_000) }).strict();
 export const candidateSchema = z.object({ sessionId: z.string().min(1), researchQuestion: z.string().min(1).max(2_000) }).strict();
 export const confirmCandidateSchema = z.object({ sessionId: z.string().min(1), evidenceId: z.string().min(1) }).strict();
 export const writingStageSchema = z.object({ sessionId: z.string().min(1), stage: z.enum(["evidence", "verified_sources", "outline", "draft", "evidence_link", "human_review", "export"]), content: z.string().max(100_000) }).strict();

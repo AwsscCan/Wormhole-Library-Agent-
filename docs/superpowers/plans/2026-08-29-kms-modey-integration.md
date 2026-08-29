@@ -111,7 +111,7 @@ Commit: `feat: use source-aware catalog for search and writing`
 
 **Files:**
 - Create: `lib/catalog/sourceRepository.ts`, `lib/catalog/sourceValidation.ts`, `app/api/v3/catalog-sources/route.ts`, `app/api/v3/catalog-sources/[sourceId]/test/route.ts`, `components/catalog/CatalogSourceSettings.tsx`, `app/settings/catalog-sources/page.tsx`, `tests/unit/catalog-source-repository.test.ts`
-- Modify: `prisma/schema.prisma`, `prisma/migrations/<timestamp>_catalog_sources/migration.sql`, `components/TopNav.tsx`
+- Modify: `prisma/schema.prisma`, `prisma/migrations/202608290001_catalog_sources/migration.sql`, `components/TopNav.tsx`
 
 **Interfaces:**
 - Produces `CatalogSourceDto`, `createCatalogSource(principal, input)`, and `testCatalogSource(principal, id)`.
@@ -133,7 +133,7 @@ Commit: `feat: add personal and institution catalog sources`
 
 **Files:**
 - Create: `lib/knowledge/assets.ts`, `lib/knowledge/extract.ts`, `app/api/v3/knowledge-assets/route.ts`, `app/api/v3/knowledge-assets/[assetId]/route.ts`, `components/knowledge/AssetDropzone.tsx`, `components/knowledge/KnowledgeAssetPicker.tsx`, `tests/unit/knowledge-assets.test.ts`
-- Modify: `prisma/schema.prisma`, migration, package dependencies, `components/TopNav.tsx`
+- Modify: `prisma/schema.prisma`, `prisma/migrations/202608290002_knowledge_assets/migration.sql`, package dependencies, `components/TopNav.tsx`
 
 **Interfaces:**
 - Produces `createKnowledgeAsset(principal, file, { retention })` and `listKnowledgeAssets(principal, query)`.
@@ -155,7 +155,7 @@ Commit: `feat: add retained knowledge assets and safe upload`
 
 **Files:**
 - Create: `lib/workflows/templates.ts`, `lib/workflows/repository.ts`, `lib/workflows/service.ts`, `app/api/v3/workflows/route.ts`, `app/api/v3/workflows/[runId]/route.ts`, `components/workflows/WorkflowWorkbench.tsx`, `components/workflows/WorkflowSetup.tsx`, `components/workflows/WorkflowStages.tsx`, `tests/unit/workflow-service.test.ts`
-- Modify: `prisma/schema.prisma`, migration, `app/writing/page.tsx`, `app/review/page.tsx`, `app/api/review/route.ts`
+- Modify: `prisma/schema.prisma`, `prisma/migrations/202608290003_workflow_runs/migration.sql`, `app/writing/page.tsx`, `app/review/page.tsx`, `app/api/review/route.ts`
 
 **Interfaces:**
 - Produces `createWorkflowRun`, `advanceWorkflowStep`, `resolveCheckpoint`, and `rerunWorkflowStep`.
@@ -221,7 +221,7 @@ Commit: `feat: project knowledge activity into maps`
 
 **Files:**
 - Create: `lib/preferences/theme.ts`, `components/settings/ThemeSettings.tsx`, `tests/unit/theme-preferences.test.ts`
-- Modify: `prisma/schema.prisma`, migration, `components/settings/ProviderSettings.tsx`, `app/settings/providers/page.tsx`, `app/memory/page.tsx`, search cards, map components, `app/globals.css`, `components/TopNav.tsx`
+- Modify: `prisma/schema.prisma`, `prisma/migrations/202608290004_preferences/migration.sql`, `components/settings/ProviderSettings.tsx`, `app/settings/providers/page.tsx`, `app/memory/page.tsx`, search cards, map components, `app/globals.css`, `components/TopNav.tsx`
 
 **Interfaces:**
 - Produces `getThemePreference(ownerId)` and `setThemePreference(ownerId, themeId)`.
@@ -245,7 +245,7 @@ Commit: `feat: expose memory and persisted themes`
 
 **Files:**
 - Create: `lib/livingLibrary/conversations.ts`, `app/api/v3/living-book/conversations/route.ts`, `app/api/v3/living-book/conversations/[conversationId]/messages/route.ts`, `components/living-library/ConversationPanel.tsx`, `tests/unit/living-book-conversations.test.ts`
-- Modify: `prisma/schema.prisma`, migration, `app/living-library/page.tsx`, contact-request routes, knowledge asset access service
+- Modify: `prisma/schema.prisma`, `prisma/migrations/202608290005_living_book_conversations/migration.sql`, `app/living-library/page.tsx`, contact-request routes, knowledge asset access service
 
 **Interfaces:**
 - Produces `createConversation`, `sendConversationMessage`, `shareConversationResource`, `grantConversationAsset`, and `revokeConversationAsset`.

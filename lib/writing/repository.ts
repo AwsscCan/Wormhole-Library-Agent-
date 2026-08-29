@@ -134,6 +134,26 @@ export async function resumeDraftArtifact(ownerId: string, sessionId: string): P
   return { markdown: artifact.content, checkpoint };
 }
 
+export async function updateDraftArtifact(ownerId: string, sessionId: string, content: string): Promise<WritingCheckpoint> {
+  const value = content.trim();
+  if (!value) throw new WritingStateError("Draft content cannot be empty");
+  return getPrisma().$transaction(async (transaction) => {
+    const checkpoint = await transaction.writingCheckpoint.findFirst({ where: { ownerId, sessionId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+    if (!checkpoint || !["draft", "evidence_link", "human_review", "export"].includes(checkpoint.stage)) throw new WritingStateError("There is no editable draft for this session");
+    const artifact = await transaction.writingArtifact.findFirst({ where: { id: checkpoint.artifactId, ownerId, sessionId, stage: "draft" } });
+    if (!artifact) throw new WritingStateError("Draft artifact is unavailable");
+    await transaction.writingArtifact.update({ where: { id: artifact.id }, data: { content: value, contentHash: createHash("sha256").update(value).digest("hex") } });
+    return checkpointDto(checkpoint);
+  });
+}
+
+export async function resetWritingRun(ownerId: string, sessionId: string): Promise<void> {
+  await getPrisma().$transaction(async (transaction) => {
+    await transaction.writingCheckpoint.deleteMany({ where: { ownerId, sessionId } });
+    await transaction.writingArtifact.deleteMany({ where: { ownerId, sessionId } });
+  });
+}
+
 function checkpointDto(checkpoint: {
   id: string;
   ownerId: string;
@@ -206,6 +226,15 @@ export async function resumeWritingTemplate(ownerId: string, sessionId: string):
     // Legacy runs stored a bare evidence-id array and are section drafts.
     return "evidence_section";
   }
+}
+
+export async function resumeWritingMetadata(ownerId: string, sessionId: string): Promise<{ assetIds: string[]; options?: Record<string, unknown> }> {
+  const artifact = await getPrisma().writingArtifact.findFirst({ where: { ownerId, sessionId, stage: "evidence" }, orderBy: { createdAt: "asc" } });
+  if (!artifact?.content) return { assetIds: [] };
+  try {
+    const parsed = JSON.parse(artifact.content) as { assetIds?: unknown; options?: unknown };
+    return { assetIds: Array.isArray(parsed.assetIds) ? parsed.assetIds.filter((id): id is string => typeof id === "string") : [], options: parsed.options && typeof parsed.options === "object" ? parsed.options as Record<string, unknown> : undefined };
+  } catch { return { assetIds: [] }; }
 }
 
 export async function advanceDraftArtifactStage(

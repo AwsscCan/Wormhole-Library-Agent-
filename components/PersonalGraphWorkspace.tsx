@@ -13,12 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type GraphData = { label: string; kind: SystemGraphNodeKind; note?: string; pinned: boolean; resourceId?: string; recommendationProjection?: true; searchFrequency?: number; brightness?: number };
+type GraphData = { label: string; kind: SystemGraphNodeKind; note?: string; pinned: boolean; resourceId?: string; sourceUrl?: string; recommendationProjection?: true; searchFrequency?: number; brightness?: number; highlighted?: boolean };
 type FlowNode = Node<GraphData, "personal">;
 
 function PersonalNode({ data, selected }: NodeProps<FlowNode>) {
   const brightness = data.brightness ?? 0.6;
-  return <div style={{ opacity: 0.45 + brightness * 0.55, boxShadow: data.searchFrequency && data.searchFrequency > 1 ? `0 0 ${5 + brightness * 12}px rgba(51, 214, 226, ${0.14 + brightness * 0.25})` : undefined }} className={cn("max-w-[210px] rounded-md border bg-ink-panel px-3 py-2 shadow-hair", selected ? "border-pulse shadow-glow-cyan-sm" : "border-ink-edge", data.kind === "resource" && "border-copper/60", data.kind === "wormhole" && "border-rosewood/60", data.recommendationProjection && "border-dashed border-pulse/70")}>
+  return <div style={{ opacity: data.highlighted === false ? 0.22 : 0.45 + brightness * 0.55, boxShadow: data.searchFrequency && data.searchFrequency > 1 ? `0 0 ${5 + brightness * 12}px rgba(51, 214, 226, ${0.14 + brightness * 0.25})` : undefined }} className={cn("max-w-[210px] rounded-md border bg-ink-panel px-3 py-2 shadow-hair", selected ? "border-pulse shadow-glow-cyan-sm" : "border-ink-edge", data.kind === "resource" && "border-copper/60", data.kind === "wormhole" && "border-rosewood/60", data.recommendationProjection && "border-dashed border-pulse/70")}>
     <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-ink !bg-pulse" />
     <div className="flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider text-steel-dim"><span>{data.recommendationProjection ? "private suggestion" : data.kind.replace("_", " ")}</span>{data.searchFrequency && data.searchFrequency > 1 && <span className="text-pulse">x{data.searchFrequency}</span>}{data.pinned && <Pin className="h-2.5 w-2.5 text-copper" />}</div>
     <div className="truncate text-xs text-ivory">{data.label}</div>
@@ -53,13 +53,44 @@ function toFlow(graph: MergedGraph, distanceScale: number) {
   return { nodes, edges };
 }
 
+function toCatalogueFlow(session: ResearchSession, query: string) {
+  const nodes: FlowNode[] = [{ id: "catalogue-topic", type: "personal", position: { x: 0, y: 0 }, data: { label: session.writingTopic ?? session.researchQuestion, kind: "topic", pinned: true } }];
+  const edges: Edge[] = [];
+  const categoryIds = new Set<string>();
+  const resources = new Map<string, { title: string; url?: string; source?: string; concepts: string[] }>();
+  session.searches.forEach((search, searchIndex) => search.resources.forEach((resource) => {
+    const concepts = resource.concepts.length ? resource.concepts.map((concept) => concept.name) : ["未分类馆藏"];
+    resources.set(resource.id, { title: resource.title, url: resource.sourceUrl, source: resource.sourceLabel, concepts });
+    concepts.forEach((concept, conceptIndex) => {
+      const categoryId = `catalogue-category:${encodeURIComponent(concept)}`;
+      if (!categoryIds.has(categoryId)) {
+        categoryIds.add(categoryId);
+        const hit = query.trim() === "" || concept.toLocaleLowerCase().includes(query.toLocaleLowerCase());
+        nodes.push({ id: categoryId, type: "personal", position: { x: Math.round(Math.cos(categoryIds.size * 1.8) * 260), y: Math.round(Math.sin(categoryIds.size * 1.8) * 260) }, data: { label: concept, kind: "concept", pinned: true, note: "馆藏类别 · 分类与主题关系", highlighted: hit || resources.get(resource.id)?.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()) } });
+        edges.push({ id: `catalogue:topic:${categoryId}`, source: "catalogue-topic", target: categoryId, label: "分类", style: { stroke: "#79C9D0", strokeWidth: 1.5 } });
+      }
+      void conceptIndex;
+    });
+    void searchIndex;
+  }));
+  [...resources.entries()].forEach(([id, resource], index) => {
+    const hit = query.trim() === "" || resource.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()) || resource.concepts.some((concept) => concept.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+    const nodeId = `catalogue-resource:${encodeURIComponent(id)}`;
+    nodes.push({ id: nodeId, type: "personal", position: { x: 520 + (index % 3) * 240, y: -180 + Math.floor(index / 3) * 180 }, data: { label: resource.title, kind: "resource", resourceId: id, sourceUrl: resource.url, pinned: true, note: resource.source ? `来源 · ${resource.source}` : "馆藏记录", highlighted: hit } });
+    resource.concepts.forEach((concept) => edges.push({ id: `catalogue:resource:${concept}:${id}`, source: `catalogue-category:${encodeURIComponent(concept)}`, target: nodeId, label: "主题关系", style: { stroke: "#D2AA70", strokeWidth: 1.4 } }));
+  });
+  return { nodes, edges };
+}
+
 export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGraphHash, focusedNodeId, focusUnavailable }: { initialSession: ResearchSession; initialGraph: MergedGraph; publicGraphHash: string; focusedNodeId?: string; focusUnavailable?: string }) {
   const router = useRouter();
   const [distanceScale, setDistanceScale] = useState(1);
+  const [mapMode, setMapMode] = useState<"personal" | "catalogue">("personal");
+  const [catalogueQuery, setCatalogueQuery] = useState("");
   const initial = useMemo(() => {
-    const flow = toFlow(initialGraph, distanceScale);
+    const flow = mapMode === "catalogue" ? toCatalogueFlow(initialSession, catalogueQuery) : toFlow(initialGraph, distanceScale);
     return { ...flow, nodes: flow.nodes.map((node) => ({ ...node, selected: node.id === focusedNodeId })) };
-  }, [distanceScale, focusedNodeId, initialGraph]);
+  }, [catalogueQuery, distanceScale, focusedNodeId, initialGraph, initialSession, mapMode]);
   const [session, setSession] = useState(initialSession);
   const [nodes, setNodes] = useState<FlowNode[]>(initial.nodes);
   const [edges, setEdges] = useState<Edge[]>(initial.edges);
@@ -75,20 +106,21 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
 
   useEffect(() => {
     if (dirty) return;
-    const flow = toFlow(initialGraph, distanceScale);
+    const flow = mapMode === "catalogue" ? toCatalogueFlow(initialSession, catalogueQuery) : toFlow(initialGraph, distanceScale);
     setNodes(flow.nodes.map((node) => ({ ...node, selected: node.id === selectedNodeId })));
     setEdges(flow.edges);
-  }, [dirty, distanceScale, initialGraph, selectedNodeId]);
+  }, [catalogueQuery, dirty, distanceScale, initialGraph, initialSession, mapMode, selectedNodeId]);
 
-  const onNodesChange = useCallback((changes: NodeChange<FlowNode>[]) => { setNodes((current) => applyNodeChanges(changes, current)); if (changes.some((change) => change.type === "position" || change.type === "remove")) setDirty(true); }, []);
-  const onEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => { setEdges((current) => applyEdgeChanges(changes, current)); if (changes.some((change) => change.type === "remove")) setDirty(true); }, []);
+  const onNodesChange = useCallback((changes: NodeChange<FlowNode>[]) => { if (mapMode === "catalogue") return; setNodes((current) => applyNodeChanges(changes, current)); if (changes.some((change) => change.type === "position" || change.type === "remove")) setDirty(true); }, [mapMode]);
+  const onEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => { if (mapMode === "catalogue") return; setEdges((current) => applyEdgeChanges(changes, current)); if (changes.some((change) => change.type === "remove")) setDirty(true); }, [mapMode]);
   const onConnect = useCallback((connection: Connection) => {
+    if (mapMode === "catalogue") return;
     setEdges((current) => addEdge({ ...connection, id: `personal:${crypto.randomUUID()}`, data: { system: false }, label: "personal note", style: { stroke: "#D9A050", strokeWidth: 2 } }, current));
     setDirty(true);
-  }, []);
+  }, [mapMode]);
 
   function updateSelected(patch: Partial<GraphData> & { hidden?: boolean }) {
-    if (!selectedNodeId) return;
+    if (!selectedNodeId || mapMode === "catalogue") return;
     setNodes((current) => current.map((node) => node.id === selectedNodeId ? {
       ...node, hidden: patch.hidden ?? node.hidden, draggable: patch.pinned === undefined ? node.draggable : !patch.pinned,
       data: { ...node.data, ...patch },
@@ -141,6 +173,8 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
 
   return <div className="grid gap-3 xl:grid-cols-[1fr_330px]">
     <div className="relative rf-cockpit h-[calc(100vh-10rem)] min-h-[560px] overflow-hidden rounded-lg border border-ink-border bg-ink-panel/60">
+      <div className="absolute right-3 top-3 z-10 flex items-center gap-1 border border-ink-border bg-ink/95 p-1"><button type="button" onClick={() => { setMapMode("personal"); setSelectedNodeId(focusedNodeId ?? "topic"); }} className={cn("px-2.5 py-1.5 text-[10px]", mapMode === "personal" ? "bg-pulse-faint text-pulse" : "text-steel")}>我的星图</button><button type="button" onClick={() => { setMapMode("catalogue"); setSelectedNodeId("catalogue-topic"); setSelectedEdgeId(null); }} className={cn("px-2.5 py-1.5 text-[10px]", mapMode === "catalogue" ? "bg-copper-faint text-copper" : "text-steel")}>馆藏总图</button></div>
+      {mapMode === "catalogue" && <div className="absolute left-3 top-10 z-10 flex items-center gap-2 border border-ink-border bg-ink/95 p-2"><Search className="h-3.5 w-3.5 text-copper" /><input value={catalogueQuery} onChange={(event) => setCatalogueQuery(event.target.value)} placeholder="点亮类别或馆藏" className="w-44 bg-transparent text-xs text-ivory outline-none" /></div>}
       <div className="absolute left-3 top-3 z-10 rounded border border-ink-border bg-ink/90 px-2 py-1 font-mono text-[9px] text-steel-dim">PUBLIC SHA-256 {publicGraphHash.slice(0, 12)}… · PRIVATE v{session.personalGraph.version}</div>
       {focusUnavailable && <div role="alert" className="absolute left-3 top-10 z-10 rounded border border-copper/40 bg-ink/95 px-3 py-2 text-xs text-copper">目标资源 {focusUnavailable} 已失效或尚未投影；请回工作台重新生成。</div>}
       <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onNodeClick={(_, node) => { setSelectedNodeId(node.id); setSelectedEdgeId(null); }} onEdgeClick={(_, edge) => { setSelectedEdgeId(edge.id); setSelectedNodeId(null); }} fitView minZoom={0.2} maxZoom={2} deleteKeyCode={null} nodesConnectable panOnDrag>
@@ -150,8 +184,8 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
     </div>
     <aside className="space-y-3">
       <div className="rounded-lg border border-ink-border bg-ink-panel p-3">
-        <div className="flex items-center justify-between"><span className="font-mono text-[10px] uppercase tracking-wider text-steel">workspace layer</span><span className={cn("text-[10px]", dirty ? "text-copper" : "text-pulse")}>{dirty ? "unsaved" : "saved"}</span></div>
-        <Button variant="solid" className="mt-3 w-full" loading={saving} disabled={!dirty} onClick={save}><Save className="h-3.5 w-3.5" />保存个人工作层</Button>
+        {mapMode === "catalogue" ? <><div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-copper"><Library className="h-3 w-3" />catalogue map</div><p className="mt-2 text-[10px] leading-relaxed text-steel-dim">类别节点连接到真实检索记录；搜索会点亮匹配类别、馆藏和关系边。</p><div className="mt-2 grid grid-cols-2 gap-1 text-[10px] text-steel"><span>青色 · 分类</span><span>铜色 · 主题/馆藏</span></div></> : <><div className="flex items-center justify-between"><span className="font-mono text-[10px] uppercase tracking-wider text-steel">workspace layer</span><span className={cn("text-[10px]", dirty ? "text-copper" : "text-pulse")}>{dirty ? "unsaved" : "saved"}</span></div>
+        <Button variant="solid" className="mt-3 w-full" loading={saving} disabled={!dirty} onClick={save}><Save className="h-3.5 w-3.5" />保存个人工作层</Button></>}
         {message && <p role="status" className="mt-2 text-xs leading-relaxed text-steel">{message}</p>}
       </div>
 
@@ -172,6 +206,7 @@ export function PersonalGraphWorkspace({ initialSession, initialGraph, publicGra
           <Button size="sm" variant="copper" loading={acting} onClick={() => act("library")}><Library className="h-3 w-3" />查看主题馆藏</Button>
           {selected.data.resourceId && <Button size="sm" className="col-span-2" loading={acting} onClick={() => act("add_evidence", selected.data.resourceId)}><Link2 className="h-3 w-3" />加入证据篮子</Button>}
           {selected.data.resourceId && <Button size="sm" className="col-span-2" onClick={() => router.push(`/research/${encodeURIComponent(session.id)}/workbench?resourceId=${encodeURIComponent(selected.data.resourceId!)}&view=evidence`)}><Link2 className="h-3 w-3" />返回工作台证据/草稿</Button>}
+          {selected.data.sourceUrl && <a href={selected.data.sourceUrl} target="_blank" rel="noreferrer noopener" className="col-span-2 flex items-center justify-center gap-1 border border-pulse/40 px-2 py-2 text-xs text-pulse hover:bg-pulse-faint/20">打开原始来源 <Link2 className="h-3 w-3" /></a>}
         </div>
         <p className="text-[10px] leading-relaxed text-steel-dim">从节点右侧连接点拖到另一节点可创建 personal_note 边。系统节点与系统边只会在你的工作层隐藏。</p>
       </div>}

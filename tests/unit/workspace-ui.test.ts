@@ -137,7 +137,7 @@ describe("workspace UI rejected-fetch recovery", () => {
   });
 
   it("recovers when deleting a Provider rejects", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json([provider])).mockResolvedValueOnce(json([])).mockRejectedValueOnce(new Error("network down")));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json([provider])).mockResolvedValueOnce(json([])).mockResolvedValueOnce(json({ source: "not-found", available: false, modes: [] })).mockRejectedValueOnce(new Error("network down")));
     const container = await render(createElement(ProviderSettings));
     await click(container, "删除");
     await settle();
@@ -145,7 +145,7 @@ describe("workspace UI rejected-fetch recovery", () => {
   });
 
   it("recovers when saving a model preset rejects", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json([provider])).mockResolvedValueOnce(json([])).mockRejectedValueOnce(new Error("network down")));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json([provider])).mockResolvedValueOnce(json([])).mockResolvedValueOnce(json({ source: "not-found", available: false, modes: [] })).mockRejectedValueOnce(new Error("network down")));
     const container = await render(createElement(ProviderSettings));
     const inputs = [...container.querySelectorAll("input")];
     await setInput(inputs[4], "Focused writing");
@@ -160,7 +160,7 @@ describe("workspace UI rejected-fetch recovery", () => {
 describe("workspace UI security behavior", () => {
   it("clears a stored provider key only after the explicit confirmed clear action", async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(json([provider])).mockResolvedValueOnce(json([]))
+      .mockResolvedValueOnce(json([provider])).mockResolvedValueOnce(json([])).mockResolvedValueOnce(json({ source: "not-found", available: false, modes: [] }))
       .mockResolvedValueOnce(json({ ...provider, hasApiKey: false }))
       .mockResolvedValueOnce(json([{ ...provider, hasApiKey: false }])).mockResolvedValueOnce(json([]));
     vi.stubGlobal("fetch", fetchMock);
@@ -169,15 +169,15 @@ describe("workspace UI security behavior", () => {
     expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("清除密钥"))).toBe(true);
     await click(container, "清除密钥");
     await settle();
-    expect(fetchMock.mock.calls[2][0]).toBe("/api/v3/providers/provider-1");
-    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "PATCH" });
-    expect(JSON.parse(String((fetchMock.mock.calls[2][1] as RequestInit).body))).toEqual({ apiKey: "" });
+    expect(fetchMock.mock.calls[3][0]).toBe("/api/v3/providers/provider-1");
+    expect(fetchMock.mock.calls[3][1]).toMatchObject({ method: "PATCH" });
+    expect(JSON.parse(String((fetchMock.mock.calls[3][1] as RequestInit).body))).toEqual({ apiKey: "" });
     expect(container.textContent).toContain("Provider 密钥已清除");
   });
 
   it("clears the provider key input after submitting it", async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(json([])).mockResolvedValueOnce(json([]))
+      .mockResolvedValueOnce(json([])).mockResolvedValueOnce(json([])).mockResolvedValueOnce(json({ source: "not-found", available: false, modes: [] }))
       .mockResolvedValueOnce(json(provider))
       .mockResolvedValueOnce(json([provider])).mockResolvedValueOnce(json([]));
     vi.stubGlobal("fetch", fetchMock);
@@ -216,7 +216,7 @@ describe("workspace UI security behavior", () => {
     await setInput(inputs[0], "Methods");
     await click(container, "运行 证据约束章节", true);
     await settle();
-    expect(container.textContent).toContain("写作证据端口尚未接入");
+    expect(container.textContent).toContain("写作模型服务尚未配置");
   });
 
   it("loads an owner model preset, submits the explicit selection, and renders the Provider result", async () => {
@@ -246,7 +246,7 @@ describe("workspace UI security behavior", () => {
       focus: "Methods",
       evidenceIds: ["e1", "e2", "e3"],
       templateId: "evidence_section",
-      stepPresetId: writingPreset.id,
+      workflowPresetId: writingPreset.id,
     });
     expect(container.textContent).toContain("Provider");
     expect(container.textContent).toContain("Provider fact");

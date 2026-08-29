@@ -14,6 +14,7 @@ export interface FederateOptions {
   openAlex?: OpenAlexFederatedOptions;
   openLibrary?: OpenLibraryAdapterOptions;
   now?: () => number;
+  ownerId?: string;
 }
 
 function seedCardToCandidate(card: ResourceCard, retrievedAt: number): DedupeCandidate {

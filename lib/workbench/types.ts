@@ -50,6 +50,19 @@ export type ExplorationRecommendation = ExplorationCandidate & {
   mmrScore: number;
 };
 
+export type RecommendationSnapshot = {
+  date: string;
+  surpriseLevel: SurpriseLevel;
+  recommendations: ExplorationRecommendation[];
+  source: { status: string; degraded: boolean; message?: string; labels: string[] };
+  memory: {
+    status: string;
+    snippets: Array<{ id?: string; sourceId: string; text?: string }>;
+    preferences: Array<{ id: string; key?: string; value?: unknown }>;
+    message?: string;
+  };
+};
+
 export type UserLayerEdge = { id: string; source: string; target: string; label: string; note?: string };
 export type UserViewState = {
   nodePositions: Record<string, GraphPosition>;
@@ -101,6 +114,7 @@ export type WorkbenchState = {
   resourceStates: Record<string, { status: "queued" | "reading" | "complete"; tags: string[]; note?: string }>;
   resourceProjections: Record<string, WorkbenchResourceProjection>;
   evidenceGraph: EvidenceGraph;
+  dailyRecommendation?: RecommendationSnapshot;
   recoveryWarning?: "CORRUPT_WORKBENCH";
   createdAt: string;
   updatedAt: string;

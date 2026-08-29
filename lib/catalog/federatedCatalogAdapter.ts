@@ -26,7 +26,7 @@ export const federatedCatalogAdapter: CatalogAdapter = {
     }
 
     const result = await searchCatalogGateway(
-      { query: input.query, limit: Math.max(input.limit ?? 10, 12) },
+      { query: input.query, limit: Math.max(input.limit ?? 10, 12), ownerId: input.userId },
       {
         includeOpenAlex: !disabled("OPENALEX_DISABLED"),
         includeOpenLibrary: !disabled("OPENLIBRARY_DISABLED"),

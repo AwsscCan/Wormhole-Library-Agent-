@@ -245,6 +245,11 @@ describe("Task 4 Prisma migration", () => {
         "202608250001_research_workspace",
         "202608250002_exploration_workbench",
         "202608280001_package04_memory",
+        "202608290002_knowledge_assets",
+        "202608290005_living_book_conversations",
+        "202608290006_catalog_sources",
+        "202608290007_living_book_profiles",
+        "202608290008_living_book_conversation_targets",
       ]);
       expect(tableNames(database)).toEqual(expect.arrayContaining(["Note", "ProviderConfig", "WritingArtifact", "MemorySnapshot"]));
     } finally {
@@ -279,6 +284,11 @@ describe("Task 4 Prisma migration", () => {
         "202608250001_research_workspace",
         "202608250002_exploration_workbench",
         "202608280001_package04_memory",
+        "202608290002_knowledge_assets",
+        "202608290005_living_book_conversations",
+        "202608290006_catalog_sources",
+        "202608290007_living_book_profiles",
+        "202608290008_living_book_conversation_targets",
       ]);
       expect(tableNames(database)).toEqual(expect.arrayContaining(["ProviderConfig", "WritingCheckpoint", "ProviderConnectionRateLimit", "MemorySnapshot"]));
     } finally {

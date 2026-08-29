@@ -13,10 +13,12 @@ import { LivingBookCard } from "@/components/LivingBookCard";
 import { ConversationPanel } from "@/components/living-library/ConversationPanel";
 import livingBooksSeed from "@/data/seed-living-books.json";
 import { AI_LIVING_BOOK_ID } from "@/lib/livingLibrary/constants";
+import type { DiscoverableLivingProfile, WorkspaceLivingProfile } from "@/lib/livingLibrary/profile";
 
 const DEMO_USER = "demo-user";
 const MY_TOPICS = ["AI Agent", "信息检索", "知识管理", "多智能体", "认知心理学"];
 const AI_BOOK: LivingBookCardData = { id: AI_LIVING_BOOK_ID, displayMode: "named", displayName: "Wormhole AI 馆员", headline: "演示用 AI 活馆藏：一定会接受文字答疑，并明确标识为自动回复。", expertiseConcepts: [{ id: "ai_agent", name: "AI Agent" }, { id: "information_retrieval", name: "信息检索" }, { id: "writing", name: "研究写作" }], willingTypes: ["async_answer"], expertiseLevel: "mentor", contactState: "accepted" };
+function profileCard(profile: DiscoverableLivingProfile): LivingBookCardData { return { id: profile.id, displayMode: profile.displayMode, displayName: undefined, headline: "匿名研究者活馆藏：可按公开主题交流。", expertiseConcepts: (profile.topics.length ? profile.topics : ["待补充主题"]).map((name) => ({ id: name.toLowerCase().replace(/\s+/g, "_"), name })), willingTypes: profile.willingTypes as LivingBookCardData["willingTypes"], expertiseLevel: "peer", contactState: "request_required" }; }
 
 export default function LivingLibraryPage() {
   const [optIn, setOptIn] = useState(false);
@@ -24,10 +26,15 @@ export default function LivingLibraryPage() {
   const [selectedBook, setSelectedBook] = useState<LivingBookCardData | null>(null);
   const [myTopics, setMyTopics] = useState<string[]>(["知识管理"]);
   const [myWilling, setMyWilling] = useState<string[]>(["async_answer"]);
+  const [profileSaving, setProfileSaving] = useState(false);
 
   useEffect(() => {
-    // 骨架期直接读 seed 中 consent 允许的数据（与 fallback engine 同一 consent 规则）
-    const visible = livingBooksSeed.livingBooks
+    const load = async () => {
+      const response = await fetch("/api/v3/living-book/profile", { cache: "no-store" });
+      const payload = response.ok ? await response.json() as WorkspaceLivingProfile & { discoverable?: DiscoverableLivingProfile[] } : null;
+      const profile = payload;
+      if (profile) { setMyTopics(profile.topics); setMyWilling(profile.willingTypes); setOptIn(profile.optIn); }
+      const visible = livingBooksSeed.livingBooks
       .filter((lb) => lb.consentState.startsWith("discoverable"))
       .map((lb) => ({
         id: lb.id,
@@ -46,8 +53,25 @@ export default function LivingLibraryPage() {
         availabilityNote: lb.availabilityNote ?? undefined,
         contactState: "request_required" as const,
       }));
-    setBooks([AI_BOOK, ...visible]);
+      const own = profile?.optIn ? { id: `workspace:${profile.ownerId}`, displayMode: "anonymous" as const, headline: "我的匿名活馆藏档案：可按所选主题交流。", expertiseConcepts: (profile.topics.length ? profile.topics : ["待补充主题"]).map((name) => ({ id: name.toLowerCase().replace(/\s+/g, "_"), name })), willingTypes: profile.willingTypes as LivingBookCardData["willingTypes"], expertiseLevel: "peer" as const, contactState: "accepted" as const } : null;
+      setBooks([AI_BOOK, ...(own ? [own] : []), ...(payload?.discoverable ?? []).map(profileCard), ...visible]);
+    };
+    void load();
   }, []);
+
+  async function saveProfile(nextOptIn = optIn) {
+    setProfileSaving(true);
+    try {
+      const response = await fetch("/api/v3/living-book/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayMode: "anonymous", topics: myTopics, willingTypes: myWilling, optIn: nextOptIn }) });
+      if (!response.ok) return;
+      const profile = await response.json() as WorkspaceLivingProfile;
+      setBooks((items) => {
+        const withoutSelf = items.filter((item) => !item.id.startsWith("workspace:"));
+        const own = profile.optIn ? { id: `workspace:${profile.ownerId}`, displayMode: "anonymous" as const, headline: "我的匿名活馆藏档案：可按所选主题交流。", expertiseConcepts: (profile.topics.length ? profile.topics : ["待补充主题"]).map((name) => ({ id: name.toLowerCase().replace(/\s+/g, "_"), name })), willingTypes: profile.willingTypes as LivingBookCardData["willingTypes"], expertiseLevel: "peer" as const, contactState: "accepted" as const } : null;
+        return [withoutSelf[0], ...(own ? [own] : []), ...withoutSelf.slice(1)];
+      });
+    } finally { setProfileSaving(false); }
+  }
 
   return (
     <div className="space-y-4">
@@ -72,7 +96,8 @@ export default function LivingLibraryPage() {
             <Button
               variant={optIn ? "copper" : "ghost"}
               className="w-full"
-              onClick={() => setOptIn((v) => !v)}
+              loading={profileSaving}
+              onClick={() => { const next = !optIn; setOptIn(next); void saveProfile(next); }}
             >
               <ShieldCheck className="h-4 w-4" />
               {optIn ? "✓ 已登记（匿名模式）" : "登记为活书"}
@@ -82,6 +107,7 @@ export default function LivingLibraryPage() {
               可随时暂停或注销。匿名模式下不展示姓名，只展示专长领域与可提供的帮助类型。
             </p>
             {optIn && <p className="border border-pulse/25 bg-pulse-faint/20 p-2 text-[10px] text-steel">匿名预览：{myTopics.length ? myTopics.join(" · ") : "请至少选择一个专长主题"} · {myWilling.length ? "已开放交流方式" : "尚未开放交流方式"}</p>}
+            {optIn && <button type="button" onClick={() => void saveProfile()} className="text-left text-[10px] text-pulse hover:underline">保存专长主题与交流方式</button>}
           </PanelBody>
         </Panel>
 
@@ -102,7 +128,7 @@ export default function LivingLibraryPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
               >
-                <LivingBookCard livingBook={lb} userId={DEMO_USER} onConversation={setSelectedBook} />
+                <LivingBookCard livingBook={lb} userId={DEMO_USER} isSelf={lb.id.startsWith("workspace:")} onConversation={lb.id.startsWith("workspace:") ? undefined : setSelectedBook} />
               </motion.div>
             ))}
           </PanelBody>

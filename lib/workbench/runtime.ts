@@ -96,6 +96,22 @@ export function buildRecommendationResult(
 
 export async function recommendForSession(ownerId: string, sessionId: string, options: { surpriseLevel: SurpriseLevel; limit: number }) {
   const session = await getResearchSessionService().get(ownerId, sessionId);
+  const workbenchService = getWorkbenchService();
+  const existingWorkbench = await workbenchService.get(ownerId, sessionId);
+  const today = new Date().toISOString().slice(0, 10);
+  const cached = existingWorkbench.dailyRecommendation;
+  if (cached && cached.date === today && cached.surpriseLevel === options.surpriseLevel) {
+    return {
+      sessionId,
+      candidates: cached.recommendations,
+      recommendations: cached.recommendations,
+      memory: cached.memory,
+      source: cached.source,
+      workbenchVersion: existingWorkbench.version,
+      resourceProjections: existingWorkbench.resourceProjections,
+      cached: true,
+    };
+  }
   const [catalog, memory] = await Promise.all([
     queryTopicLibrary({ query: session.researchQuestion, limit: Math.max(options.limit * 3, 30) }).catch((): TopicLibraryResult => ({
       resources: [], sourceStatus: "unavailable", degraded: true,
@@ -112,6 +128,12 @@ export async function recommendForSession(ownerId: string, sessionId: string, op
       conceptIds: resource.concepts.map((concept) => concept.id), conceptLabels: resource.concepts.map((concept) => concept.name),
       sourceLabel: resource.provenance.sourceLabel, sourceUrl: resource.sourceUrl, provenance: resource.provenance, projectedAt };
   });
-  const workbench = await getWorkbenchService().projectResources(ownerId, sessionId, projections);
-  return { ...result, workbenchVersion: workbench.version, resourceProjections: workbench.resourceProjections };
+  const workbench = await workbenchService.saveDailyRecommendation(ownerId, sessionId, {
+    date: today,
+    surpriseLevel: options.surpriseLevel,
+    recommendations: result.recommendations,
+    source: result.source,
+    memory: result.memory,
+  }, projections);
+  return { ...result, workbenchVersion: workbench.version, resourceProjections: workbench.resourceProjections, cached: false };
 }

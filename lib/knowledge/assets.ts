@@ -9,6 +9,7 @@ import { principalOwnerKey } from "@/lib/research/principal";
 
 export type AssetRetention = "temporary" | "library";
 export type KnowledgeAssetDto = { id: string; originalName: string; mimeType: string; byteSize: number; retention: AssetRetention; expiresAt?: string; extractionStatus: string; createdAt: string };
+export type KnowledgeAssetContext = { id: string; originalName: string; extractionStatus: string; extractedText?: string };
 
 const MAX_BYTES = 25 * 1024 * 1024;
 const allowedExtensions = new Set([".txt", ".md", ".csv", ".json", ".bib", ".pdf", ".docx"]);
@@ -90,4 +91,18 @@ export async function deleteKnowledgeAsset(principal: CurrentPrincipal, assetId:
   if (!asset) throw new KnowledgeAssetError("NOT_FOUND", "Knowledge asset not found");
   await getPrisma().$executeRaw(Prisma.sql`DELETE FROM "KnowledgeAsset" WHERE "id" = ${assetId} AND "ownerId" = ${ownerId}`);
   await rm(asset.storagePath, { force: true });
+}
+
+export async function getKnowledgeAssetContexts(principal: CurrentPrincipal, assetIds: string[]): Promise<KnowledgeAssetContext[]> {
+  const uniqueIds = [...new Set(assetIds)].slice(0, 20);
+  if (!uniqueIds.length) return [];
+  const ownerId = principalOwnerKey(principal);
+  const rows = await getPrisma().$queryRaw<Array<{ id: string; originalName: string; extractionStatus: string; extractedText: string | null }>>(Prisma.sql`
+    SELECT "id", "originalName", "extractionStatus", "extractedText"
+    FROM "KnowledgeAsset" WHERE "ownerId" = ${ownerId} AND "id" IN (${Prisma.join(uniqueIds)})
+      AND ("expiresAt" IS NULL OR "expiresAt" > CURRENT_TIMESTAMP)
+    ORDER BY "createdAt" ASC
+  `);
+  if (rows.length !== uniqueIds.length) throw new Error("One or more selected materials are unavailable");
+  return rows.map((row) => ({ id: row.id, originalName: row.originalName, extractionStatus: row.extractionStatus, ...(row.extractedText ? { extractedText: row.extractedText } : {}) }));
 }

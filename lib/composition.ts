@@ -1,7 +1,7 @@
 import "server-only";
 import type { CurrentPrincipal } from "@/lib/auth/principal";
 import { bindPackage01ServerPrincipal } from "@/lib/integration/package01Principal";
-import { principalOwnerKey } from "@/lib/research/principal";
+import { hasTestCurrentPrincipalPort, principalOwnerKey } from "@/lib/research/principal";
 import { getResearchSessionService } from "@/lib/research/sessionStore";
 import type { SessionResource } from "@/lib/research/types";
 import { getPrisma } from "@/lib/db/prisma";
@@ -45,7 +45,7 @@ function resourceEvidence(resource: SessionResource): EvidenceItem {
 const composition = globalThis as unknown as { __wormholeAppCompositionReady?: boolean };
 
 export async function ensureAppComposition(): Promise<void> {
-  bindPackage01ServerPrincipal();
+  if (!hasTestCurrentPrincipalPort()) bindPackage01ServerPrincipal();
   bindSourceTransparentCatalogAdapter();
   bindMemoryReadPort(defaultMemoryReadPort);
   bindPackage04MemoryReadPort(defaultMemoryReadPort);
@@ -134,9 +134,9 @@ export async function ensureAppComposition(): Promise<void> {
         return null;
       }
     },
-    async discover({ researchQuestion }) {
+    async discover({ principal, researchQuestion }) {
       const { concepts } = await extractConcepts(researchQuestion);
-      const result = await searchCatalogGateway({ query: researchQuestion, limit: 12 }, {
+      const result = await searchCatalogGateway({ query: researchQuestion, limit: 12, ownerId: ownerKey(principal) }, {
         includeOpenAlex: process.env.OPENALEX_DISABLED !== "1",
         includeOpenLibrary: process.env.OPENLIBRARY_DISABLED !== "1",
         includeSeed: true,

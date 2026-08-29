@@ -10,58 +10,51 @@
 
 @layer base {
   :root {
-    --theme-accent: #33D6E2;
-    --theme-accent-dim: #17919E;
-    --theme-accent-faint: #0E3A44;
-    --theme-warm: #D9A050;
-    --theme-warm-faint: #3A2C14;
-    --theme-bg: #0A0E16;
-    --theme-panel: #0E141F;
-    --theme-raise: #131A29;
-    --theme-border: #1C2740;
-    --theme-edge: #2A3A5C;
-    --theme-text: #EDEFF4;
-    --theme-muted: #8B98AE;
-    --theme-muted-dim: #5C6A82;
+    --theme-accent: #79C9D0;
+    --theme-accent-dim: #3C8994;
+    --theme-accent-faint: #17353B;
+    --theme-warm: #D2AA70;
+    --theme-warm-faint: #3A2D1D;
+    --theme-bg: #101418;
+    --theme-panel: #171D22;
+    --theme-raise: #202930;
+    --theme-border: #2D3A43;
+    --theme-edge: #49616C;
+    --theme-text: #F1F2EE;
+    --theme-muted: #A5B1B4;
+    --theme-muted-dim: #6D7C81;
   }
   html[data-theme="jade"] {
-    --theme-accent: #52C28A; --theme-accent-dim: #27865C; --theme-accent-faint: #123B2B;
-    --theme-warm: #D3B44A; --theme-warm-faint: #3C3515;
-    --theme-bg: #0A1512; --theme-panel: #0E201A; --theme-raise: #142A21;
-    --theme-border: #254838; --theme-edge: #35664E; --theme-text: #E9F5ED;
-    --theme-muted: #9BB7A7; --theme-muted-dim: #668473;
+    --theme-accent: #74C9C1; --theme-accent-dim: #3F918B; --theme-accent-faint: #183B3A;
+    --theme-warm: #E0B36D; --theme-warm-faint: #3C3221;
+    --theme-bg: #12191B; --theme-panel: #1A2426; --theme-raise: #243235;
+    --theme-border: #33494B; --theme-edge: #557477; --theme-text: #F1F3ED;
+    --theme-muted: #B2C0BE; --theme-muted-dim: #7D9290;
   }
   html[data-theme="crimson"] {
-    --theme-accent: #E46F5B; --theme-accent-dim: #A9463A; --theme-accent-faint: #442019;
-    --theme-warm: #D7A04A; --theme-warm-faint: #3D2B14;
-    --theme-bg: #171012; --theme-panel: #241518; --theme-raise: #301B20;
-    --theme-border: #573037; --theme-edge: #79434A; --theme-text: #FAEFEA;
-    --theme-muted: #C7A7A0; --theme-muted-dim: #92736D;
+    --theme-accent: #E38C75; --theme-accent-dim: #A35E57; --theme-accent-faint: #422827;
+    --theme-warm: #E4B86A; --theme-warm-faint: #403320;
+    --theme-bg: #171A1F; --theme-panel: #22262D; --theme-raise: #2D333A;
+    --theme-border: #46505A; --theme-edge: #6C7B82; --theme-text: #F5F2EC;
+    --theme-muted: #BDC4C5; --theme-muted-dim: #89959A;
   }
   body {
     @apply bg-ink text-ivory antialiased;
     /* 分层背景：极淡电青氛围 + 铜金氛围 + 细网格，克制不抢戏 */
-    background-image:
-      radial-gradient(1100px 700px at 85% -8%, rgba(51, 214, 226, 0.045), transparent 62%),
-      radial-gradient(900px 620px at -8% 108%, rgba(217, 160, 80, 0.035), transparent 60%),
-      linear-gradient(rgba(28, 39, 64, 0.22) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(28, 39, 64, 0.22) 1px, transparent 1px);
-    background-size: auto, auto, 44px 44px, 44px 44px;
+    background-image: linear-gradient(rgba(45, 58, 67, 0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(45, 58, 67, 0.18) 1px, transparent 1px);
+    background-size: 44px 44px;
     background-attachment: fixed;
   }
   html[data-theme]:not([data-theme="cockpit"]) body {
     background-color: var(--theme-bg) !important;
-    background-image:
-      radial-gradient(1100px 700px at 85% -8%, color-mix(in srgb, var(--theme-accent) 8%, transparent), transparent 62%),
-      radial-gradient(900px 620px at -8% 108%, color-mix(in srgb, var(--theme-warm) 6%, transparent), transparent 60%),
-      linear-gradient(color-mix(in srgb, var(--theme-border) 65%, transparent) 1px, transparent 1px),
-      linear-gradient(90deg, color-mix(in srgb, var(--theme-border) 65%, transparent) 1px, transparent 1px);
+    background-image: linear-gradient(color-mix(in srgb, var(--theme-border) 65%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--theme-border) 65%, transparent) 1px, transparent 1px);
+    background-size: 44px 44px;
   }
   /* Tailwind's static palette is used throughout the app. Map its semantic
      classes to the active theme so panels, controls and diagrams change too. */
   html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink-panel"] { background-color: var(--theme-panel) !important; }
   html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink-raise"] { background-color: var(--theme-raise) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) [class~="bg-ink"] { background-color: var(--theme-bg) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class~="bg-ink"], html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink/"] { background-color: var(--theme-bg) !important; }
   html[data-theme]:not([data-theme="cockpit"]) [class*="border-ink-border"] { border-color: var(--theme-border) !important; }
   html[data-theme]:not([data-theme="cockpit"]) [class*="border-ink-edge"] { border-color: var(--theme-edge) !important; }
   html[data-theme]:not([data-theme="cockpit"]) [class*="text-ivory"] { color: var(--theme-text) !important; }
@@ -73,6 +66,11 @@
   html[data-theme]:not([data-theme="cockpit"]) [class*="border-copper"] { border-color: var(--theme-warm) !important; }
   html[data-theme]:not([data-theme="cockpit"]) [class*="bg-pulse"] { background-color: var(--theme-accent-faint) !important; }
   html[data-theme]:not([data-theme="cockpit"]) [class*="bg-copper"] { background-color: var(--theme-warm-faint) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) input,
+  html[data-theme]:not([data-theme="cockpit"]) textarea,
+  html[data-theme]:not([data-theme="cockpit"]) select { color-scheme: dark; accent-color: var(--theme-accent); }
+  html[data-theme]:not([data-theme="cockpit"]) .rf-cockpit .react-flow__edge-path { stroke: var(--theme-edge) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) .rf-cockpit .react-flow__background pattern circle { fill: var(--theme-edge) !important; }
 
   ::selection {
     background: color-mix(in srgb, var(--theme-accent) 28%, transparent);

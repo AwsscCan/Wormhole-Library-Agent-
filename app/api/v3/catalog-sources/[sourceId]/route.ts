@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server";
+import { requirePrincipal } from "@/lib/auth/requirePrincipal";
+import { CatalogSourceError, deleteCatalogSource } from "@/lib/catalog/sourceRepository";
+export async function DELETE(request: Request, context: { params: Promise<{ sourceId: string }> }) { const resolved = await requirePrincipal(request); if (!("principal" in resolved)) return resolved.response; try { await deleteCatalogSource(resolved.principal, (await context.params).sourceId); return new NextResponse(null, { status: 204 }); } catch (error) { const status = error instanceof CatalogSourceError ? error.code === "NOT_FOUND" ? 404 : error.code === "FORBIDDEN" ? 403 : 400 : 500; return NextResponse.json({ error: { code: error instanceof CatalogSourceError ? error.code : "INTERNAL_ERROR", message: error instanceof CatalogSourceError ? error.message : "删除失败。" } }, { status }); } }

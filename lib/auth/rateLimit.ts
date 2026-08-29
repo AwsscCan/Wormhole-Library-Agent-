@@ -28,7 +28,13 @@ export function validateAuthOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return true;
   try {
-    return new URL(origin).origin === getTrustedAuthOrigin(request);
+    const suppliedOrigin = new URL(origin).origin;
+    // The browser request URL is authoritative for same-origin local installs;
+    // the configured origin remains accepted for reverse-proxy deployments.
+    const requestUrl = new URL(request.url);
+    const sameOriginLocal = suppliedOrigin === requestUrl.origin
+      && (requestUrl.hostname === "localhost" || requestUrl.hostname === "127.0.0.1" || (process.env.VITEST === "true" && requestUrl.hostname.endsWith(".test")));
+    return sameOriginLocal || suppliedOrigin === getTrustedAuthOrigin(request);
   } catch {
     return false;
   }

@@ -1,0 +1,8 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { guestCookieHeader } from "@/lib/auth/principal";
+import { requirePrincipal } from "@/lib/auth/requirePrincipal";
+import { getWorkspaceLivingProfile, listDiscoverableLivingProfiles, saveWorkspaceLivingProfile } from "@/lib/livingLibrary/profile";
+const schema = z.object({ displayMode: z.enum(["anonymous", "named"]).optional(), topics: z.array(z.string().min(1).max(100)).max(20), willingTypes: z.array(z.string().min(1).max(60)).max(10), optIn: z.boolean() }).strict();
+export async function GET(request: Request) { const resolved = await requirePrincipal(request); if (!("principal" in resolved)) return resolved.response; const profile = await getWorkspaceLivingProfile(resolved.principal); const discoverable = await listDiscoverableLivingProfiles(resolved.principal); const response = NextResponse.json({ ...profile, discoverable }, { headers: { "Cache-Control": "private, no-store" } }); const cookie = guestCookieHeader(resolved.principal, request); if (cookie) response.headers.append("Set-Cookie", cookie); return response; }
+export async function PATCH(request: Request) { const resolved = await requirePrincipal(request); if (!("principal" in resolved)) return resolved.response; const parsed = schema.safeParse(await request.json()); if (!parsed.success) return NextResponse.json({ error: { code: "BAD_REQUEST", message: "请检查档案主题和交流方式。" } }, { status: 400 }); const response = NextResponse.json(await saveWorkspaceLivingProfile(resolved.principal, parsed.data), { headers: { "Cache-Control": "private, no-store" } }); const cookie = guestCookieHeader(resolved.principal, request); if (cookie) response.headers.append("Set-Cookie", cookie); return response; }
