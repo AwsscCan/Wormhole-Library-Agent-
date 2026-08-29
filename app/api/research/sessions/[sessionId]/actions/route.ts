@@ -9,6 +9,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
     const body = nodeActionSchema.safeParse(await request.json());
     if (!body.success) return privateJson({ error: { code: "BAD_REQUEST", message: "Invalid research workspace request" } }, 400);
     const ownerId = principalOwnerKey(await requireCurrentPrincipal(request));
-    return privateJson(await getResearchWorkspace().act(ownerId, sessionId, body.data));
+    const languageCookie = request.headers.get("cookie")?.match(/(?:^|;\s*)wl_language=([^;]+)/)?.[1];
+    const language = languageCookie === "zh_first" ? "zh" : languageCookie === "en_first" ? "en" : "any";
+    return privateJson(await getResearchWorkspace().act(ownerId, sessionId, { ...body.data, language }));
   } catch (error) { return researchError(error); }
 }

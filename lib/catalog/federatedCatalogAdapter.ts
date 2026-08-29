@@ -1,4 +1,4 @@
-import type { CatalogAdapter, ResourceCard } from "@/lib/types";
+import type { CatalogAdapter } from "@/lib/types";
 import { rankResources } from "./ranking";
 import { seedCatalogAdapter } from "./seedCatalogAdapter";
 import { searchCatalogGateway } from "./gateway";
@@ -16,7 +16,9 @@ function disabled(name: string): boolean {
  */
 export const federatedCatalogAdapter: CatalogAdapter = {
   async searchCatalog(input) {
-    if (!input.query.trim()) return [];
+    // An empty query powers the offline catalog browse view. It is not sent to
+    // public providers, whose broad responses would be both costly and vague.
+    if (!input.query.trim()) return seedCatalogAdapter.searchCatalog(input);
 
     // Tests and explicitly offline installs retain deterministic local data.
     if (disabled("OPENALEX_DISABLED") && disabled("OPENLIBRARY_DISABLED")) {

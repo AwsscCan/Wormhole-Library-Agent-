@@ -22,6 +22,7 @@ export class ResearchWorkspace {
         query,
         taskType: input.taskType ?? "research",
         level: input.level,
+        language: input.language,
         sliderValue: input.sliderValue,
       });
       await this.sessions.recordSearch(ownerId, sessionId, {
@@ -31,7 +32,7 @@ export class ResearchWorkspace {
         concepts: response.concepts,
         resources: response.resources.map((resource) => ({
           id: resource.id, title: resource.title, concepts: resource.concepts,
-          sourceLabel: response.demoCatalog ? "Demo seed catalog" : "Federated catalog",
+          sourceLabel: resource.sourceLabel ?? (response.demoCatalog ? "本地种子" : "联邦馆藏"),
           sourceUrl: resource.sourceUrl,
         })),
       });

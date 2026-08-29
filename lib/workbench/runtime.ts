@@ -18,6 +18,7 @@ const intersects = (left: Set<string>, right: Set<string>) => [...left].some((va
 
 export function catalogCandidates(session: ResearchSession, catalog: TopicLibraryResult, memory: MemorySummaryResult): ExplorationCandidate[] {
   const confirmedResources = session.searches.flatMap((search) => search.resources).filter((resource) => session.evidenceIds.includes(resource.id));
+  const queryTerms = tokens([session.researchQuestion, ...session.searches.map((search) => search.query)].join(" "));
   const personalConceptNodes = Object.keys(session.personalGraph.nodeOverrides)
     .filter((id) => id.startsWith("concept:"))
     .map((nodeId) => ({ nodeId, conceptId: decodeURIComponent(nodeId.slice(8)) }));
@@ -32,7 +33,12 @@ export function catalogCandidates(session: ResearchSession, catalog: TopicLibrar
     const wormholeMatch = session.wormholes.find((wormhole) => wormhole.conceptIds.some((conceptId) => resourceConceptIds.has(conceptId)));
     const sharedContext = searchMatch?.concepts.find((concept) => resourceConceptIds.has(concept.id))?.id ?? personalMatch?.conceptId;
     const sharedWormhole = wormholeMatch?.conceptIds.find((conceptId) => resourceConceptIds.has(conceptId));
-    const direct = matchedEvidenceIds.length > 0;
+    const resourceTerms = tokens([resource.title, resource.why, ...resource.concepts.map((concept) => concept.name)].join(" "));
+    // Public providers do not always return the local concept IDs. A clear
+    // title/abstract overlap is still direct relevance, but is labelled as a
+    // text match rather than pretending there is a verified graph bridge.
+    const queryMatch = [...queryTerms].filter((term) => resourceTerms.has(term)).length >= 2;
+    const direct = matchedEvidenceIds.length > 0 || queryMatch;
     const band = direct ? "direct" as const : sharedContext ? "adjacent" as const : "distant" as const;
     const bridgeConcept = sharedEvidence ?? sharedContext ?? sharedWormhole;
     const bridgeSourceId = direct ? evidenceResource?.id ?? resource.id
@@ -42,7 +48,7 @@ export function catalogCandidates(session: ResearchSession, catalog: TopicLibrar
       kind: "shared_concept", sourceId: bridgeSourceId, targetId: resource.id,
       label: `${direct ? "Confirmed evidence" : sharedContext ? "Current session" : "Session wormhole"} shares source-supplied concept ${resource.concepts.find((concept) => concept.id === bridgeConcept)?.name ?? bridgeConcept}`,
     } : undefined;
-    const candidateText = tokens([resource.title, resource.why, ...resource.concepts.map((concept) => concept.name)].join(" "));
+    const candidateText = resourceTerms;
     const matchedSnippets = memory.snippets.filter((snippet) => intersects(candidateText, tokens(snippet.text)));
     const matchedPreferences = memory.preferences.filter((preference) => intersects(candidateText, tokens(`${preference.key} ${JSON.stringify(preference.value)}`)));
     const evidenceBoost = direct ? 0.18 : sharedContext ? 0.08 : sharedWormhole ? 0.04 : 0;
@@ -51,6 +57,7 @@ export function catalogCandidates(session: ResearchSession, catalog: TopicLibrar
     const effectiveRelevance = Math.min(1, relevance + evidenceBoost + memoryBoost);
     return {
       id: `recommend:${resource.id}`, resourceId: resource.id, title: resource.title, band,
+      ...(direct ? { directMatch: matchedEvidenceIds.length > 0 ? "evidence" as const : "query" as const } : {}),
       relevance, effectiveRelevance, evidenceBoost, memoryBoost, trust: resource.qualityScore,
       accessible: resource.availability === "available" || resource.availability === "online",
       conceptIds: resource.concepts.map((concept) => concept.id),

@@ -37,6 +37,7 @@ export const nodeActionSchema = z.object({
   resourceId: z.string().min(1).optional(),
   taskType: z.enum(["course", "project", "research", "exam", "curiosity"]).optional(),
   level: z.enum(["beginner", "undergraduate", "graduate", "research"]).optional(),
+  language: z.enum(["zh", "en", "any"]).optional(),
   sliderValue: z.number().int().min(0).max(100).optional(),
 }).strict();
 

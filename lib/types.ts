@@ -89,6 +89,9 @@ export interface ResourceCard {
   concepts: ConceptRef[];
   qualityScore: number; // 0..1
   sourceUrl?: string;
+  /** Source transparency metadata; optional to preserve the frozen v1 contract. */
+  sourceLabel?: string;
+  sourceKind?: "openalex" | "openlibrary" | "seed" | "user";
 }
 
 export interface WormholeScores {
@@ -218,6 +221,8 @@ export interface SearchRequest {
   taskType?: TaskType;
   level?: Level;
   sliderValue?: number; // 0..100
+  /** Explicit UI preference overrides inferred memory for this search only. */
+  language?: LanguagePref;
 }
 
 export interface SearchResponse {

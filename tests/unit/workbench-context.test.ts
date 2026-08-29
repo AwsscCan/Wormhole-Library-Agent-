@@ -61,4 +61,12 @@ describe("session evidence and package 04 memory in recommendation decisions", (
     expect(candidate).toMatchObject({ band: "distant", bridgeEvidence: { sourceId: "wormhole-causal", kind: "shared_concept" },
       taskValueEvidence: { sourceId: "oa:causal" }, decisionTrace: { sessionContextIds: ["wormhole-causal"] } });
   });
+
+  it("keeps real catalog results recommendable when a provider has no local concept tags", () => {
+    const untagged = { resources: [{ ...resources[0], id: "untagged", title: "Retrieval evidence calibration for language models", why: "Evaluates retrieval evidence calibration methods", concepts: [] }], sourceStatus: "live" as const, degraded: false };
+    const result = buildRecommendationResult(session([]), untagged, noMemory, { surpriseLevel: "medium", limit: 3 });
+    expect(result.candidates[0]).toMatchObject({ band: "direct", directMatch: "query" });
+    expect(result.recommendations).toHaveLength(1);
+    expect(result.recommendations[0]?.explanation.relationship).toContain("title/abstract match");
+  });
 });

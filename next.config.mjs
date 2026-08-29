@@ -7,6 +7,9 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: projectRoot,
+  // The bottom-left "N" belongs to the development server, not the product.
+  // Disable it so local demos match the shipped application surface.
+  devIndicators: false,
 };
 
 export default nextConfig;

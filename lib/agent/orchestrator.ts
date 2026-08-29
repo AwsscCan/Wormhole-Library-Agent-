@@ -153,12 +153,11 @@ export class LibraryAgentOrchestrator {
     }
     const conceptIds = concepts.map((c) => c.id);
 
-    const language =
-      memory.reading.language === "zh_first"
+    const language = req.language ?? (memory.reading.language === "zh_first"
         ? "zh"
         : memory.reading.language === "en_first"
           ? "en"
-          : "any";
+          : "any");
     const resources = await catalogAdapter.searchCatalog({
       query: req.query,
       conceptIds,

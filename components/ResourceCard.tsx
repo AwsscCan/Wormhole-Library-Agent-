@@ -78,6 +78,7 @@ export function ResourceCard({
       <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-2">
         <Badge tone={avail.tone}>{avail.label}</Badge>
         <Badge tone="steel">难度 · {DIFF_LABEL[resource.difficulty]}</Badge>
+        {resource.sourceLabel && <Badge tone={resource.sourceKind === "seed" ? "steel" : "copper"}>{resource.sourceLabel}</Badge>}
         {resource.location && (
           <Badge tone="steel" className="max-w-[220px]">
             <MapPin className="h-3 w-3 shrink-0" />

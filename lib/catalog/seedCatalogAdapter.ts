@@ -46,6 +46,8 @@ function toResourceCard(r: SeedResource, why: string): ResourceCard {
     difficulty: r.difficulty as ResourceCard["difficulty"],
     concepts: r.conceptIds.map(toConceptRef),
     qualityScore: r.qualityScore,
+    sourceLabel: "本地种子",
+    sourceKind: "seed",
   };
 }
 

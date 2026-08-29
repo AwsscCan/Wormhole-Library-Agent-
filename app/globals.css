@@ -9,9 +9,35 @@
    ============================================================ */
 
 @layer base {
-  :root { --theme-accent: #33D6E2; --theme-accent-dim: #17919E; --theme-warm: #D9A050; --theme-bg: #0A0E16; }
-  html[data-theme="jade"] { --theme-accent: #52C28A; --theme-accent-dim: #27865C; --theme-warm: #D3B44A; --theme-bg: #0A1512; }
-  html[data-theme="crimson"] { --theme-accent: #E46F5B; --theme-accent-dim: #A9463A; --theme-warm: #D7A04A; --theme-bg: #171012; }
+  :root {
+    --theme-accent: #33D6E2;
+    --theme-accent-dim: #17919E;
+    --theme-accent-faint: #0E3A44;
+    --theme-warm: #D9A050;
+    --theme-warm-faint: #3A2C14;
+    --theme-bg: #0A0E16;
+    --theme-panel: #0E141F;
+    --theme-raise: #131A29;
+    --theme-border: #1C2740;
+    --theme-edge: #2A3A5C;
+    --theme-text: #EDEFF4;
+    --theme-muted: #8B98AE;
+    --theme-muted-dim: #5C6A82;
+  }
+  html[data-theme="jade"] {
+    --theme-accent: #52C28A; --theme-accent-dim: #27865C; --theme-accent-faint: #123B2B;
+    --theme-warm: #D3B44A; --theme-warm-faint: #3C3515;
+    --theme-bg: #0A1512; --theme-panel: #0E201A; --theme-raise: #142A21;
+    --theme-border: #254838; --theme-edge: #35664E; --theme-text: #E9F5ED;
+    --theme-muted: #9BB7A7; --theme-muted-dim: #668473;
+  }
+  html[data-theme="crimson"] {
+    --theme-accent: #E46F5B; --theme-accent-dim: #A9463A; --theme-accent-faint: #442019;
+    --theme-warm: #D7A04A; --theme-warm-faint: #3D2B14;
+    --theme-bg: #171012; --theme-panel: #241518; --theme-raise: #301B20;
+    --theme-border: #573037; --theme-edge: #79434A; --theme-text: #FAEFEA;
+    --theme-muted: #C7A7A0; --theme-muted-dim: #92736D;
+  }
   body {
     @apply bg-ink text-ivory antialiased;
     /* 分层背景：极淡电青氛围 + 铜金氛围 + 细网格，克制不抢戏 */
@@ -23,14 +49,33 @@
     background-size: auto, auto, 44px 44px, 44px 44px;
     background-attachment: fixed;
   }
-  html[data-theme] body { background-color: var(--theme-bg) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) .text-pulse { color: var(--theme-accent) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) .text-copper { color: var(--theme-warm) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) .border-pulse { border-color: var(--theme-accent) !important; }
-  html[data-theme]:not([data-theme="cockpit"]) .border-copper { border-color: var(--theme-warm) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) body {
+    background-color: var(--theme-bg) !important;
+    background-image:
+      radial-gradient(1100px 700px at 85% -8%, color-mix(in srgb, var(--theme-accent) 8%, transparent), transparent 62%),
+      radial-gradient(900px 620px at -8% 108%, color-mix(in srgb, var(--theme-warm) 6%, transparent), transparent 60%),
+      linear-gradient(color-mix(in srgb, var(--theme-border) 65%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--theme-border) 65%, transparent) 1px, transparent 1px);
+  }
+  /* Tailwind's static palette is used throughout the app. Map its semantic
+     classes to the active theme so panels, controls and diagrams change too. */
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink-panel"] { background-color: var(--theme-panel) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-ink-raise"] { background-color: var(--theme-raise) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class~="bg-ink"] { background-color: var(--theme-bg) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="border-ink-border"] { border-color: var(--theme-border) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="border-ink-edge"] { border-color: var(--theme-edge) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-ivory"] { color: var(--theme-text) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-steel-dim"] { color: var(--theme-muted-dim) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-steel"] { color: var(--theme-muted) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-pulse"] { color: var(--theme-accent) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="text-copper"] { color: var(--theme-warm) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="border-pulse"] { border-color: var(--theme-accent) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="border-copper"] { border-color: var(--theme-warm) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-pulse"] { background-color: var(--theme-accent-faint) !important; }
+  html[data-theme]:not([data-theme="cockpit"]) [class*="bg-copper"] { background-color: var(--theme-warm-faint) !important; }
 
   ::selection {
-    background: rgba(51, 214, 226, 0.28);
+    background: color-mix(in srgb, var(--theme-accent) 28%, transparent);
   }
 
   ::-webkit-scrollbar {
@@ -38,15 +83,15 @@
     height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: #0a0e16;
+    background: var(--theme-bg);
   }
   ::-webkit-scrollbar-thumb {
-    background: #1c2740;
+    background: var(--theme-border);
     border-radius: 6px;
-    border: 2px solid #0a0e16;
+    border: 2px solid var(--theme-bg);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #2a3a5c;
+    background: var(--theme-edge);
   }
 }
 
@@ -61,21 +106,21 @@
     border-radius: 2px;
     background: linear-gradient(
       90deg,
-      #17919e 0%,
-      #33d6e2 55%,
-      #d9a050 85%,
+      var(--theme-accent-dim) 0%,
+      var(--theme-accent) 55%,
+      var(--theme-warm) 85%,
       #e5484d 100%
     );
-    box-shadow: 0 0 8px rgba(51, 214, 226, 0.25);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--theme-accent) 25%, transparent);
   }
   .cockpit-range::-moz-range-track {
     height: 4px;
     border-radius: 2px;
     background: linear-gradient(
       90deg,
-      #17919e 0%,
-      #33d6e2 55%,
-      #d9a050 85%,
+      var(--theme-accent-dim) 0%,
+      var(--theme-accent) 55%,
+      var(--theme-warm) 85%,
       #e5484d 100%
     );
   }
@@ -86,11 +131,11 @@
     width: 20px;
     height: 20px;
     border-radius: 5px;
-    background: #0e141f;
-    border: 1.5px solid #33d6e2;
+    background: var(--theme-panel);
+    border: 1.5px solid var(--theme-accent);
     box-shadow:
-      0 0 10px rgba(51, 214, 226, 0.5),
-      inset 0 0 4px rgba(51, 214, 226, 0.4);
+      0 0 10px color-mix(in srgb, var(--theme-accent) 50%, transparent),
+      inset 0 0 4px color-mix(in srgb, var(--theme-accent) 40%, transparent);
     transition: transform 0.12s ease;
   }
   .cockpit-range::-webkit-slider-thumb:hover {
@@ -100,9 +145,9 @@
     width: 20px;
     height: 20px;
     border-radius: 5px;
-    background: #0e141f;
-    border: 1.5px solid #33d6e2;
-    box-shadow: 0 0 10px rgba(51, 214, 226, 0.5);
+    background: var(--theme-panel);
+    border: 1.5px solid var(--theme-accent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--theme-accent) 50%, transparent);
   }
 
   /* React Flow 融入驾驶舱 */

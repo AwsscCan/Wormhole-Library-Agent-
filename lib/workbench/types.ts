@@ -15,6 +15,8 @@ export type ExplorationCandidate = {
   resourceId: string;
   title: string;
   band: CandidateBand;
+  /** Why an item qualifies for the direct band without inventing a graph edge. */
+  directMatch?: "evidence" | "query";
   relevance: number;
   trust: number;
   accessible: boolean;

@@ -53,8 +53,11 @@ export function explainCandidate(candidate: ExplorationCandidate): Recommendatio
   const contextTrace = contextTraceIds.length ? ` Session context: ${contextTraceIds.join(", ")}.` : "";
   const memoryTraceIds = [...(trace?.memorySnippetIds ?? []), ...(trace?.preferenceIds ?? [])];
   const memoryTrace = memoryTraceIds.length ? ` Memory features: ${memoryTraceIds.join(", ")}.` : " No memory feature boost.";
+  const directReason = candidate.directMatch === "query"
+    ? "a title/abstract match to the current research question"
+    : "traced session evidence";
   const relationship = candidate.band === "direct"
-    ? `Assigned to the direct band from traced session evidence with effective relevance ${(candidate.effectiveRelevance ?? candidate.relevance).toFixed(2)}.${evidenceTrace}${contextTrace}${memoryTrace}`
+    ? `Assigned to the direct band from ${directReason} with effective relevance ${(candidate.effectiveRelevance ?? candidate.relevance).toFixed(2)}.${evidenceTrace}${contextTrace}${memoryTrace}`
     : `Assigned to the ${candidate.band} band with effective relevance ${(candidate.effectiveRelevance ?? candidate.relevance).toFixed(2)}.${evidenceTrace}${contextTrace}${memoryTrace}`;
   const bridge = candidate.bridgeEvidence
     ? `Bridge (${candidate.bridgeEvidence.kind}): ${candidate.bridgeEvidence.label}.`
@@ -91,6 +94,19 @@ export function selectExplorationCandidates(
       selected.push({ ...choice.candidate, explanation: explainCandidate(choice.candidate), mmrScore: choice.score });
       pool.splice(pool.findIndex((candidate) => candidate.id === choice.candidate.id), 1);
     }
+  }
+  // A new workspace can have only direct, source-backed results. Do not leave
+  // recommendation slots empty merely because exploration bands lack a
+  // verified bridge yet; preserve MMR ordering among the eligible remainder.
+  const remainder = eligible.filter((candidate) => !selected.some((item) => item.id === candidate.id));
+  while (remainder.length && selected.length < limit) {
+    const scored = remainder.map((candidate) => ({
+      candidate,
+      score: lambda * (candidate.effectiveRelevance ?? candidate.relevance) - (1 - lambda) * noveltyPenalty(candidate, selected),
+    })).sort((a, b) => b.score - a.score || a.candidate.id.localeCompare(b.candidate.id));
+    const choice = scored[0];
+    selected.push({ ...choice.candidate, explanation: explainCandidate(choice.candidate), mmrScore: choice.score });
+    remainder.splice(remainder.findIndex((candidate) => candidate.id === choice.candidate.id), 1);
   }
   return selected;
 }
