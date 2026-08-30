@@ -114,3 +114,9 @@ export const reviewRequestSchema = z.object({
   paperIds: z.array(z.string().min(1)).min(3).max(5),
   focus: z.enum(["methods", "findings", "timeline"]).optional(),
 });
+
+/** v3.2 package 02：主题馆藏联邦查询（新路由 /api/library/topic 的请求体） */
+export const libraryTopicRequestSchema = z.object({
+  topic: z.string().min(1).max(200),
+  limit: z.number().int().min(1).max(50).optional(),
+});
