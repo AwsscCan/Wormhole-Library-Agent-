@@ -70,6 +70,8 @@ npm run dev
 
 打开 [http://localhost:3000](http://localhost:3000)。Electron 开发壳可通过 `npm run desktop` 启动；生成可分发的 Windows 安装包使用 `npm run package:desktop`。
 
+Windows 安装包首次启动时会在当前用户的应用数据目录初始化本地数据库和随机认证/加密密钥，并在端口 `3000` 被占用时自动选择可用的本机端口。模型 Provider 和需要授权的馆藏来源仍由用户在应用设置中配置。启动失败时可根据错误弹窗给出的 `desktop-server.log` 路径诊断。
+
 ## 打包 Web 应用
 
 项目包含服务端 API，因此 Web 交付物是可部署的 Next.js standalone 服务，不是只能展示静态页面的导出目录。

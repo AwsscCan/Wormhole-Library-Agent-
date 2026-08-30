@@ -1,6 +1,6 @@
 {
   "name": "wormhole-library-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "productName": "Wormhole Library Agent",
   "description": "A recoverable research workspace for federated search, knowledge maps, memory, and evidence-bound writing.",
@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "next dev",
     "desktop": "node desktop/launch.js",
-    "package:desktop": "npm run build && electron-builder --win nsis",
+    "build:desktop-icon": "node scripts/build-desktop-icon.mjs",
+    "package:desktop": "npm run build:desktop-icon && npm run build && electron-builder --win nsis",
     "build": "next build",
     "package:web": "npm run build && node scripts/package-web.mjs",
     "start": "next start",
@@ -51,6 +52,7 @@
     "jsdom": "^26.1.0",
     "postcss": "^8.4.49",
     "prisma": "^6.2.0",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
@@ -62,19 +64,57 @@
   "build": {
     "appId": "com.wormhole.libraryagent",
     "productName": "Wormhole Library Agent",
-    "directories": { "output": "dist/desktop" },
+    "directories": {
+      "output": "dist/desktop"
+    },
     "npmRebuild": false,
-    "files": ["desktop/**/*", "package.json"],
-    "extraResources": [
-      { "from": ".next/standalone", "to": "app-server" },
-      { "from": ".next/static", "to": "app-server/.next/static" },
-      { "from": "prisma", "to": "app-server/prisma", "filter": ["**/*"] }
+    "files": [
+      "desktop/**/*",
+      "package.json"
     ],
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "signAndEditExecutable": false },
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "app-server"
+      },
+      {
+        "from": ".next/static",
+        "to": "app-server/.next/static"
+      },
+      {
+        "from": "prisma",
+        "to": "app-server/prisma",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": ".next/standalone/node_modules/.prisma",
+        "to": "app-server/node_modules/.prisma",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "desktop/assets/icon.ico",
+      "signExecutable": false
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
+      "installerIcon": "desktop/assets/icon.ico",
+      "uninstallerIcon": "desktop/assets/icon.ico",
+      "installerHeaderIcon": "desktop/assets/icon.ico",
       "shortcutName": "Wormhole Library Agent"
     }
   }

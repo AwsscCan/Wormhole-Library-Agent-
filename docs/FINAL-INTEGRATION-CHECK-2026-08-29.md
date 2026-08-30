@@ -11,7 +11,7 @@
 - `app/page.tsx` 将目标驱动入口和结果区改为“AI 全量搜索 / AI 搜索总结 · 全部候选”，显示查询路径、全量候选数量、相关性初选和来源核验边界；移除“进入写作”误导入口。
 - `OpenLibraryStarMap` 支持实时分类搜索、父子星连线、递归下钻、返回上一级和书目原始链接。
 - 研究工作区“馆藏总图”复用 `OpenLibraryStarMap`；个人星图保留距离滑块、搜索频次亮度、混合记忆图层、节点/关系编辑和删除恢复。
-- Electron 增加生产 standalone 服务启动分支和 Windows NSIS 配置；桌面包不依赖目标机源码或开发服务器。
+- Electron 增加生产 standalone 服务启动分支和 Windows NSIS 配置；桌面包不依赖目标机源码或开发服务器。`0.1.1` 修复了打包后 standalone 服务无法解析 ASAR 依赖的问题，并为窗口、可执行文件、安装器和快捷方式统一使用项目图标。
 - 新增项目简介、详尽演示视频稿，并让 Web 包携带这两份材料。
 - 集成测试的 SQLite 临时数据库统一迁移到系统临时目录，并使用 Prisma 可解析的绝对 `file:` URL，避免受限环境向源码目录写测试数据库。
 
@@ -27,14 +27,14 @@
 | standalone HTTP：`/`, `/research`, `/writing`, `/settings/catalog-sources`, `/living-library`, `/auth` 全部 200 | 生产服务入口可启动并响应 | `http://localhost:3012` |
 | Open Library API HTTP 200，`Artificial intelligence` 返回 3 条作品 | 真实外部馆藏接口可访问 | `/api/v3/catalog/openlibrary/subjects` |
 | `npm run package:web` 成功 | Web 可部署包已生成，且携带项目简介和演示稿 | `dist/Wormhole-Library-Agent-Web.zip` |
-| Electron Builder NSIS 成功 | Windows 安装包已生成；未签名，发布时应由发布方签名 | `dist/desktop/Wormhole Library Agent Setup 0.1.0.exe` |
+| Electron Builder NSIS 成功 | Windows 安装包已生成；未签名，发布时应由发布方签名 | `dist/desktop/Wormhole Library Agent Setup 0.1.1.exe` |
 
 ## 交付物
 
 - 项目简介：[PROJECT-INTRODUCTION.md](PROJECT-INTRODUCTION.md)
 - 演示视频稿：[DEMO-VIDEO-SCRIPT.md](DEMO-VIDEO-SCRIPT.md)
 - Web 部署包：`dist/Wormhole-Library-Agent-Web.zip`
-- Windows 安装包：`dist/desktop/Wormhole Library Agent Setup 0.1.0.exe`
+- Windows 安装包：`dist/desktop/Wormhole Library Agent Setup 0.1.1.exe`
 - Web 部署说明：[WEB-DEPLOYMENT.md](WEB-DEPLOYMENT.md)
 - 发布门禁：[DEPLOYMENT-GATES.md](DEPLOYMENT-GATES.md)
 

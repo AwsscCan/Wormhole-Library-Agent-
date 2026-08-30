@@ -37,8 +37,11 @@ checkout or a local Node.js installation on the target machine.
 npm run package:desktop
 ```
 
-The installer is written to `dist/desktop/`. The first launch starts the local
-server on port 3000; set `WORMHOLE_PORT` before launching when that port is
-already occupied. The desktop package still needs the same database and model
-provider configuration as the Web deployment. Do not publish a package with
-development secrets embedded in it.
+The installer is written to `dist/desktop/`. On first launch the desktop app
+copies its template database into the current user's application-data directory
+and creates local authentication/encryption secrets there. It uses port 3000
+when available and otherwise selects another loopback port. Set `WORMHOLE_PORT`
+before launching only when a fixed port is required. Model providers and lawful
+catalogue credentials remain user-configured settings and are never embedded in
+the installer. Startup diagnostics are written to `desktop-server.log` under
+the application's user-data directory.
