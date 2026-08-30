@@ -26,3 +26,7 @@ upgrade-*.db
 coverage/
 .tmp/
 .npm-cache/
+
+# local integration and audit workspaces
+.worktrees/
+.audit-*/

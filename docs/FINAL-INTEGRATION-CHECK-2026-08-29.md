@@ -28,6 +28,9 @@
 | Open Library API HTTP 200，`Artificial intelligence` 返回 3 条作品 | 真实外部馆藏接口可访问 | `/api/v3/catalog/openlibrary/subjects` |
 | `npm run package:web` 成功 | Web 可部署包已生成，且携带项目简介和演示稿 | `dist/Wormhole-Library-Agent-Web.zip` |
 | Electron Builder NSIS 成功 | Windows 安装包已生成；未签名，发布时应由发布方签名 | `dist/desktop/Wormhole Library Agent Setup 0.1.1.exe` |
+| D 盘覆盖安装后首页、设置页、身份、Provider、笔记接口全部 HTTP 200 | 安装版能从自带 standalone 服务和首次初始化的本地数据库完成真实启动 | `D:/wormho/Wormhole Library Agent/` |
+| 安装版 EXE 与构建产物 SHA-256 一致，版本信息为 `0.1.1` / `Wormhole Library Agent` | 安装未损坏，产品元数据不再显示 Electron | `D:/wormho/Wormhole Library Agent/Wormhole Library Agent.exe` |
+| EXE、NSIS 安装器、卸载图标和快捷方式均核验为项目图标 | Windows 交付物不再使用默认 Electron 图标 | `desktop/assets/icon.ico` |
 
 ## 交付物
 
@@ -35,12 +38,13 @@
 - 演示视频稿：[DEMO-VIDEO-SCRIPT.md](DEMO-VIDEO-SCRIPT.md)
 - Web 部署包：`dist/Wormhole-Library-Agent-Web.zip`
 - Windows 安装包：`dist/desktop/Wormhole Library Agent Setup 0.1.1.exe`
+- 已验证安装目录：`D:/wormho/Wormhole Library Agent/`
 - Web 部署说明：[WEB-DEPLOYMENT.md](WEB-DEPLOYMENT.md)
 - 发布门禁：[DEPLOYMENT-GATES.md](DEPLOYMENT-GATES.md)
 
-## 仍需发布方完成的事项
+## 发布与运行注意事项
 
-- GitHub 远程地址已经配置为 `https://github.com/AwsscCan/Wormhole-Library-Agent-.git`，本地改造已完成；是否公开可见和最终推送需要仓库维护者的 GitHub 权限，本轮没有擅自推送。
+- GitHub 仓库 `https://github.com/AwsscCan/Wormhole-Library-Agent-` 可匿名访问；`codex/final-integration` 是公开默认分支，`main` 已同步到同一发布提交。
 - Windows 安装器当前未签名，Windows SmartScreen 可能提示未知发布者；正式分发前使用组织证书签名。
 - 生产环境必须配置独立的认证、写作加密密钥、数据库和反向代理，不得使用 `.env.example` 占位值。
 - 高校 SSO、校园网/IP 白名单、订阅数据库和付费全文只在用户或机构已授权的前提下接入；应用不会绕过这些边界。

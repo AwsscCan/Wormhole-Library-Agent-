@@ -6,6 +6,10 @@
   "description": "A recoverable research workspace for federated search, knowledge maps, memory, and evidence-bound writing.",
   "author": "Wormhole Library Agent contributors",
   "main": "desktop/main.js",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "desktop": "node desktop/launch.js",

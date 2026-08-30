@@ -4,6 +4,130 @@ Command failures and integration errors.
 
 ---
 
+## [ERR-20260830-004] multi-file-patch-partial-application
+
+**Logged**: 2026-08-30T15:20:00+08:00
+**Priority**: low
+**Status**: resolved
+**Area**: docs
+
+### Summary
+A multi-file release-document patch reported a context failure after applying earlier file sections.
+
+### Error
+```text
+Failed to find expected lines in README.md
+```
+
+### Context
+- README, package metadata, and ignore rules were updated before a later context block failed.
+- The affected files were re-read before continuing; no intended edit was duplicated.
+
+### Suggested Fix
+Use small, file-scoped patches when repositories contain mixed line endings, then inspect each diff immediately.
+
+### Metadata
+- Reproducible: unknown
+- Related Files: README.md, package.json, package-lock.json, .gitignore
+- Pattern-Key: tooling.apply-patch-partial
+- Recurrence-Count: 1
+
+---
+
+## [ERR-20260830-001] packaged-desktop-server-module-resolution
+
+**Logged**: 2026-08-30T13:50:00+08:00
+**Priority**: critical
+**Status**: resolved
+**Area**: infra
+
+### Summary
+The installed desktop application closed during startup because its external standalone server could not resolve production dependencies stored inside `app.asar`.
+
+### Error
+```text
+Error: Cannot find module 'next'
+Require stack:
+- <installation>/resources/app-server/server.js
+```
+
+### Context
+- Electron Builder placed packaged dependencies in `resources/app.asar/node_modules` while the standalone server entry remained in `resources/app-server`.
+- The launcher discarded server output, so double-clicking the application gave no visible diagnosis.
+- The installed executable and unpacked build had matching hashes; installation corruption was ruled out.
+
+### Suggested Fix
+Pass the ASAR module directory through `NODE_PATH`, persist desktop runtime state under Electron user data, capture server logs, and show a startup error dialog when readiness fails.
+
+### Metadata
+- Reproducible: yes
+- Related Files: desktop/main.js, tests/unit/desktop-package.test.ts, docs/WEB-DEPLOYMENT.md
+- Pattern-Key: desktop.packaged-module-resolution
+- Recurrence-Count: 1
+
+---
+
+## [ERR-20260830-002] powershell-validation-pipeline
+
+**Logged**: 2026-08-30T14:02:00+08:00
+**Priority**: low
+**Status**: resolved
+**Area**: tests
+
+### Summary
+A desktop HTTP validation command failed to parse because a `foreach` statement was piped directly to `Format-Table`.
+
+### Error
+```text
+ParserError: An empty pipe element is not allowed.
+```
+
+### Context
+- The application process remained running and no source or user data was changed.
+- A second response-inspection command repeated the same invalid shell pattern.
+
+### Suggested Fix
+Collect loop output in an array before piping it to formatting cmdlets.
+
+### Metadata
+- Reproducible: yes
+- Related Files: none
+- Pattern-Key: shell.powershell-foreach-pipeline
+- Recurrence-Count: 2
+
+---
+
+## [ERR-20260830-003] packaged-prisma-generated-client
+
+**Logged**: 2026-08-30T14:04:00+08:00
+**Priority**: critical
+**Status**: resolved
+**Area**: infra
+
+### Summary
+The packaged desktop home page loaded after module-path repair, but database-backed APIs returned HTTP 500 because Prisma's generated hidden client directory was absent from the package.
+
+### Error
+```text
+Error: Cannot find module '.prisma/client/default'
+```
+
+### Context
+- Next standalone contained `node_modules/.prisma/client`, including the Windows query engine.
+- Electron Builder did not preserve that hidden generated directory through the broad standalone resource copy.
+- The failure was found by exercising identity, provider, and notes APIs after a clean packaged launch.
+
+### Suggested Fix
+Add `.next/standalone/node_modules/.prisma` as an explicit extra resource and prepend `app-server/node_modules` to `NODE_PATH`; verify the generated client and native query engine exist in `win-unpacked`.
+
+### Metadata
+- Reproducible: yes
+- Related Files: package.json, desktop/main.js, tests/unit/desktop-package.test.ts
+- Pattern-Key: desktop.packaged-prisma-client
+- Recurrence-Count: 1
+
+---
+
 ## [ERR-20260829-001] npm-install-electron-builder
 
 **Logged**: 2026-08-29T21:00:00+08:00
